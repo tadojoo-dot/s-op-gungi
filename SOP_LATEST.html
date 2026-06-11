@@ -2723,6 +2723,8 @@ let _ddSort={col:'',dir:0};
 let _ddState={skus:[],ch:'',cat:''};
 let _senSort={col:'',dir:0};
 let _senData={allSkus:[],cat:'',sensingLabel:''};
+let _psiSort={col:'',dir:0};
+let _psiState={data:[]};
 
 function _sortIcon(state,col){
   if(state.col!==col) return '<span class="si" style="font-size:10px;opacity:.35;margin-left:2px;">↕</span>';
@@ -3539,6 +3541,108 @@ function renderSensing(months){
   document.getElementById('sensingTable').innerHTML=html;
 }
 
+// ═══════════ PSI 정렬 & 소진판단 ═════════════════════════════
+const _psiSoojinCls={'정상소진 가능':'g','미소진 Risk':'r','판매계획 없음':'y'};
+const _psiSoojinLabel={'정상소진 가능':'정상소진','미소진 Risk':'미소진Risk','판매계획 없음':'판매계획없음'};
+
+function sortPsiCol(col){
+  if(_psiSort.col===col){
+    if(_psiSort.dir===1)_psiSort.dir=-1;
+    else if(_psiSort.dir===-1){_psiSort.dir=0;_psiSort.col='';}
+    else _psiSort.dir=1;
+  }else{_psiSort.col=col;_psiSort.dir=1;}
+  _renderPsiTbody();
+  _updateSortIcons('#psiWrap',_psiSort);
+}
+
+function _psiSortKey(item,col){
+  const{d,soojinStatus}=item;
+  if(col==='mat') return String(d.mat||'');
+  if(col==='name') return String(d.name||'');
+  if(col==='pkg') return d.pkg==='구강'?'구강':'건기식';
+  if(col==='type') return item.isIntegrated?'다이소 통합':item.isDaisoComponent?'다이소 원본':'일반';
+  if(col==='plant') return String(d.plant||'');
+  if(col==='avg3') return Number(d.avg3)||0;
+  if(col==='soojin') return soojinStatus||'';
+  const parts=col.split('-');
+  if(parts.length===2){
+    const moIdx=PSI_MONTHS.findIndex(m=>m.key===parts[0]);
+    if(moIdx>=0){
+      const rowOv=getPsiSimBuy()[d.mat]||{};
+      let prev=null,avgPrev=null,res=null;
+      for(let i=0;i<=moIdx;i++){
+        const m=PSI_MONTHS[i];
+        const r=calcPsiMonth(d,m,prev,rowOv[m.key]!=null?rowOv[m.key]:null);
+        prev=r.end;
+        let basisEnd=0,basisDays=null;
+        if(m.progress){basisEnd=Number(d.er)||0;basisDays=d.dr;avgPrev=basisEnd;}
+        else{const ab=avgPrev==null?r.begin:avgPrev;basisEnd=ab+r.buy-(Number(d.avg3)||0);basisDays=d.avg3>0?Math.round(basisEnd/d.avg3*30):null;avgPrev=basisEnd;}
+        if(i===moIdx) res={r,basisEnd,basisDays};
+      }
+      if(res){
+        const f=parts[1];
+        if(f==='begin') return Number(res.r.begin)||0;
+        if(f==='buy') return Number(res.r.buy)||0;
+        if(f==='plan') return Number(res.r.plan)||0;
+        if(f==='end') return Number(res.r.end)||0;
+        if(f==='days') return Number(res.r.days)||0;
+        if(f==='basisEnd') return Number(res.basisEnd)||0;
+        if(f==='basisDays') return Number(res.basisDays)||0;
+      }
+    }
+  }
+  return 0;
+}
+
+function _renderPsiTbody(){
+  const tbody=document.getElementById('psiTbody');
+  if(!tbody) return;
+  if(!_psiState.data.length){
+    tbody.innerHTML=`<tr><td colspan="36" style="text-align:center;padding:20px;color:var(--muted);">해당 조건 없음</td></tr>`;
+    return;
+  }
+  const sorted=_applySort(_psiState.data,_psiSort,_psiSortKey);
+  const overrides=getPsiSimBuy();
+  let h='';
+  sorted.forEach(item=>{
+    const{d,soojinStatus,isIntegrated,isDaisoComponent}=item;
+    const rowOv=overrides[d.mat]||{};
+    let prev=null,avgPrev=null;
+    const cells=PSI_MONTHS.map(m=>{
+      const r=calcPsiMonth(d,m,prev,rowOv[m.key]!=null?rowOv[m.key]:null);
+      prev=r.end;
+      const sig=r.sig==='red'?'sig-r':r.sig==='yellow'?'sig-y':r.sig==='excess'?'sig-x':r.sig==='green'?'sig-g':'sig-gray';
+      const endCls=r.end<0?' style="color:var(--red);font-weight:900;"':'';
+      let basisEnd,basisDays,basisSig;
+      if(m.progress){basisEnd=Number(d.er)||0;basisDays=d.dr;basisSig=d.sr||'gray';avgPrev=basisEnd;}
+      else{const ab=avgPrev==null?r.begin:avgPrev;basisEnd=ab+r.buy-(Number(d.avg3)||0);basisDays=d.avg3>0?Math.round(basisEnd/d.avg3*30):null;basisSig=d.avg3===0?'gray':getPSIStockSignal(basisDays,isIntegrated||isDaisoComponent);avgPrev=basisEnd;}
+      const bsc=basisSig==='red'?'sig-r':basisSig==='yellow'?'sig-y':basisSig==='excess'?'sig-x':basisSig==='green'?'sig-g':'sig-gray';
+      const bec=basisEnd<0?' style="color:var(--red);font-weight:900;"':' style="font-weight:800;color:var(--navy);"';
+      const exact=d.monthlyPsi?.[m.key];
+      const origBuy=exact?(Number(exact.buy)||0):Math.round((d.buy6||0)*m.buy);
+      const buyOvOn=rowOv[m.key]!=null;
+      const buyCls=buyOvOn?'psi-buy-override':origBuy===0?'psi-buy-empty':'';
+      return `<td class="r month-start">${fmtPsiInt(r.begin)}</td><td class="r"><input type="text" class="psi-buy-input${buyCls?' '+buyCls:''}" onclick="event.stopPropagation()" data-mat="${d.mat}" data-mo="${m.key}" data-orig-buy="${origBuy}" value="${r.buy.toLocaleString('ko-KR')}"></td><td class="r">${fmtPsiInt(r.plan)}</td><td class="r"${endCls}>${fmtPsiInt(r.end)}</td><td class="c"><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}</td><td class="r"${bec}>${fmtPsiInt(basisEnd)}</td><td class="c month-end"><span class="sig-dot ${bsc}"></span> ${psiDaysHtml(basisDays,basisSig)}</td>`;
+    }).join('');
+    const sCls=_psiSoojinCls[soojinStatus]||'gray';
+    const sLbl=_psiSoojinLabel[soojinStatus]||'판단필요';
+    h+=`<tr data-mat="${d.mat}" data-name="${escapeSensingText(d.name||'')}" data-ch="${escapeSensingText(d.pkg||'')}" data-qty="${d.inv||0}" data-rem="" data-ch-rem-mo="" class="clickable-row" onclick="openSkuDetailFromRow(this)">
+      <td class="l" style="font-size:11px;color:var(--muted);font-weight:800;">${d.mat||'—'}</td>
+      <td class="l"><strong>${d.name}</strong></td>
+      <td class="l" style="font-size:11px;color:var(--muted);">${d.pkg==='구강'?'구강':'건기식'}</td>
+      <td class="l" style="font-size:11px;font-weight:800;color:${isIntegrated?'#0f766e':isDaisoComponent?'#b45309':'var(--muted)'};">${isIntegrated?'다이소 통합':isDaisoComponent?'다이소 원본':'일반'}</td>
+      <td class="l" style="font-size:11px;color:var(--muted);font-weight:700;">${d.plant||''}</td>
+      <td class="r">${fmtPsiInt(d.avg3)}</td>
+      <td class="c" onclick="event.stopPropagation();openSkuDetail('${d.mat}','${escapeSensingText(d.name||'')}','${escapeSensingText(d.pkg||'')}',${d.inv||0},null,0)"><span class="tag ${sCls}" style="font-size:10px;padding:2px 6px;cursor:pointer;">${sLbl}</span></td>
+      ${cells}
+      <td class="l plan-cell" contenteditable="true" onclick="event.stopPropagation()" data-plan-key="PSI|${d.mat}" data-screen="PSI 전 품목 현황" data-bucket="${d.sp||''}" data-channel="${d.pkg||''}" data-sku="${d.mat||''}" data-name="${String(d.name||'').replace(/"/g,'&quot;')}"></td>
+    </tr>`;
+  });
+  tbody.innerHTML=h;
+  bindPlanCells(tbody);
+  bindPsiBuyInputs();
+}
+
 // ═══════════ PSI 공통 헬퍼 & 입고 시뮬레이션 ════════════════
 const PSI_MONTHS=[
   {key:'6월',buy:1.00,plan:1.00,progress:true},
@@ -3610,7 +3714,7 @@ function recalcPsiRow(mat){
   });
   const tds=tr.querySelectorAll('td');
   results.forEach(({r,basisEnd,basisDays,basisSig},mi)=>{
-    const bi=6+mi*7;
+    const bi=7+mi*7;
     const sig=r.sig==='red'?'sig-r':r.sig==='yellow'?'sig-y':r.sig==='excess'?'sig-x':r.sig==='green'?'sig-g':'sig-gray';
     const bsc=basisSig==='red'?'sig-r':basisSig==='yellow'?'sig-y':basisSig==='excess'?'sig-x':basisSig==='green'?'sig-g':'sig-gray';
     tds[bi].textContent=fmtPsiInt(r.begin);
@@ -3716,72 +3820,34 @@ function renderPSI(){
       선택한 필터 조건에 해당하는 품목이 없습니다. 품목군·다이소 구분·3평판 필터를 확인해 주세요.
     </div>`;
   }
+  const si=col=>`${_sortIcon(_psiSort,col)}`;
   h+=`<table class="psi-tbl monthly">
     <thead>
       <tr>
-        <th rowspan="3" class="l" style="min-width:86px;">자재코드</th>
-        <th rowspan="3" class="l" style="min-width:210px;">품목명</th>
-        <th rowspan="3" class="l" style="min-width:72px;">품목군</th>
-        <th rowspan="3" class="l" style="min-width:96px;">구분</th>
-        <th rowspan="3" class="l" style="min-width:110px;">플랜트</th>
-        <th rowspan="3" class="r">3평판</th>
+        <th rowspan="3" class="l" style="min-width:86px;cursor:pointer;" onclick="sortPsiCol('mat')" data-scol="mat">자재코드 ${si('mat')}</th>
+        <th rowspan="3" class="l" style="min-width:210px;cursor:pointer;" onclick="sortPsiCol('name')" data-scol="name">품목명 ${si('name')}</th>
+        <th rowspan="3" class="l" style="min-width:72px;cursor:pointer;" onclick="sortPsiCol('pkg')" data-scol="pkg">품목군 ${si('pkg')}</th>
+        <th rowspan="3" class="l" style="min-width:96px;cursor:pointer;" onclick="sortPsiCol('type')" data-scol="type">구분 ${si('type')}</th>
+        <th rowspan="3" class="l" style="min-width:110px;cursor:pointer;" onclick="sortPsiCol('plant')" data-scol="plant">플랜트 ${si('plant')}</th>
+        <th rowspan="3" class="r" style="cursor:pointer;" onclick="sortPsiCol('avg3')" data-scol="avg3">3평판 ${si('avg3')}</th>
+        <th rowspan="3" class="c plan-hd" style="min-width:74px;cursor:pointer;" onclick="sortPsiCol('soojin')" data-scol="soojin">소진판단 ${si('soojin')}</th>
         ${months.map(m=>`<th colspan="7" class="plan-hd month-group" style="text-align:center;">${m.key}</th>`).join('')}
         <th rowspan="3" class="l plan-hd" style="min-width:130px;">소진계획</th>
       </tr>
       <tr>
-        ${months.map(m=>`<th rowspan="2" class="plan-hd r month-start">기초</th><th rowspan="2" class="plan-hd r">입고</th><th rowspan="2" class="plan-hd r">판매</th><th colspan="2" class="plan-hd c">기말재고</th><th colspan="2" class="plan-hd c month-end">${m.progress?'진척율 기준':'3평판 기준'}</th>`).join('')}
+        ${months.map(m=>`<th rowspan="2" class="plan-hd r month-start" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-begin')" data-scol="${m.key}-begin">기초 ${si(m.key+'-begin')}</th><th rowspan="2" class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-buy')" data-scol="${m.key}-buy">입고 ${si(m.key+'-buy')}</th><th rowspan="2" class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-plan')" data-scol="${m.key}-plan">판매 ${si(m.key+'-plan')}</th><th colspan="2" class="plan-hd c">기말재고</th><th colspan="2" class="plan-hd c month-end">${m.progress?'진척율 기준':'3평판 기준'}</th>`).join('')}
       </tr>
       <tr>
-        ${months.map(()=>`<th class="plan-hd r">수량</th><th class="plan-hd c">재고일수</th><th class="plan-hd r">수량</th><th class="plan-hd c month-end">재고일수</th>`).join('')}
+        ${months.map(m=>`<th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-end')" data-scol="${m.key}-end">수량 ${si(m.key+'-end')}</th><th class="plan-hd c" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-days')" data-scol="${m.key}-days">재고일수 ${si(m.key+'-days')}</th><th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisEnd')" data-scol="${m.key}-basisEnd">수량 ${si(m.key+'-basisEnd')}</th><th class="plan-hd c month-end" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisDays')" data-scol="${m.key}-basisDays">재고일수 ${si(m.key+'-basisDays')}</th>`).join('')}
       </tr>
-    </thead><tbody>`;
+    </thead><tbody id="psiTbody"></tbody></table>`;
 
-  const psiSimBuyAll=getPsiSimBuy();
-  data.forEach(d=>{
-    const rowOv=psiSimBuyAll[d.mat]||{};
-    let prev=null;
-    let avgPrev=null;
-    const cells=months.map(m=>{
-      const r=calcPsiMonth(d,m,prev,rowOv[m.key]!=null?rowOv[m.key]:null);
-      prev=r.end;
-      const sig=r.sig==='red'?'sig-r':r.sig==='yellow'?'sig-y':r.sig==='excess'?'sig-x':r.sig==='green'?'sig-g':'sig-gray';
-      const endCls=r.end<0?' style="color:var(--red);font-weight:900;"':'';
-      let basisEnd,basisDays,basisSig;
-      if(m.progress){
-        basisEnd=Number(d.er)||0;
-        basisDays=d.dr;
-        basisSig=d.sr||'gray';
-        avgPrev=basisEnd;
-      }else{
-        const avgBegin=avgPrev==null?r.begin:avgPrev;
-        basisEnd=avgBegin+r.buy-(Number(d.avg3)||0);
-        basisDays=d.avg3>0?Math.round(basisEnd/d.avg3*30):null;
-        basisSig=d.avg3===0?'gray':getPSIStockSignal(basisDays,isIntegrated(d)||isDaisoComponent(d));
-        avgPrev=basisEnd;
-      }
-      const basisSigCls=basisSig==='red'?'sig-r':basisSig==='yellow'?'sig-y':basisSig==='excess'?'sig-x':basisSig==='green'?'sig-g':'sig-gray';
-      const basisEndCls=basisEnd<0?' style="color:var(--red);font-weight:900;"':' style="font-weight:800;color:var(--navy);"';
-      const _exact=d.monthlyPsi?.[m.key];
-      const _origBuy=_exact?(Number(_exact.buy)||0):Math.round((d.buy6||0)*m.buy);
-      const _buyOvOn=rowOv[m.key]!=null;
-      const _buyCls=_buyOvOn?'psi-buy-override':_origBuy===0?'psi-buy-empty':'';
-      return `<td class="r month-start">${fmtPsiInt(r.begin)}</td><td class="r"><input type="text" class="psi-buy-input${_buyCls?' '+_buyCls:''}" data-mat="${d.mat}" data-mo="${m.key}" data-orig-buy="${_origBuy}" value="${r.buy.toLocaleString('ko-KR')}"></td><td class="r">${fmtPsiInt(r.plan)}</td><td class="r"${endCls}>${fmtPsiInt(r.end)}</td><td class="c"><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}</td><td class="r"${basisEndCls}>${fmtPsiInt(basisEnd)}</td><td class="c month-end"><span class="sig-dot ${basisSigCls}"></span> ${psiDaysHtml(basisDays,basisSig)}</td>`;
-    }).join('');
-    h+=`<tr data-mat="${d.mat}">
-      <td class="l" style="font-size:11px;color:var(--muted);font-weight:800;">${d.mat||'—'}</td>
-      <td class="l"><strong>${d.name}</strong></td>
-      <td class="l" style="font-size:11px;color:var(--muted);">${d.pkg==='구강'?'구강':'건기식'}</td>
-      <td class="l" style="font-size:11px;font-weight:800;color:${isIntegrated(d)?'#0f766e':isDaisoComponent(d)?'#b45309':'var(--muted)'};">${isIntegrated(d)?'다이소 통합':isDaisoComponent(d)?'다이소 원본':'일반'}</td>
-      <td class="l" style="font-size:11px;color:var(--muted);font-weight:700;">${d.plant||''}</td>
-      <td class="r">${fmtPsiInt(d.avg3)}</td>
-      ${cells}
-      <td class="l plan-cell" contenteditable="true" onclick="event.stopPropagation()" data-plan-key="PSI|${d.mat}" data-screen="PSI 전 품목 현황" data-bucket="${d.sp||''}" data-channel="${d.pkg||''}" data-sku="${d.mat||''}" data-name="${String(d.name||'').replace(/"/g,'&quot;')}"></td>
-    </tr>`;
+  _psiState.data=data.map(d=>{
+    const soojin=computeSoojin(d.mat,d.inv,null,d.pkg,0);
+    return {d,soojinStatus:soojin.mainStatus||soojin.status,isIntegrated:isPsiIntegrated(d),isDaisoComponent:isPsiDaisoComponent(d)};
   });
-  if(!data.length) h+=`<tr><td colspan="35" style="text-align:center;padding:20px;color:var(--muted);">해당 조건 없음</td></tr>`;
-  document.getElementById('psiWrap').innerHTML=h+`</tbody></table>`;
-  bindPlanCells(document.getElementById('psiWrap'));
-  bindPsiBuyInputs();
+  document.getElementById('psiWrap').innerHTML=h;
+  _renderPsiTbody();
 }
 
 // PSI 차트
