@@ -729,7 +729,7 @@ table.base tr:last-child td{border-bottom:none;}
       <div class="sec-hdr">
         <span id="chAchieveTitle">채널별 판매달성율 (4월 실적)</span>
         <div class="no-print" style="display:flex;gap:6px;align-items:center;">
-          <select id="chAchieveMonth" onchange="renderChAchieve()" style="height:26px;border:1px solid #d7dbe7;border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;">
+          <select id="chAchieveMonth" onchange="renderChAchieve();renderHitTrend();renderHT();renderInsightTables();" style="height:26px;border:1px solid #d7dbe7;border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;">
             <option value="1월">1월</option>
             <option value="2월">2월</option>
             <option value="3월">3월</option>
@@ -1358,7 +1358,7 @@ function handleUpload(file){
       const prevPsiSheet=wb.SheetNames.find(n=>String(n).replace(/\s/g,'')==='전월PSI');
       const daisoPsiSheet=wb.SheetNames.find(n=>String(n).replace(/\s/g,'')==='다이소(PSI)');
       const daisoMasterSheet=wb.SheetNames.find(n=>String(n).replace(/\s/g,'')==='다이소마스터');
-      const hitSheet=findSheetName(wb,'적중율분석')||findSheetName(wb,'적중률분석')||findSheetName(wb,'적중');
+      const hitSheet=findSheetName(wb,'오차율 분석')||findSheetName(wb,'오차율분석')||findSheetName(wb,'적중율분석')||findSheetName(wb,'적중률분석')||findSheetName(wb,'적중');
       const actualSheet=findSheetName(wb,'당월실적');
       if(trendSheet){
         const h=parseHyunhwang(wb.Sheets[trendSheet]);
@@ -1994,26 +1994,98 @@ function classifyHitPkg(name,ch){
 }
 
 function parseHitSheet(ws){
-  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:0});
-  const data=rows.slice(4); // 5행(index 4)부터
+  const allRows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  if(allRows.length<3) return null;
+  const row0=allRows[0];
+  const row1=allRows[1];
+  // 2줄 헤더 여부: row1에 "26.N" 패턴이 있으면 새 형식
+  const hasMonthHeader=row1.some(v=>String(v||'').match(/^26\.\d{1,2}$/));
+  if(!hasMonthHeader) return _parseHitSheetLegacy(allRows);
+
+  // ─── 2줄 헤더 파싱 (오차율 분석 시트) ───────────────────
+  const maxCols=Math.max(row0.length,row1.length);
+  let matCol=-1,nameCol=-1,chCol=-1;
+  for(let i=0;i<maxCols;i++){
+    const h0=String(row0[i]||'').trim();
+    const h1=String(row1[i]||'').trim();
+    if(matCol<0&&(h0.includes('자재코드')||h1.includes('자재코드'))) matCol=i;
+    if(nameCol<0&&(h0==='품목명'||h1==='품목명'||h0==='품목'||h1==='품목')) nameCol=i;
+    if(chCol<0&&(h0.includes('채널')||h1.includes('채널'))) chCol=i;
+  }
+  if(matCol<0||chCol<0) return _parseHitSheetLegacy(allRows);
+  if(nameCol<0) nameCol=matCol+1;
+
+  const planColsByMo={},actualColsByMo={};
+  let lastTop='';
+  for(let i=0;i<maxCols;i++){
+    const top=String(row0[i]||'').trim();
+    const mo=String(row1[i]||'').trim();
+    if(top) lastTop=top;
+    const mm=mo.match(/^26\.(\d{1,2})$/);
+    if(mm){
+      const moKey=parseInt(mm[1])+'월';
+      if(lastTop.includes('계획')) planColsByMo[moKey]=i;
+      else if(lastTop.includes('실적')) actualColsByMo[moKey]=i;
+    }
+  }
+  const allMonths=Object.keys(planColsByMo);
+  if(!allMonths.length) return _parseHitSheetLegacy(allRows);
+
+  const byMonth={};
+  allRows.slice(2).forEach(row=>{
+    const mat=String(row[matCol]||'').trim();
+    if(!mat||!/^\d+$/.test(mat)) return;
+    const n=String(row[nameCol]||'');
+    const ch=String(row[chCol]||'').trim();
+    if(!ch) return;
+    allMonths.forEach(moKey=>{
+      if(!byMonth[moKey]) byMonth[moKey]=[];
+      const plan=parseNum(row[planColsByMo[moKey]]);
+      const actual=actualColsByMo[moKey]!=null?parseNum(row[actualColsByMo[moKey]]):0;
+      const diff=actual-plan;
+      const hitAcc=plan>0?Math.abs(diff)/plan*100:null;
+      byMonth[moKey].push({ch,n,plan:plan/1e6,actual:actual/1e6,hitAcc,mat,
+        pkg:classifyHitPkg(n,ch),type:diff>0?'over':diff<0?'under':'match',
+        over:Math.max(diff,0)/1e6,under:Math.min(diff,0)/1e6});
+    });
+  });
+
+  const hitAccByMo={};
+  allMonths.forEach(moKey=>{
+    const vals=(byMonth[moKey]||[]).filter(d=>d.hitAcc!=null).map(d=>d.hitAcc);
+    hitAccByMo[moKey]=vals.length?vals.reduce((s,v)=>s+v,0)/vals.length:null;
+  });
+
+  // 대표 월: 실적 있는 가장 최근 월
+  const moWithData=allMonths.filter(mo=>byMonth[mo]?.some(r=>r.actual>0));
+  const repMo=moWithData[moWithData.length-1]||allMonths[allMonths.length-1];
+  const repRows=byMonth[repMo]||[];
+  const repHitAcc=hitAccByMo[repMo];
+  const repCount=repRows.filter(d=>d.hitAcc!=null).length;
+  const over=repRows.filter(d=>(d.over||0)>0).sort((a,b)=>b.over-a.over).slice(0,10);
+  const under=repRows.filter(d=>(d.under||0)<0).sort((a,b)=>a.under-b.under).slice(0,10);
+  return{over,under,rows:repRows,byMonth,hitAccByMo,summary:{hitAcc:repHitAcc,hitCount:repCount,method:'MAPE',repMo}};
+}
+function _parseHitSheetLegacy(rows){
+  const data=rows.slice(4);
   const ch_acc={};const over=[];const under=[];const hitVals=[];const detail=[];
   data.forEach(row=>{
     const ch=row[2]; const mat=row[3]; if(!ch||!mat) return;
     const n=String(row[4]||'');
-    const plan=Number(row[5])||0;
-    const actual=Number(row[6])||0;
+    const plan=parseNum(row[5]);
+    const actual=parseNum(row[6]);
     const diff=actual-plan;
     const hitAcc=plan>0?Math.abs(diff)/plan*100:null;
     if(hitAcc!=null) hitVals.push(hitAcc);
-    detail.push({ch,n,plan:plan/1e6,actual:actual/1e6,hitAcc,mat,pkg:classifyHitPkg(n,ch)});
+    detail.push({ch,n,plan:plan/1e6,actual:actual/1e6,hitAcc,mat,pkg:classifyHitPkg(n,ch),
+      type:diff>0?'over':diff<0?'under':'match',over:Math.max(diff,0)/1e6,under:Math.min(diff,0)/1e6});
     if(!ch_acc[ch]) ch_acc[ch]={plan:0,actual:0};
-    ch_acc[ch].plan+=plan; ch_acc[ch].actual+=actual;
+    ch_acc[ch].plan+=plan;ch_acc[ch].actual+=actual;
     if(diff>0&&over.length<10) over.push({ch,n,mat,plan:plan/1e6,actual:actual/1e6,over:diff/1e6});
     if(diff<0&&under.length<10) under.push({ch,n,mat,plan:plan/1e6,actual:actual/1e6,under:diff/1e6,acc:plan>0?actual/plan*100:0});
   });
-  const ch_acc_arr=Object.entries(ch_acc).map(([ch,v])=>({ch,plan:v.plan/1e8,actual:v.actual/1e8,acc:v.plan>0?v.actual/v.plan*100:0})).sort((a,b)=>b.plan-a.plan);
   const hitAcc=hitVals.length?hitVals.reduce((s,v)=>s+v,0)/hitVals.length:null;
-  return{ch_acc:ch_acc_arr,over,under,rows:detail,summary:{hitAcc,hitCount:hitVals.length,method:'MAPE'}};
+  return{over,under,rows:detail,byMonth:{},hitAccByMo:{},summary:{hitAcc,hitCount:hitVals.length,method:'MAPE'}};
 }
 function parseActualQtySheet(ws){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:0});
@@ -4038,7 +4110,9 @@ function renderChProg(){
 let hitTrendChart=null;
 function currentHitSummary(){
   const uploaded=getHitData();
-  const hitAcc=uploaded?.summary?.hitAcc;
+  const selectedMo=document.getElementById('chAchieveMonth')?.value||'4월';
+  const moAcc=uploaded?.hitAccByMo?.[selectedMo];
+  const hitAcc=moAcc!=null?moAcc:uploaded?.summary?.hitAcc;
   const acc=hitAcc!=null&&!isNaN(hitAcc)?hitAcc:HIT_TREND_DEFAULT[HIT_TREND_DEFAULT.length-1].acc;
   return {acc,count:uploaded?.summary?.hitCount||312,method:'MAPE'};
 }
@@ -4623,7 +4697,10 @@ function getChAchieveRows(month,mode){
   return Object.values(acc).map(d=>({...d,acc:d.plan>0?d.actual/d.plan*100:0}));
 }
 function getHitAccuracyRows(){
-  const uploaded=getHitData()?.rows;
+  const hit=getHitData();
+  const selectedMo=document.getElementById('chAchieveMonth')?.value||'4월';
+  const monthRows=hit?.byMonth?.[selectedMo];
+  const uploaded=(monthRows&&monthRows.length)?monthRows:hit?.rows;
   const src=(uploaded&&uploaded.length)?uploaded:ALL_SKU;
   return src.map(d=>{
     const plan=Number(d.plan)||0;
