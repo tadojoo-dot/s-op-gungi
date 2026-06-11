@@ -4720,13 +4720,31 @@ const CH_ACHIEVE_MONTHS={
   ]
 };
 let chAchieveChart=null;
+function _getUploadedChRows(month){
+  // 업로드된 hit 데이터에서 채널별 집계 반환 (없으면 null)
+  const hitData=getHitData()?.byMonth?.[month];
+  if(!hitData||!hitData.length) return null;
+  const agg={};
+  hitData.forEach(r=>{
+    if(!r.ch) return;
+    if(!agg[r.ch]) agg[r.ch]={ch:r.ch,plan:0,actual:0};
+    agg[r.ch].plan+=Number(r.plan)||0;
+    agg[r.ch].actual+=Number(r.actual)||0;
+  });
+  const rows=Object.values(agg).map(d=>({...d,acc:d.plan>0?d.actual/d.plan*100:0}));
+  return rows.length?rows:null;
+}
 function getChAchieveRows(month,mode){
   const months=Object.keys(CH_ACHIEVE_MONTHS);
-  if(mode!=='cum') return month==='4월'?CH_ACC:CH_ACHIEVE_MONTHS[month];
-  const upto=months.slice(0,months.indexOf(month)+1);
+  if(mode!=='cum'){
+    const uploaded=_getUploadedChRows(month);
+    if(uploaded) return uploaded;
+    return month==='4월'?CH_ACC:(CH_ACHIEVE_MONTHS[month]||[]);
+  }
+  const upto=months.slice(0,months.indexOf(month)+1).filter(m=>m==='4월'||CH_ACHIEVE_MONTHS[m]);
   const acc={};
   upto.forEach(m=>{
-    const rows=m==='4월'?CH_ACC:CH_ACHIEVE_MONTHS[m];
+    const rows=m==='4월'?CH_ACC:(CH_ACHIEVE_MONTHS[m]||[]);
     rows.forEach(d=>{
       if(!acc[d.ch]) acc[d.ch]={ch:d.ch,plan:0,actual:0};
       acc[d.ch].plan+=Number(d.plan)||0;
