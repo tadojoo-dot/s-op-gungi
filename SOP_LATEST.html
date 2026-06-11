@@ -3563,7 +3563,7 @@ function calcPsiMonth(d,m,prevEnd,buyOverride){
     const buy=buyOverride!=null?buyOverride:Number(exact.buy)||0;
     const plan=Number(exact.plan)||0;
     const end=begin+buy-plan;
-    const days=buyOverride==null&&Number.isFinite(Number(exact.days))?Number(exact.days):(d.avg3>0?Math.round(end/d.avg3*30):null);
+    const days=d.avg3>0?Math.round(end/d.avg3*30):(Number.isFinite(Number(exact.days))?Number(exact.days):null);
     const sig=d.avg3===0?'gray':getPSIStockSignal(days,isDaisoRow);
     return {begin,buy,plan,end,days,sig};
   }
