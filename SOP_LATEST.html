@@ -134,8 +134,10 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .plan-cell:focus{outline:2px solid #e783a9;background:#ffe6f0!important;}
 .plan-cell:empty::before{content:'소진계획 입력';color:#c96b91;font-weight:700;}
 .plan-cell.saved{background:#fce7f0!important;}
-.psi-buy-input{width:72px;text-align:right;border:1px solid #b0c4e0;border-radius:3px;padding:1px 4px;font-size:11px;font-weight:700;background:#f0f8ff;color:var(--navy);height:21px;box-sizing:border-box;}
+.psi-buy-input{width:78px;text-align:right;border:1px solid #b0c4e0;border-radius:3px;padding:1px 4px;font-size:11px;font-weight:700;background:#f0f8ff;color:var(--navy);height:21px;box-sizing:border-box;}
 .psi-buy-input:focus{outline:2px solid #4a90e2;background:#e8f4fd;}
+.psi-buy-input.psi-buy-empty{background:#f3f4f6;color:var(--muted);border-color:#d1d5db;}
+.psi-buy-input.psi-buy-override{background:#fffbe6;color:#7c5c00;border-color:#e3b341;}
 .minutes-simple{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .quick-minutes{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;}
 .quick-minutes h3{font-size:14px;color:var(--navy);margin-bottom:8px;}
@@ -1800,7 +1802,8 @@ function getPSIStockSignal(days,isDaiso){
   }
   if(value<90) return 'red';
   if(value<120) return 'yellow';
-  return 'green';
+  if(value<=180) return 'green';
+  return 'excess';
 }
 
 function mergeDaisoIntegratedPSI(rawPsi,master,integrated){
@@ -3620,14 +3623,26 @@ function recalcPsiRow(mat){
   });
 }
 function bindPsiBuyInputs(){
-  const ov=getPsiSimBuy();
   document.querySelectorAll('#psiWrap .psi-buy-input').forEach(inp=>{
-    const mat=inp.dataset.mat,mo=inp.dataset.mo;
-    if(ov[mat]?.[mo]!=null)inp.value=ov[mat][mo];
-    inp.addEventListener('change',()=>{
-      const val=Math.max(0,Math.round(parseFloat(inp.value)||0));
-      inp.value=val;
-      setPsiSimBuyVal(mat,mo,val);
+    inp.addEventListener('focus',()=>{
+      inp.value=inp.value.replace(/,/g,'');
+      inp.select();
+    });
+    inp.addEventListener('blur',()=>{
+      const mat=inp.dataset.mat,mo=inp.dataset.mo;
+      const origBuy=Number(inp.dataset.origBuy||0);
+      const val=Math.max(0,Math.round(parseFloat(inp.value.replace(/,/g,''))||0));
+      inp.value=val.toLocaleString('ko-KR');
+      if(val!==origBuy){
+        setPsiSimBuyVal(mat,mo,val);
+        inp.classList.remove('psi-buy-empty');
+        inp.classList.add('psi-buy-override');
+      } else {
+        const d=getPsiSimBuy();
+        if(d[mat]){delete d[mat][mo];if(!Object.keys(d[mat]).length)delete d[mat];localStorage.setItem(PSI_SIM_BUY_KEY,JSON.stringify(d));}
+        inp.classList.remove('psi-buy-override');
+        inp.classList.toggle('psi-buy-empty',origBuy===0);
+      }
       recalcPsiRow(mat);
     });
   });
@@ -3746,7 +3761,11 @@ function renderPSI(){
       }
       const basisSigCls=basisSig==='red'?'sig-r':basisSig==='yellow'?'sig-y':basisSig==='excess'?'sig-x':basisSig==='green'?'sig-g':'sig-gray';
       const basisEndCls=basisEnd<0?' style="color:var(--red);font-weight:900;"':' style="font-weight:800;color:var(--navy);"';
-      return `<td class="r month-start">${fmtPsiInt(r.begin)}</td><td class="r"><input type="number" class="psi-buy-input" data-mat="${d.mat}" data-mo="${m.key}" value="${r.buy}"></td><td class="r">${fmtPsiInt(r.plan)}</td><td class="r"${endCls}>${fmtPsiInt(r.end)}</td><td class="c"><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}</td><td class="r"${basisEndCls}>${fmtPsiInt(basisEnd)}</td><td class="c month-end"><span class="sig-dot ${basisSigCls}"></span> ${psiDaysHtml(basisDays,basisSig)}</td>`;
+      const _exact=d.monthlyPsi?.[m.key];
+      const _origBuy=_exact?(Number(_exact.buy)||0):Math.round((d.buy6||0)*m.buy);
+      const _buyOvOn=rowOv[m.key]!=null;
+      const _buyCls=_buyOvOn?'psi-buy-override':_origBuy===0?'psi-buy-empty':'';
+      return `<td class="r month-start">${fmtPsiInt(r.begin)}</td><td class="r"><input type="text" class="psi-buy-input${_buyCls?' '+_buyCls:''}" data-mat="${d.mat}" data-mo="${m.key}" data-orig-buy="${_origBuy}" value="${r.buy.toLocaleString('ko-KR')}"></td><td class="r">${fmtPsiInt(r.plan)}</td><td class="r"${endCls}>${fmtPsiInt(r.end)}</td><td class="c"><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}</td><td class="r"${basisEndCls}>${fmtPsiInt(basisEnd)}</td><td class="c month-end"><span class="sig-dot ${basisSigCls}"></span> ${psiDaysHtml(basisDays,basisSig)}</td>`;
     }).join('');
     h+=`<tr data-mat="${d.mat}">
       <td class="l" style="font-size:11px;color:var(--muted);font-weight:800;">${d.mat||'—'}</td>
