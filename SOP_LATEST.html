@@ -134,6 +134,8 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .plan-cell:focus{outline:2px solid #e783a9;background:#ffe6f0!important;}
 .plan-cell:empty::before{content:'소진계획 입력';color:#c96b91;font-weight:700;}
 .plan-cell.saved{background:#fce7f0!important;}
+.psi-buy-input{width:72px;text-align:right;border:1px solid #b0c4e0;border-radius:3px;padding:1px 4px;font-size:11px;font-weight:700;background:#f0f8ff;color:var(--navy);height:21px;box-sizing:border-box;}
+.psi-buy-input:focus{outline:2px solid #4a90e2;background:#e8f4fd;}
 .minutes-simple{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .quick-minutes{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;}
 .quick-minutes h3{font-size:14px;color:var(--navy);margin-bottom:8px;}
@@ -3534,6 +3536,103 @@ function renderSensing(months){
   document.getElementById('sensingTable').innerHTML=html;
 }
 
+// ═══════════ PSI 공통 헬퍼 & 입고 시뮬레이션 ════════════════
+const PSI_MONTHS=[
+  {key:'6월',buy:1.00,plan:1.00,progress:true},
+  {key:'7월',buy:0.80,plan:1.03},
+  {key:'8월',buy:0.70,plan:1.06},
+  {key:'9월',buy:0.60,plan:1.06},
+];
+const fmtPsiInt=v=>Math.round(Number(v)||0).toLocaleString('ko-KR');
+function isPsiIntegrated(d){return Boolean(d.isDaisoIntegrated)||d.pkg==='다이소 통합';}
+function isPsiDaisoComponent(d){return Boolean(d.isDaisoComponent);}
+function psiDaysHtml(days,sig){
+  if(days==null)return `<span class="days-gray">산출불가</span>`;
+  if(days<=0)return `<span style="color:var(--red);font-weight:900;">품절!</span>`;
+  const n=fmtPsiInt(days);
+  if(sig==='red')return `<span class="days-r">${n}일</span>`;
+  if(sig==='yellow')return `<span class="days-y">${n}일</span>`;
+  if(sig==='excess')return `<span class="days-x">${n}일</span>`;
+  return `<span class="days-g">${n}일</span>`;
+}
+function calcPsiMonth(d,m,prevEnd,buyOverride){
+  const isDaisoRow=isPsiIntegrated(d)||isPsiDaisoComponent(d);
+  const exact=d.monthlyPsi?.[m.key];
+  if(exact){
+    const begin=prevEnd!=null?prevEnd:Number(exact.begin)||0;
+    const buy=buyOverride!=null?buyOverride:Number(exact.buy)||0;
+    const plan=Number(exact.plan)||0;
+    const end=begin+buy-plan;
+    const days=buyOverride==null&&Number.isFinite(Number(exact.days))?Number(exact.days):(d.avg3>0?Math.round(end/d.avg3*30):null);
+    const sig=d.avg3===0?'gray':getPSIStockSignal(days,isDaisoRow);
+    return {begin,buy,plan,end,days,sig};
+  }
+  const begin=prevEnd==null?d.inv:prevEnd;
+  const buy=buyOverride!=null?buyOverride:Math.round((d.buy6||0)*m.buy);
+  const plan=Math.round((d.plan6||0)*m.plan);
+  const end=begin+buy-plan;
+  const days=d.avg3>0?Math.round(end/d.avg3*30):null;
+  const sig=d.avg3===0?'gray':getPSIStockSignal(days,isDaisoRow);
+  return {begin,buy,plan,end,days,sig};
+}
+const PSI_SIM_BUY_KEY='sopPsiSimBuy_v1';
+function getPsiSimBuy(){try{return JSON.parse(localStorage.getItem(PSI_SIM_BUY_KEY)||'{}');}catch(e){return {};}}
+function setPsiSimBuyVal(mat,moKey,val){
+  const data=getPsiSimBuy();
+  if(!data[mat])data[mat]={};
+  data[mat][moKey]=val;
+  localStorage.setItem(PSI_SIM_BUY_KEY,JSON.stringify(data));
+}
+function recalcPsiRow(mat){
+  const tr=document.querySelector(`#psiWrap tr[data-mat="${String(mat)}"]`);
+  if(!tr)return;
+  const d=getPSIData().find(p=>String(p.mat)===String(mat));
+  if(!d)return;
+  const rowOv=getPsiSimBuy()[mat]||{};
+  let prev=null,avgPrev=null;
+  const results=PSI_MONTHS.map(m=>{
+    const r=calcPsiMonth(d,m,prev,rowOv[m.key]!=null?rowOv[m.key]:null);
+    prev=r.end;
+    let basisEnd,basisDays,basisSig;
+    if(m.progress){
+      basisEnd=Number(d.er)||0;basisDays=d.dr;basisSig=d.sr||'gray';avgPrev=basisEnd;
+    }else{
+      const avgBegin=avgPrev==null?r.begin:avgPrev;
+      basisEnd=avgBegin+r.buy-(Number(d.avg3)||0);
+      basisDays=d.avg3>0?Math.round(basisEnd/d.avg3*30):null;
+      basisSig=d.avg3===0?'gray':getPSIStockSignal(basisDays,isPsiIntegrated(d)||isPsiDaisoComponent(d));
+      avgPrev=basisEnd;
+    }
+    return {r,basisEnd,basisDays,basisSig};
+  });
+  const tds=tr.querySelectorAll('td');
+  results.forEach(({r,basisEnd,basisDays,basisSig},mi){
+    const bi=6+mi*7;
+    const sig=r.sig==='red'?'sig-r':r.sig==='yellow'?'sig-y':r.sig==='excess'?'sig-x':r.sig==='green'?'sig-g':'sig-gray';
+    const bsc=basisSig==='red'?'sig-r':basisSig==='yellow'?'sig-y':basisSig==='excess'?'sig-x':basisSig==='green'?'sig-g':'sig-gray';
+    tds[bi].textContent=fmtPsiInt(r.begin);
+    const ec=r.end<0?'color:var(--red);font-weight:900;':'';
+    tds[bi+3].setAttribute('style',ec);tds[bi+3].textContent=fmtPsiInt(r.end);
+    tds[bi+4].innerHTML=`<span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}`;
+    const bec=basisEnd<0?'color:var(--red);font-weight:900;':'font-weight:800;color:var(--navy);';
+    tds[bi+5].setAttribute('style',bec);tds[bi+5].textContent=fmtPsiInt(basisEnd);
+    tds[bi+6].innerHTML=`<span class="sig-dot ${bsc}"></span> ${psiDaysHtml(basisDays,basisSig)}`;
+  });
+}
+function bindPsiBuyInputs(){
+  const ov=getPsiSimBuy();
+  document.querySelectorAll('#psiWrap .psi-buy-input').forEach(inp=>{
+    const mat=inp.dataset.mat,mo=inp.dataset.mo;
+    if(ov[mat]?.[mo]!=null)inp.value=ov[mat][mo];
+    inp.addEventListener('change',()=>{
+      const val=Math.max(0,Math.round(parseFloat(inp.value)||0));
+      inp.value=val;
+      setPsiSimBuyVal(mat,mo,val);
+      recalcPsiRow(mat);
+    });
+  });
+}
+
 // ═══════════ PSI ════════════════════════════════════════════
 function renderPSI(){
   const fs=document.getElementById('fp')?.value||'';
@@ -3546,8 +3645,8 @@ function renderPSI(){
   const allData=getPSIData();
   const psiTableTitle=document.getElementById('psiTableTitle');
   if(psiTableTitle) psiTableTitle.textContent=`PSI 전 품목 현황 (${allData.length.toLocaleString()}개 SKU 기준)`;
-  const isIntegrated=d=>Boolean(d.isDaisoIntegrated)||d.pkg==='다이소 통합';
-  const isDaisoComponent=d=>Boolean(d.isDaisoComponent);
+  const isIntegrated=isPsiIntegrated;
+  const isDaisoComponent=isPsiDaisoComponent;
   const integratedCount=allData.filter(isIntegrated).length;
   const viewData=fdaiso==='all'?(UPLOADED?.daiso_components||[]):allData;
   const plantOptions=[...new Set(
@@ -3584,45 +3683,7 @@ function renderPSI(){
     return (order[a.sp]??3)-(order[b.sp]??3)||a.dp-b.dp;
   });
 
-  const months=[
-    {key:'6월',buy:1.00,plan:1.00,progress:true},
-    {key:'7월',buy:0.80,plan:1.03},
-    {key:'8월',buy:0.70,plan:1.06},
-    {key:'9월',buy:0.60,plan:1.06},
-  ];
-  const fmtPsiInt=value=>Math.round(Number(value)||0).toLocaleString('ko-KR');
-  function calcMonth(d, m, prevEnd){
-    const isDaisoRow=isIntegrated(d)||isDaisoComponent(d);
-    const exact=d.monthlyPsi?.[m.key];
-    if(exact){
-      const days=Number.isFinite(Number(exact.days))?Number(exact.days):null;
-      const sig=d.avg3===0?'gray':getPSIStockSignal(days,isDaisoRow);
-      return {
-        begin:Number(exact.begin)||0,
-        buy:Number(exact.buy)||0,
-        plan:Number(exact.plan)||0,
-        end:Number(exact.end)||0,
-        days,
-        sig
-      };
-    }
-    const begin=prevEnd==null?d.inv:prevEnd;
-    const buy=Math.round((d.buy6||0)*m.buy);
-    const plan=Math.round((d.plan6||0)*m.plan);
-    const end=begin+buy-plan;
-    const days=d.avg3>0?Math.round(end/d.avg3*30):null;
-    const sig=d.avg3===0?'gray':getPSIStockSignal(days,isDaisoRow);
-    return {begin,buy,plan,end,days,sig};
-  }
-  function daysHtml(days, sig){
-    if(days==null) return `<span class="days-gray">산출불가</span>`;
-    if(days<=0) return `<span style="color:var(--red);font-weight:900;">품절!</span>`;
-    const intDays=fmtPsiInt(days);
-    if(sig==='red') return `<span class="days-r">${intDays}일</span>`;
-    if(sig==='yellow') return `<span class="days-y">${intDays}일</span>`;
-    if(sig==='excess') return `<span class="days-x">${intDays}일</span>`;
-    return `<span class="days-g">${intDays}일</span>`;
-  }
+  const months=PSI_MONTHS;
 
   let h=`<div style="padding:7px 12px;background:#f7f8fb;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:700;">
     표시 ${data.length.toLocaleString()}개 / ${fdaiso==='all'?'다이소 마스터 원본':`전체 ${allData.length.toLocaleString()}개 SKU`}
@@ -3660,11 +3721,13 @@ function renderPSI(){
       </tr>
     </thead><tbody>`;
 
+  const psiSimBuyAll=getPsiSimBuy();
   data.forEach(d=>{
+    const rowOv=psiSimBuyAll[d.mat]||{};
     let prev=null;
     let avgPrev=null;
     const cells=months.map(m=>{
-      const r=calcMonth(d,m,prev);
+      const r=calcPsiMonth(d,m,prev,rowOv[m.key]!=null?rowOv[m.key]:null);
       prev=r.end;
       const sig=r.sig==='red'?'sig-r':r.sig==='yellow'?'sig-y':r.sig==='excess'?'sig-x':r.sig==='green'?'sig-g':'sig-gray';
       const endCls=r.end<0?' style="color:var(--red);font-weight:900;"':'';
@@ -3683,9 +3746,9 @@ function renderPSI(){
       }
       const basisSigCls=basisSig==='red'?'sig-r':basisSig==='yellow'?'sig-y':basisSig==='excess'?'sig-x':basisSig==='green'?'sig-g':'sig-gray';
       const basisEndCls=basisEnd<0?' style="color:var(--red);font-weight:900;"':' style="font-weight:800;color:var(--navy);"';
-      return `<td class="r month-start">${fmtPsiInt(r.begin)}</td><td class="r">${fmtPsiInt(r.buy)}</td><td class="r">${fmtPsiInt(r.plan)}</td><td class="r"${endCls}>${fmtPsiInt(r.end)}</td><td class="c"><span class="sig-dot ${sig}"></span> ${daysHtml(r.days,r.sig)}</td><td class="r"${basisEndCls}>${fmtPsiInt(basisEnd)}</td><td class="c month-end"><span class="sig-dot ${basisSigCls}"></span> ${daysHtml(basisDays,basisSig)}</td>`;
+      return `<td class="r month-start">${fmtPsiInt(r.begin)}</td><td class="r"><input type="number" class="psi-buy-input" data-mat="${d.mat}" data-mo="${m.key}" value="${r.buy}"></td><td class="r">${fmtPsiInt(r.plan)}</td><td class="r"${endCls}>${fmtPsiInt(r.end)}</td><td class="c"><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}</td><td class="r"${basisEndCls}>${fmtPsiInt(basisEnd)}</td><td class="c month-end"><span class="sig-dot ${basisSigCls}"></span> ${psiDaysHtml(basisDays,basisSig)}</td>`;
     }).join('');
-    h+=`<tr>
+    h+=`<tr data-mat="${d.mat}">
       <td class="l" style="font-size:11px;color:var(--muted);font-weight:800;">${d.mat||'—'}</td>
       <td class="l"><strong>${d.name}</strong></td>
       <td class="l" style="font-size:11px;color:var(--muted);">${d.pkg==='구강'?'구강':'건기식'}</td>
@@ -3699,6 +3762,7 @@ function renderPSI(){
   if(!data.length) h+=`<tr><td colspan="35" style="text-align:center;padding:20px;color:var(--muted);">해당 조건 없음</td></tr>`;
   document.getElementById('psiWrap').innerHTML=h+`</tbody></table>`;
   bindPlanCells(document.getElementById('psiWrap'));
+  bindPsiBuyInputs();
 }
 
 // PSI 차트
