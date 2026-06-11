@@ -718,10 +718,10 @@ table.base tr:last-child td{border-bottom:none;}
 <div class="page" id="p2">
 
   <div class="grid-4" style="margin-bottom:14px;">
-    <div class="tile"><div class="tile-label">총 매출 달성율 (4월)</div><div class="tile-val terra">101.2%</div><div class="tile-sub">계획 85.6억 → 실적 86.6억</div></div>
+    <div class="tile"><div class="tile-label" id="hitKpiLabel1">총 매출 달성율</div><div class="tile-val terra" id="hitKpiVal1">—</div><div class="tile-sub" id="hitKpiSub1">파일 업로드 후 표시</div></div>
     <div class="tile"><div class="tile-label">판매계획 오차율 (MAPE)</div><div class="tile-val green" id="hitAccKpi">50.0%</div><div class="tile-sub" id="hitAccSub">SKU-채널별 MAPE 평균</div></div>
-    <div class="tile"><div class="tile-label">계획초과 총액</div><div class="tile-val green">+22.9억</div><div class="tile-sub">쿠팡·스스 집중샷 호조</div></div>
-    <div class="tile"><div class="tile-label">계획미달 총액</div><div class="tile-val red">-22.0억</div><div class="tile-sub">직영몰 합쎈·플래티넘</div></div>
+    <div class="tile"><div class="tile-label">계획초과 총액</div><div class="tile-val green" id="hitKpiVal3">—</div><div class="tile-sub" id="hitKpiSub3">—</div></div>
+    <div class="tile"><div class="tile-label">계획미달 총액</div><div class="tile-val red" id="hitKpiVal4">—</div><div class="tile-sub" id="hitKpiSub4">—</div></div>
   </div>
 
   <div class="grid-5-5">
@@ -733,7 +733,8 @@ table.base tr:last-child td{border-bottom:none;}
             <option value="1월">1월</option>
             <option value="2월">2월</option>
             <option value="3월">3월</option>
-            <option value="4월" selected>4월</option>
+            <option value="4월">4월</option>
+            <option value="5월" selected>5월</option>
           </select>
           <select id="chAchieveMode" onchange="renderChAchieve()" style="height:26px;border:1px solid #d7dbe7;border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;">
             <option value="month" selected>월별</option>
@@ -2031,10 +2032,21 @@ function parseHitSheet(ws){
   const allMonths=Object.keys(planColsByMo);
   if(!allMonths.length) return _parseHitSheetLegacy(allRows);
 
+  // 단위 자동 감지: 샘플 plan 값으로 원/천원/백만원 구분
+  const _sampleCol=planColsByMo[allMonths[0]];
+  const _sampleVals=allRows.slice(2,102).map(r=>parseNum(r[_sampleCol])).filter(v=>v>0);
+  const _maxSample=_sampleVals.length?Math.max(..._sampleVals):0;
+  const unitDiv=_maxSample>=1e6?1e6:_maxSample>=1000?1000:1;
+  console.log('[parseHitSheet] matCol:',matCol,'chCol:',chCol,'unitDiv:',unitDiv,'maxSample:',_maxSample);
+  console.log('[parseHitSheet] planCols:',JSON.stringify(planColsByMo),'actualCols:',JSON.stringify(actualColsByMo));
+  const firstDataRow=allRows[2];
+  if(firstDataRow) console.log('[parseHitSheet] 1st row sample:',firstDataRow.slice(0,Math.min(firstDataRow.length,20)).join(' | '));
+
   const byMonth={};
   allRows.slice(2).forEach(row=>{
-    const mat=String(row[matCol]||'').trim();
-    if(!mat||!/^\d+$/.test(mat)) return;
+    const matRaw=String(row[matCol]||'').trim();
+    const mat=matRaw.replace(/\.0+$/,'');  // "10001234.0" → "10001234"
+    if(!mat||mat.length<4||!/^\d+$/.test(mat)) return;
     const n=String(row[nameCol]||'');
     const ch=String(row[chCol]||'').trim();
     if(!ch) return;
@@ -2044,9 +2056,9 @@ function parseHitSheet(ws){
       const actual=actualColsByMo[moKey]!=null?parseNum(row[actualColsByMo[moKey]]):0;
       const diff=actual-plan;
       const hitAcc=plan>0?Math.abs(diff)/plan*100:null;
-      byMonth[moKey].push({ch,n,plan:plan/1e6,actual:actual/1e6,hitAcc,mat,
+      byMonth[moKey].push({ch,n,plan:plan/unitDiv,actual:actual/unitDiv,hitAcc,mat,
         pkg:classifyHitPkg(n,ch),type:diff>0?'over':diff<0?'under':'match',
-        over:Math.max(diff,0)/1e6,under:Math.min(diff,0)/1e6});
+        over:Math.max(diff,0)/unitDiv,under:Math.min(diff,0)/unitDiv});
     });
   });
 
@@ -2055,6 +2067,8 @@ function parseHitSheet(ws){
     const vals=(byMonth[moKey]||[]).filter(d=>d.hitAcc!=null).map(d=>d.hitAcc);
     hitAccByMo[moKey]=vals.length?vals.reduce((s,v)=>s+v,0)/vals.length:null;
   });
+
+  allMonths.forEach(mo=>{const rs=byMonth[mo]||[];const wa=rs.filter(r=>r.actual>0).length;console.log(`[parseHitSheet] ${mo}: ${rs.length}행 actual>0:${wa} MAPE:${hitAccByMo[mo]?.toFixed(1)||'null'}%`);});
 
   // 대표 월: 실적 있는 가장 최근 월
   const moWithData=allMonths.filter(mo=>byMonth[mo]?.some(r=>r.actual>0));
@@ -4142,6 +4156,31 @@ function renderHitKpis(){
       delta.textContent=`▲ 목표 대비 ${diff.toFixed(1)}%p 높음`;
       delta.className='kpi-delta bad';
     }
+  }
+  // 달성율 / 초과 / 미달 KPI 타일 업데이트
+  const _selMo=document.getElementById('chAchieveMonth')?.value||'5월';
+  const _rows=getHitAccuracyRows();
+  if(_rows.length){
+    const _tPlan=_rows.reduce((s,r)=>s+(Number(r.plan)||0),0);
+    const _tAct=_rows.reduce((s,r)=>s+(Number(r.actual)||0),0);
+    const _tOver=_rows.reduce((s,r)=>s+Math.max(Number(r.over)||0,0),0);
+    const _tUnder=_rows.reduce((s,r)=>s+Math.min(Number(r.under)||0,0),0);
+    const _ach=_tPlan>0?_tAct/_tPlan*100:0;
+    const _fmt=v=>Math.abs(v)>=100?`${(Math.abs(v)/100).toFixed(1)}억`:`${Math.round(Math.abs(v))}백만`;
+    const _label1=document.getElementById('hitKpiLabel1');
+    const _val1=document.getElementById('hitKpiVal1');
+    const _sub1=document.getElementById('hitKpiSub1');
+    if(_label1) _label1.textContent=`총 매출 달성율 (${_selMo})`;
+    if(_val1){_val1.textContent=`${_ach.toFixed(1)}%`;_val1.className=`tile-val ${_ach>=100?'green':_ach>=80?'terra':'red'}`;}
+    if(_sub1) _sub1.textContent=`계획 ${_fmt(_tPlan)} → 실적 ${_fmt(_tAct)}`;
+    const _topO=_rows.filter(r=>(r.over||0)>0).sort((a,b)=>b.over-a.over)[0];
+    const _topU=_rows.filter(r=>(r.under||0)<0).sort((a,b)=>a.under-b.under)[0];
+    const _v3=document.getElementById('hitKpiVal3'),_s3=document.getElementById('hitKpiSub3');
+    if(_v3) _v3.textContent=_tOver>0?`+${_fmt(_tOver)}`:'—';
+    if(_s3) _s3.textContent=_topO?_topO.n.slice(0,16):'—';
+    const _v4=document.getElementById('hitKpiVal4'),_s4=document.getElementById('hitKpiSub4');
+    if(_v4) _v4.textContent=_tUnder<0?`-${_fmt(_tUnder)}`:'—';
+    if(_s4) _s4.textContent=_topU?_topU.n.slice(0,16):'—';
   }
 }
 function renderHitTrend(){
