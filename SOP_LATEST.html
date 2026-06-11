@@ -3633,6 +3633,7 @@ function renderPSI(){
         <th rowspan="3" class="l" style="min-width:110px;">플랜트</th>
         <th rowspan="3" class="r">3평판</th>
         ${months.map(m=>`<th colspan="7" class="plan-hd month-group" style="text-align:center;">${m.key}</th>`).join('')}
+        <th rowspan="3" class="l plan-hd" style="min-width:130px;">소진계획</th>
       </tr>
       <tr>
         ${months.map(m=>`<th rowspan="2" class="plan-hd r month-start">기초</th><th rowspan="2" class="plan-hd r">입고</th><th rowspan="2" class="plan-hd r">판매</th><th colspan="2" class="plan-hd c">기말재고</th><th colspan="2" class="plan-hd c month-end">${m.progress?'진척율 기준':'3평판 기준'}</th>`).join('')}
@@ -3675,10 +3676,12 @@ function renderPSI(){
       <td class="l" style="font-size:11px;color:var(--muted);font-weight:700;">${d.plant||''}</td>
       <td class="r">${fmtPsiInt(d.avg3)}</td>
       ${cells}
+      <td class="l plan-cell" contenteditable="true" onclick="event.stopPropagation()" data-plan-key="PSI|${d.mat}" data-screen="PSI 전 품목 현황" data-bucket="${d.sp||''}" data-channel="${d.pkg||''}" data-sku="${d.mat||''}" data-name="${String(d.name||'').replace(/"/g,'&quot;')}"></td>
     </tr>`;
   });
-  if(!data.length) h+=`<tr><td colspan="34" style="text-align:center;padding:20px;color:var(--muted);">해당 조건 없음</td></tr>`;
+  if(!data.length) h+=`<tr><td colspan="35" style="text-align:center;padding:20px;color:var(--muted);">해당 조건 없음</td></tr>`;
   document.getElementById('psiWrap').innerHTML=h+`</tbody></table>`;
+  bindPlanCells(document.getElementById('psiWrap'));
 }
 
 // PSI 차트
