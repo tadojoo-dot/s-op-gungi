@@ -2064,8 +2064,10 @@ function parseHitSheet(ws){
 
   const hitAccByMo={};
   allMonths.forEach(moKey=>{
-    const vals=(byMonth[moKey]||[]).filter(d=>d.hitAcc!=null).map(d=>d.hitAcc);
-    hitAccByMo[moKey]=vals.length?vals.reduce((s,v)=>s+v,0)/vals.length:null;
+    const moRows=byMonth[moKey]||[];
+    const tPlan=moRows.reduce((s,r)=>s+(Number(r.plan)||0),0);
+    const tAct=moRows.reduce((s,r)=>s+(Number(r.actual)||0),0);
+    hitAccByMo[moKey]=tPlan>0?Math.abs(tAct-tPlan)/tPlan*100:null;
   });
 
   allMonths.forEach(mo=>{const rs=byMonth[mo]||[];const wa=rs.filter(r=>r.actual>0).length;console.log(`[parseHitSheet] ${mo}: ${rs.length}행 actual>0:${wa} MAPE:${hitAccByMo[mo]?.toFixed(1)||'null'}%`);});
@@ -2098,8 +2100,10 @@ function _parseHitSheetLegacy(rows){
     if(diff>0&&over.length<10) over.push({ch,n,mat,plan:plan/1e6,actual:actual/1e6,over:diff/1e6});
     if(diff<0&&under.length<10) under.push({ch,n,mat,plan:plan/1e6,actual:actual/1e6,under:diff/1e6,acc:plan>0?actual/plan*100:0});
   });
-  const hitAcc=hitVals.length?hitVals.reduce((s,v)=>s+v,0)/hitVals.length:null;
-  return{over,under,rows:detail,byMonth:{},hitAccByMo:{},summary:{hitAcc,hitCount:hitVals.length,method:'MAPE'}};
+  const tPlanL=detail.reduce((s,r)=>s+(Number(r.plan)||0),0);
+  const tActL=detail.reduce((s,r)=>s+(Number(r.actual)||0),0);
+  const hitAcc=tPlanL>0?Math.abs(tActL-tPlanL)/tPlanL*100:null;
+  return{over,under,rows:detail,byMonth:{},hitAccByMo:{},summary:{hitAcc,hitCount:detail.filter(r=>r.plan>0).length,method:'MAPE'}};
 }
 function parseActualQtySheet(ws){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:0});
@@ -4299,19 +4303,11 @@ function getHTTotals(rows){
     sum.under+=Math.min(Number(row.under)||0,0);
     return sum;
   },{plan:0,actual:0,over:0,under:0});
-  const skuMap=new Map();
-  rows.forEach((row,index)=>{
-    const key=String(row.mat||'').trim()||`NO_CODE|${row.n||''}|${index}`;
-    if(!skuMap.has(key)) skuMap.set(key,{plan:0,actual:0});
-    const sku=skuMap.get(key);
-    sku.plan+=Number(row.plan)||0;
-    sku.actual+=Number(row.actual)||0;
-  });
-  const skuHits=[...skuMap.values()]
-    .filter(sku=>sku.plan>0)
-    .map(sku=>Math.abs(sku.actual-sku.plan)/sku.plan*100);
-  totals.hitAcc=skuHits.length?skuHits.reduce((sum,value)=>sum+value,0)/skuHits.length:0;
-  totals.skuCount=skuHits.length;
+  // 전체 오차율: |실적합계 - 계획합계| / 계획합계
+  totals.hitAcc=totals.plan>0?Math.abs(totals.actual-totals.plan)/totals.plan*100:0;
+  // SKU 수: plan>0인 unique 자재코드 수
+  const skuSet=new Set(rows.filter(r=>r.plan>0).map(r=>String(r.mat||'').trim()||r.n));
+  totals.skuCount=skuSet.size;
   return totals;
 }
 function fmtHTTotal(rows,key){
@@ -4358,7 +4354,7 @@ function renderHT(){
       <td class="l" colspan="2">총계 · ${totals.skuCount.toLocaleString()}개 SKU</td>
       <td class="r">${fmtHTTotal(data,'plan')}</td>
       <td class="r">${fmtHTTotal(data,'actual')}</td>
-      <td class="hit-rate-col"><div class="hit-rate-wrap"><span class="tag ${totalClass}" style="font-size:15px;font-weight:900;padding:3px 9px;">${totals.hitAcc.toFixed(1)}%</span></div><div style="font-size:9px;color:var(--muted);margin-top:2px;">SKU별 MAPE 평균</div></td>
+      <td class="hit-rate-col"><div class="hit-rate-wrap"><span class="tag ${totalClass}" style="font-size:15px;font-weight:900;padding:3px 9px;">${totals.hitAcc.toFixed(1)}%</span></div><div style="font-size:9px;color:var(--muted);margin-top:2px;">|차이합|/계획합계</div></td>
       <td class="r" style="color:var(--green);">${fmtHTTotal(data,'over')}</td>
       <td class="r" style="color:var(--red);">${fmtHTTotal(data,'under')}</td>
     </tr>`;
@@ -4728,8 +4724,8 @@ function _getUploadedChRows(month){
   hitData.forEach(r=>{
     if(!r.ch) return;
     if(!agg[r.ch]) agg[r.ch]={ch:r.ch,plan:0,actual:0};
-    agg[r.ch].plan+=Number(r.plan)||0;
-    agg[r.ch].actual+=Number(r.actual)||0;
+    agg[r.ch].plan+=(Number(r.plan)||0)/100;   // 백만원 → 억원
+    agg[r.ch].actual+=(Number(r.actual)||0)/100; // 백만원 → 억원
   });
   const rows=Object.values(agg).map(d=>({...d,acc:d.plan>0?d.actual/d.plan*100:0}));
   return rows.length?rows:null;
