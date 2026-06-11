@@ -3606,7 +3606,7 @@ function recalcPsiRow(mat){
     return {r,basisEnd,basisDays,basisSig};
   });
   const tds=tr.querySelectorAll('td');
-  results.forEach(({r,basisEnd,basisDays,basisSig},mi){
+  results.forEach(({r,basisEnd,basisDays,basisSig},mi)=>{
     const bi=6+mi*7;
     const sig=r.sig==='red'?'sig-r':r.sig==='yellow'?'sig-y':r.sig==='excess'?'sig-x':r.sig==='green'?'sig-g':'sig-gray';
     const bsc=basisSig==='red'?'sig-r':basisSig==='yellow'?'sig-y':basisSig==='excess'?'sig-x':basisSig==='green'?'sig-g':'sig-gray';
