@@ -1662,11 +1662,11 @@ function parseSalesPlanSheet(ws){
   // I(8)~AF(31): 25/1~26/12 실적금액  AG(32)~AK(36): 26/6~10 계획금액
   // AL(37)~AP(41): 26/6~10 단가  AQ(42)~AU(46): 26/6~10 계획수량
   const data=rows.slice(35);
-  const result={};
+  // 동일 자재코드 여러 행을 누적 집계 (덮어쓰기 금지)
+  const acc={};
   data.forEach(row=>{
     const mat=String(row[3]||'').trim();
     if(!mat||!/^\d+$/.test(mat)) return;
-    // 단가: AL~AP(26/6~10) 중 첫 번째 양수값; 없으면 계획금액/계획수량으로 산출
     let unitPrice=0;
     for(let c=37;c<=41;c++){const v=Number(row[c])||0;if(v>0){unitPrice=v;break;}}
     if(!unitPrice){
@@ -1675,21 +1675,38 @@ function parseSalesPlanSheet(ws){
         if(pAmt>0&&pQty>0){unitPrice=Math.round(pAmt/pQty);break;}
       }
     }
-    const monthly=[];
+    if(!acc[mat]){
+      acc[mat]={unitPrice:0,monthlyAmts:new Array(24).fill(0),monthlyHas:new Array(24).fill(false),planQtys:new Array(5).fill(0)};
+    }
+    const a=acc[mat];
+    if(unitPrice>0&&a.unitPrice===0) a.unitPrice=unitPrice;
+    // 실적금액 월별 합산 (I=col8 ~ AF=col31)
     for(let col=8;col<=31;col++){
+      const idx=col-8;
       const rawVal=row[col];
       const amt=(rawVal===''||rawVal==null)?null:(Number(rawVal)||0);
-      const year=col<20?2025:2026;
-      const month=col<20?(col-8+1):(col-20+1);
-      const qty=(unitPrice>0&&amt!=null&&amt>0)?Math.round(amt/unitPrice):0;
-      monthly.push({year,month,label:`${String(year).slice(2)}/${month}`,amt:amt||0,qty,hasData:amt!=null&&amt>0});
+      if(amt!=null&&amt>0){a.monthlyAmts[idx]+=amt;a.monthlyHas[idx]=true;}
     }
-    // 26/6~10 계획수량 (AQ~AU)
-    const planQty=[];
+    // 계획수량 월별 합산 (AQ=col42 ~ AU=col46)
     for(let c=42;c<=46;c++){
       const q=Math.round(Number(row[c])||0);
-      planQty.push({year:2026,month:c-42+6,qty:q});
+      a.planQtys[c-42]+=q;
     }
+  });
+  const result={};
+  Object.entries(acc).forEach(([mat,a])=>{
+    const unitPrice=a.unitPrice;
+    const monthly=[];
+    for(let idx=0;idx<24;idx++){
+      const col=idx+8;
+      const year=col<20?2025:2026;
+      const month=col<20?(col-8+1):(col-20+1);
+      const amt=a.monthlyAmts[idx];
+      const hasData=a.monthlyHas[idx];
+      const qty=(unitPrice>0&&hasData)?Math.round(amt/unitPrice):0;
+      monthly.push({year,month,label:`${String(year).slice(2)}/${month}`,amt:hasData?amt:0,qty,hasData});
+    }
+    const planQty=a.planQtys.map((qty,i)=>({year:2026,month:6+i,qty}));
     result[mat]={mat,monthly,unitPrice,planQty};
   });
   return result;
