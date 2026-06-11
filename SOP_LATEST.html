@@ -874,7 +874,7 @@ table.base tr:last-child td{border-bottom:none;}
         <h3>① 총 재고금액</h3>
         <div class="kpi-current-label">현재 실적</div>
         <div class="kpi-current red" id="strategyTotalCurrent">52.4억원</div>
-        <div class="kpi-target"><span>목표</span><strong>40.0억원</strong></div>
+        <div class="kpi-target"><span>목표</span><strong>80.0억원</strong></div>
         <div class="kpi-delta bad" id="strategyTotalDelta">▲ 목표 대비 12.4억원 초과</div>
         <div class="kpi-comment">판매/입고 조정으로 총 재고금액 감축 관리가 필요합니다.</div>
         <span class="tag y" id="strategyTotalStatus">감축 필요</span>
@@ -930,7 +930,7 @@ table.base tr:last-child td{border-bottom:none;}
   <div class="sec-card">
     <div class="sec-head">
       <div class="sec-tw"><div class="sec-bar"></div><div>
-        <div class="sec-title">개선 성과 요약</div>
+        <div class="sec-title">개선 요약</div>
         <div class="sec-sub">기존 엑셀 PSI/재고 장표의 한계와 대시보드 개선 효과</div>
       </div></div>
     </div>
@@ -4286,8 +4286,8 @@ function renderStrategyKpis(){
   const kpiCurr=getKpiCurr();
   function kv(key){return kpiCurr?.[key]??curr[key]??0;}
 
-  // ① 총 재고금액 (목표 40억원)
-  const totalAmt=kv('계'), totalTarget=40.0, totalGood=totalAmt<=totalTarget;
+  // ① 총 재고금액 (목표 80억원)
+  const totalAmt=kv('계'), totalTarget=80.0, totalGood=totalAmt<=totalTarget;
   const totalDiff=Math.abs(totalAmt-totalTarget);
   _setStratCard('strategyTotalCard','strategyTotalCurrent','strategyTotalDelta','strategyTotalStatus',
     totalAmt, totalGood,
