@@ -1726,9 +1726,14 @@ function parseMasterRefSheet(ws){
     const moq=Math.round(parseFloat(String(row[11]).replace(/[,\s]/g,''))||0);
     const effRaw=String(row[13]||'').trim();
     const effDays=effRaw?Math.round(parseFloat(effRaw.replace(/[,\s]/g,''))||0):0;
-    if(!result[mat]) result[mat]={moq:0,effDays:0,hasChanEff:false};
+    const chan=String(row[16]||'').trim();
+    if(!result[mat]) result[mat]={moq:0,effDays:0,hasChanEff:false,byChan:{}};
     if(moq>0&&result[mat].moq===0) result[mat].moq=moq;
-    if(effDays>0){result[mat].effDays=effDays;result[mat].hasChanEff=true;}
+    if(effDays>0){
+      result[mat].hasChanEff=true;
+      if(!result[mat].effDays) result[mat].effDays=effDays; // 첫 번째 값을 mat 레벨 대표값으로
+      if(chan) result[mat].byChan[chan]=effDays;            // 채널별 값 저장
+    }
   });
   return result;
 }
@@ -2888,21 +2893,29 @@ function closeSenDrill(){
 }
 
 // ═══════════ 공통 Risk Engine — 정상소진 계산 ════════════════
-// CASE1(기준정보 N열 있음): validDays = chRemMo × 30
+// CASE1(기준정보 N열 있음): 1순위 chRemMo(현재고 AY열), 2순위 byChan[ch], 3순위 effDays
 // CASE2(기준정보 N열 없음): validDays = rem - 180 (배치만료일 - 분석기준일 - 180)
 function computeSoojin(mat,qty,rem,ch,chRemMo){
   const rd=getRefData();
   const refEntry=rd?.[String(mat)];
   const hasChanEff=!!(refEntry?.hasChanEff);
   const moq=refEntry?.moq||0;
+  let effectiveChRemMo=chRemMo!=null&&chRemMo>0?chRemMo:0;
   let validDays;
   if(hasChanEff){
-    validDays=(chRemMo!=null&&chRemMo>0)?chRemMo*30:0;
-  } else {
+    if(effectiveChRemMo>0){
+      validDays=effectiveChRemMo*30;
+    }else{
+      // 업로드 기준정보 fallback: mat+채널 우선, mat 레벨 순
+      const chanEffDays=refEntry?.byChan?.[ch]||refEntry?.effDays||0;
+      if(chanEffDays>0){validDays=chanEffDays;effectiveChRemMo=Math.round(chanEffDays/30);}
+      else{validDays=0;}
+    }
+  }else{
     validDays=(rem!=null&&rem>180)?(rem-180):0;
   }
   if(validDays<=0){
-    return {status:'데이터 부족',mainStatus:'데이터 부족',hasChanEff,rem,validDays:0,chRemMo,moq};
+    return {status:'데이터 부족',mainStatus:'데이터 부족',hasChanEff,rem,validDays:0,chRemMo:effectiveChRemMo,moq};
   }
   const psi=getPSIData()?.find(p=>String(p.mat)===String(mat));
   const mp=psi?.sourceMonthlyPsi||{};
@@ -2914,7 +2927,7 @@ function computeSoojin(mat,qty,rem,ch,chRemMo){
   const p9=(mp['9월']?.plan||0)||((sfPq[3]?.qty||0)>0?sfPq[3].qty:0);
   const psiVals=[p6,p7,p8,p9].filter(v=>v>0);
   const avgPlan=psiVals.length?psiVals.reduce((s,v)=>s+v,0)/psiVals.length:0;
-  if(avgPlan===0) return {status:'판매계획 없음',rem,validDays,chRemMo,moq,hasChanEff};
+  if(avgPlan===0) return {status:'판매계획 없음',mainStatus:'판매계획 없음',rem,validDays,chRemMo:effectiveChRemMo,moq,hasChanEff};
   const monthSeq=[
     {plan:p6,days:30},{plan:p7,days:31},{plan:p8,days:31},{plan:p9,days:30},
     {plan:avgPlan,days:31},{plan:avgPlan,days:30},{plan:avgPlan,days:31},
@@ -2940,7 +2953,7 @@ function computeSoojin(mat,qty,rem,ch,chRemMo){
   const mainStatus=expectedRem<=0?'정상소진 가능':'미소진 Risk';
   return {
     status:mainStatus,
-    mainStatus,hasChanEff,rem,validDays,chRemMo,moq,cumPlan,avgPlan:Math.round(avgPlan),
+    mainStatus,hasChanEff,rem,validDays,chRemMo:effectiveChRemMo,moq,cumPlan,avgPlan:Math.round(avgPlan),
     expectedRem:Math.max(0,expectedRem),expectedRemAmt:Math.max(0,expectedRemAmt),
     soojinRate,unitPrice,validEndLabel
   };
@@ -2993,13 +3006,7 @@ function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
   const stCls={'정상소진 가능':'g','미소진 Risk':'r','판매계획 없음':'y','데이터 부족':'gray'}[mainSt]||'gray';
   const noEff=soojin.hasChanEff===false;
   let insight='';
-  if(noEff){
-    insight='채널유효기간 기준이 설정되지 않아 정확한 소진 판단이 불가합니다. 기준정보 시트의 N열(채널유효기간)을 확인해 주세요.';
-    if(mainSt==='미소진 Risk'){
-      const amtStr=soojin.expectedRemAmt>0?` (약 ${soojin.expectedRemAmt.toFixed(1)}백만원)`:'';
-      insight+=` 채널잔여월 기준으로는 <strong>미소진 Risk</strong>가 예상됩니다. 약 <strong>${formatQty(soojin.expectedRem)}${amtStr}</strong> 잔여.`;
-    }
-  }else if(mainSt==='미소진 Risk'){
+  if(mainSt==='미소진 Risk'){
     const amtStr=soojin.expectedRemAmt>0?` (약 ${soojin.expectedRemAmt.toFixed(1)}백만원)`:'';
     insight=`현재 판매계획 기준으로 납품 마감일 <strong>${soojin.validEndLabel}</strong>까지 약 <strong>${formatQty(soojin.expectedRem)}${amtStr}</strong>가 잔여될 것으로 예상되어 <strong>미소진 Risk</strong>가 있습니다.`;
   }else if(mainSt==='정상소진 가능'){
@@ -3007,10 +3014,10 @@ function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
   }else if(mainSt==='판매계획 없음'){
     insight='PSI 판매계획 데이터가 없어 소진 여부를 판단할 수 없습니다. 판매계획을 수립해 주세요.';
   }else{
-    insight=`채널 잔여개월 데이터가 없어 소진 여부를 판단할 수 없습니다.`;
+    insight='판매가능기간 데이터가 없어 소진 여부를 판단할 수 없습니다.';
   }
-  const moqStr=soojin.moq>0?formatQty(soojin.moq):'미설정';
-  const effDaysStr=noEff?'—':(soojin.validDays>0?soojin.validDays+'일':'—');
+  const moqStr=soojin.moq>0?formatQty(soojin.moq):'—';
+  const effDaysStr=soojin.validDays>0?soojin.validDays+'일':'—';
   document.getElementById('skuModalHeader').innerHTML=`
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <span class="tag b">${ch||'—'}</span>
@@ -3024,7 +3031,7 @@ function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
   document.getElementById('skuModalBody').innerHTML=`
     <div class="sku-info-grid">
       <div class="sku-info-item"><div class="sku-info-lbl">현재수량</div><div class="sku-info-val">${formatQty(qty)}</div></div>
-      <div class="sku-info-item"><div class="sku-info-lbl">${soojin.hasChanEff?'채널 잔여개월':'현재 잔여일수'}</div><div class="sku-info-val">${soojin.hasChanEff?(soojin.chRemMo>0?soojin.chRemMo+'개월':'—'):(rem!=null?rem+'일':'—')}</div></div>
+      <div class="sku-info-item"><div class="sku-info-lbl">${soojin.hasChanEff?'채널 잔여개월':'현재 잔여일수'}</div><div class="sku-info-val">${soojin.hasChanEff?(soojin.chRemMo>0?soojin.chRemMo+'개월':'—'):(rem!=null?rem+'일':(soojin.validDays>0?Math.round(soojin.validDays/30)+'개월(기준)':'—'))}</div></div>
       <div class="sku-info-item"><div class="sku-info-lbl">판매가능일수</div><div class="sku-info-val">${effDaysStr}</div></div>
       <div class="sku-info-item"><div class="sku-info-lbl">납품 마감일(예상)</div><div class="sku-info-val">${soojin.validEndLabel||'—'}</div></div>
       <div class="sku-info-item"><div class="sku-info-lbl">기간 내 누적계획</div><div class="sku-info-val">${soojin.cumPlan!=null?formatQty(soojin.cumPlan):'—'}</div></div>
