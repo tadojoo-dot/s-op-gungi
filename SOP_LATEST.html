@@ -5277,10 +5277,10 @@ function toggleSPMetric(metric, btn){
   btn.classList.add('on');
   renderSP();
 }
-function getSPRows(){
-  const key=spMode==='brand'?'brand':'ch';
+function getSPRows(mode=spMode){
+  const key=mode==='brand'?'brand':'ch';
   const uploaded=UPLOADED?.sales_plan?.__summary?.[key];
-  const fallback=spMode==='brand'?SP_BRAND:SP_CH;
+  const fallback=mode==='brand'?SP_BRAND:SP_CH;
   const clean=rows=>rows.filter(r=>!SP_EXCLUDED_ROWS.has(String(r.name||'').trim()));
   if(uploaded?.length){
     const fallbackByName=new Map(fallback.map(r=>[r.name,r]));
@@ -5296,10 +5296,36 @@ function getSPRows(){
 function getSPTarget(){
   return UPLOADED?.sales_plan?.__summary?.target||null;
 }
-function spNetFactor(row){
+function spRawValue(row,m,periods){
+  if(periods.actualMonths.includes(m)) return Number(row.actual?.[m-1])||0;
+  if(periods.planMonths.includes(m)) return Number(row.plan?.[m-6])||0;
+  return null;
+}
+function spNetFactor(row,monthIdx,periods){
+  if(spMode==='brand'){
+    const factor=getSPBrandNetFactors(periods)[monthIdx];
+    return factor==null?0.83:factor;
+  }
   const name=String(row.name||'').trim();
   if(name==='다이소') return 1;
   return 0.83;
+}
+function getSPBrandNetFactors(periods){
+  const brandRows=getSPRows('brand');
+  const chRows=getSPRows('ch');
+  return periods.displayMonths.map(m=>{
+    let brandGross=0,net=0;
+    brandRows.forEach(row=>{
+      const value=spRawValue(row,m,periods);
+      if(value!=null) brandGross+=value;
+    });
+    chRows.forEach(row=>{
+      const value=spRawValue(row,m,periods);
+      if(value==null) return;
+      net+=value*(String(row.name||'').trim()==='다이소'?1:0.83);
+    });
+    return brandGross>0?net/brandGross:null;
+  });
 }
 function getSPPeriods(rows){
   return {
@@ -5309,13 +5335,12 @@ function getSPPeriods(rows){
   };
 }
 function spPointSeries(row,periods=getSPPeriods([row])){
-  const factor=spMetric==='net'?spNetFactor(row):1;
-  const current=periods.displayMonths.map(m=>{
-    if(periods.actualMonths.includes(m)) return (Number(row.actual?.[m-1])||0)*factor;
-    if(periods.planMonths.includes(m)) return (Number(row.plan?.[m-6])||0)*factor;
-    return null;
+  const current=periods.displayMonths.map((m,i)=>{
+    const value=spRawValue(row,m,periods);
+    if(value==null) return null;
+    return value*(spMetric==='net'?spNetFactor(row,i,periods):1);
   });
-  const prev=periods.displayMonths.map(m=>(Number(row.prevActual?.[m-1])||0)*factor);
+  const prev=periods.displayMonths.map((m,i)=>(Number(row.prevActual?.[m-1])||0)*(spMetric==='net'?spNetFactor(row,i,periods):1));
   const cumulCurrent=current.reduce((s,v)=>s+(Number(v)||0),0);
   const cumulPrev=prev.reduce((s,v)=>s+(Number(v)||0),0);
   if(spMetric==='amount'||spMetric==='net') return {current,prev,values:current,cumul:cumulCurrent};
