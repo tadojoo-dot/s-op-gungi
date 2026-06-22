@@ -90,7 +90,7 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .sec-head select,.sec-head input{background:#fff;color:var(--text);border:1px solid rgba(255,255,255,.3);}
 .sp-head-controls{display:grid;grid-template-columns:auto auto 118px auto;align-items:center;gap:12px;flex:0 0 auto;}
 .sp-toggle-group{display:flex;gap:6px;flex:0 0 auto;}
-.sp-toggle-group.metric .sc-btn{width:82px;height:36px;padding:0 4px;font-size:10px;line-height:1.15;text-align:center;justify-content:center;white-space:normal;}
+.sp-toggle-group.metric .sc-btn{width:78px;height:36px;padding:0 4px;font-size:10px;line-height:1.15;text-align:center;justify-content:center;white-space:normal;}
 .sp-toggle-group.metric .sc-btn.metric-yoy{border-color:#E3B341!important;color:#6d4a00!important;}
 .sp-toggle-group.metric .sc-btn.metric-yoy.on{background:#E3B341!important;border-color:#E3B341!important;color:#1f1f1f!important;}
 .sp-metric-note{width:118px;font-size:10.5px;color:rgba(255,255,255,.7);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -201,8 +201,8 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .sp-table td{font-size:11.5px;font-weight:700;}
 .sp-table th,.sp-table td{box-sizing:border-box;white-space:nowrap;}
 .sp-table .sp-name-col{width:72px;}
-.sp-table .sp-month-col{width:7.1%;}
-.sp-table .sp-cum-col{width:7.6%;}
+.sp-table .sp-month-col{width:6.55%;}
+.sp-table .sp-cum-col{width:6.9%;}
 .sp-sim{margin-top:14px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:12px 14px;}
 .sp-sim-title{font-size:14px;font-weight:900;color:var(--navy);margin-bottom:8px;}
 .sp-sim-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
@@ -642,11 +642,12 @@ table.base tr:last-child td{border-bottom:none;}
           <button class="sc-btn" id="spChBtn"    onclick="toggleSP('ch',this)">채널별</button>
         </div>
         <div class="sp-toggle-group metric">
-          <button class="sc-btn on" id="spMetricAmountBtn" onclick="toggleSPMetric('amount',this)">금액</button>
+          <button class="sc-btn on" id="spMetricAmountBtn" onclick="toggleSPMetric('amount',this)">매출</button>
+          <button class="sc-btn" id="spMetricNetBtn" onclick="toggleSPMetric('net',this)">순매출</button>
           <button class="sc-btn metric-yoy" id="spMetricYoyBtn" onclick="toggleSPMetric('yoy',this)">전년비</button>
           <button class="sc-btn metric-yoy" id="spMetricCumYoyBtn" onclick="toggleSPMetric('cumYoy',this)">전년비(누계)</button>
         </div>
-        <div class="sp-metric-note" id="spMetricNote">금액: 억원</div>
+        <div class="sp-metric-note" id="spMetricNote">매출: 억원</div>
         <div style="font-size:11px;color:rgba(255,255,255,.75);font-weight:700;" id="spPeriodNote">단위: 억원 &nbsp;|&nbsp; 1~5월: 실적 &nbsp;/&nbsp; 6~10월: 계획</div>
       </div>
     </div>
@@ -1857,13 +1858,24 @@ function parseSalesPlanSheet(ws){
   return result;
 }
 function parseSalesPlanSummaryRows(rows){
-  const groups={brand:[],ch:[]};
+  const groups={brand:[],ch:[],target:null};
+  const excludedNames=new Set(['순매출(신제품제외)','25년 매출','26년 사업계획','GAP']);
   const readSection=(startRow,type)=>{
     for(let r=startRow;r<rows.length;r++){
       const row=rows[r]||[];
       const name=String(row[7]||'').trim();
-      if(!name) break;
+      if(!name){
+        if(type==='ch'&&r<startRow+25) continue;
+        break;
+      }
       if(name==='총계'||name==='합계') continue;
+      if(name==='26년 사업계획'){
+        groups.target={
+          actual:Array.from({length:5},(_,i)=>Number(row[20+i])||0),
+          plan:Array.from({length:5},(_,i)=>Number(row[32+i])||0)
+        };
+      }
+      if(excludedNames.has(name)) continue;
       const prevActual=Array.from({length:12},(_,i)=>Number(row[8+i])||0);
       const actual=Array.from({length:5},(_,i)=>Number(row[20+i])||0);
       const plan=Array.from({length:5},(_,i)=>Number(row[32+i])||0);
@@ -5227,6 +5239,9 @@ function renderHT(){
 
 // ═══════════ 영업 판매계획 실적 데이터 ══════════════════════════
 const BRAND_COLORS = ['#1D2783','#C46B4D','#33512E','#E3B341','#9B59B6','#E3521A','#7a8099','#5AA469'];
+const SP_EXCLUDED_ROWS=new Set(['순매출(신제품제외)','25년 매출','26년 사업계획','GAP']);
+const SP_TARGET={actual:[50.5,52.1,63.7,68.4,0],plan:[71.4,68.4,63.5,68.2,83.8]};
+const SP_NET_RATE_ROWS=new Set(['직영몰','쿠팡','스/스','카카오','올리브영','벤더','온라인 기타','오프라인 기타','복지몰','편의점','제로샵']);
 
 const SP_BRAND = [
   {name:'닥터베어',  actual:[21.0,20.8,26.5,26.6,26.6], plan:[24.9,29.0,28.6,28.8,28.8], prevActual:[1.7793,9.8894,12.7450,25.2398,33.2853,6.3603,11.4780,14.3586,27.7300,15.1364,17.3384,17.5484]},
@@ -5258,7 +5273,7 @@ function toggleSP(mode, btn){
 }
 function toggleSPMetric(metric, btn){
   spMetric = metric;
-  document.querySelectorAll('#spMetricAmountBtn,#spMetricYoyBtn,#spMetricCumYoyBtn').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('#spMetricAmountBtn,#spMetricNetBtn,#spMetricYoyBtn,#spMetricCumYoyBtn').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
   renderSP();
 }
@@ -5266,16 +5281,25 @@ function getSPRows(){
   const key=spMode==='brand'?'brand':'ch';
   const uploaded=UPLOADED?.sales_plan?.__summary?.[key];
   const fallback=spMode==='brand'?SP_BRAND:SP_CH;
+  const clean=rows=>rows.filter(r=>!SP_EXCLUDED_ROWS.has(String(r.name||'').trim()));
   if(uploaded?.length){
     const fallbackByName=new Map(fallback.map(r=>[r.name,r]));
-    return uploaded.map(r=>{
+    return clean(uploaded).map(r=>{
       const fb=fallbackByName.get(r.name)||{};
       const actual=[...(r.actual||[])];
       if(actual.length<5&&fb.actual?.[4]!=null) actual[4]=fb.actual[4];
       return {...r,actual,prevActual:(r.prevActual?.length?r.prevActual:fb.prevActual)||[],plan:(r.plan?.length?r.plan:fb.plan)||[]};
     });
   }
-  return fallback;
+  return clean(fallback);
+}
+function getSPTarget(){
+  return UPLOADED?.sales_plan?.__summary?.target||SP_TARGET;
+}
+function spNetFactor(row){
+  const name=String(row.name||'').trim();
+  if(name==='다이소') return 1;
+  return SP_NET_RATE_ROWS.has(name)||spMode==='brand'?0.83:0.83;
 }
 function getSPPeriods(rows){
   return {
@@ -5285,15 +5309,16 @@ function getSPPeriods(rows){
   };
 }
 function spPointSeries(row,periods=getSPPeriods([row])){
+  const factor=spMetric==='net'?spNetFactor(row):1;
   const current=periods.displayMonths.map(m=>{
-    if(periods.actualMonths.includes(m)) return Number(row.actual?.[m-1])||0;
-    if(periods.planMonths.includes(m)) return Number(row.plan?.[m-6])||0;
+    if(periods.actualMonths.includes(m)) return (Number(row.actual?.[m-1])||0)*factor;
+    if(periods.planMonths.includes(m)) return (Number(row.plan?.[m-6])||0)*factor;
     return null;
   });
-  const prev=periods.displayMonths.map(m=>Number(row.prevActual?.[m-1])||0);
+  const prev=periods.displayMonths.map(m=>(Number(row.prevActual?.[m-1])||0)*factor);
   const cumulCurrent=current.reduce((s,v)=>s+(Number(v)||0),0);
   const cumulPrev=prev.reduce((s,v)=>s+(Number(v)||0),0);
-  if(spMetric==='amount') return {current,prev,values:current,cumul:cumulCurrent};
+  if(spMetric==='amount'||spMetric==='net') return {current,prev,values:current,cumul:cumulCurrent};
   let currCum=0,prevCum=0;
   const values=current.map((v,i)=>{
     if(v==null) return null;
@@ -5316,7 +5341,7 @@ function spMetricTotalValues(rows,periods=getSPPeriods(rows)){
   });
   const cumulCurrent=totalCurrent.reduce((s,v)=>s+(Number(v)||0),0);
   const cumulPrev=totalPrev.reduce((s,v)=>s+(Number(v)||0),0);
-  if(spMetric==='amount') return {values:totalCurrent,cumul:cumulCurrent};
+  if(spMetric==='amount'||spMetric==='net') return {values:totalCurrent,cumul:cumulCurrent};
   let currCum=0,prevCum=0;
   const values=totalCurrent.map((v,i)=>{
     if(spMetric==='cumYoy'){
@@ -5327,12 +5352,25 @@ function spMetricTotalValues(rows,periods=getSPPeriods(rows)){
   });
   return {values,cumul:cumulPrev>0?(cumulCurrent/cumulPrev-1)*100:null};
 }
+function spTargetSeries(periods=getSPPeriods([])){
+  const target=getSPTarget();
+  const values=periods.displayMonths.map(m=>{
+    if(periods.actualMonths.includes(m)) return Number(target.actual?.[m-1])||0;
+    if(periods.planMonths.includes(m)) return Number(target.plan?.[m-6])||0;
+    return null;
+  });
+  return {values,cumul:values.reduce((s,v)=>s+(Number(v)||0),0)};
+}
+function fmtSPGoalRate(v){
+  if(v==null||!Number.isFinite(v)) return '-';
+  return `${v.toFixed(1)}%`;
+}
 function fmtSPMetric(v){
   if(v==null||!Number.isFinite(v)) return '-';
-  return spMetric==='amount'?v.toFixed(1):`${v>=0?'+':''}${v.toFixed(1)}%`;
+  return (spMetric==='amount'||spMetric==='net')?v.toFixed(1):`${v>=0?'+':''}${v.toFixed(1)}%`;
 }
 function spMetricClass(v){
-  if(spMetric==='amount'||v==null||!Number.isFinite(v)) return '';
+  if(spMetric==='amount'||spMetric==='net'||v==null||!Number.isFinite(v)) return '';
   return v>0?'sp-rate-pos':v<0?'sp-rate-neg':'sp-rate-zero';
 }
 
@@ -5343,7 +5381,7 @@ function renderSP(){
   const labels = periods.displayMonths.map(m=>periods.planMonths.includes(m)?`${m}월(P)`:`${m}월`);
   const metricNote=document.getElementById('spMetricNote');
   if(metricNote){
-    metricNote.textContent=spMetric==='amount'?'금액: 억원':spMetric==='yoy'?'전년 동월 대비':'1월부터 누계 기준 전년비';
+    metricNote.textContent=spMetric==='amount'?'매출: 억원':spMetric==='net'?'순매출: 억원':spMetric==='yoy'?'전년 동월 대비':'1월부터 누계 기준 전년비';
   }
   const periodNote=document.getElementById('spPeriodNote');
   if(periodNote) periodNote.innerHTML=`단위: 억원 &nbsp;|&nbsp; 1~5월: 실적 &nbsp;/&nbsp; 6~10월: 계획`;
@@ -5351,6 +5389,7 @@ function renderSP(){
   // 합계 행 계산
   const totalSeries=spMetricTotalValues(rows,periods);
   const totalValues=totalSeries.values;
+  const targetSeries=spTargetSeries(periods);
 
   const datasets = rows.map((r,ri)=>{
     const series=spPointSeries(r,periods);
@@ -5366,7 +5405,7 @@ function renderSP(){
       borderDashOffset:0, datalabels:{display:false}},
     ];
   }).flat();
-  const spTotalLabels=totalValues.map(v=>`합계 ${fmtSPMetric(v)}${spMetric==='amount'?'억':''}`);
+  const spTotalLabels=totalValues.map(v=>`합계 ${fmtSPMetric(v)}${(spMetric==='amount'||spMetric==='net')?'억':''}`);
 
   const canvas = document.getElementById('spChart');
   if(hasChart()){
@@ -5385,12 +5424,12 @@ function renderSP(){
           }
         },
         tooltip:{mode:'index',intersect:false,
-          callbacks:{label:c=>`${c.dataset.label}: ${spMetric==='amount'?fmtAmt(c.parsed.y):fmtSPMetric(c.parsed.y)}`}},
+          callbacks:{label:c=>`${c.dataset.label}: ${(spMetric==='amount'||spMetric==='net')?fmtAmt(c.parsed.y):fmtSPMetric(c.parsed.y)}`}},
         datalabels:{display:false}
       },
       scales:{
         x:{grid:{color:'#f0f1f5'}, ticks:{font:{size:12,weight:'bold'},padding:8}},
-        y:{grid:{color:'#f0f1f5'}, ticks:{callback:v=>spMetric==='amount'?v+'억':v+'%',font:{size:12,weight:'bold'}}, border:{display:false}}
+        y:{grid:{color:'#f0f1f5'}, ticks:{callback:v=>(spMetric==='amount'||spMetric==='net')?v+'억':v+'%',font:{size:12,weight:'bold'}}, border:{display:false}}
       }
     }
   });
@@ -5408,6 +5447,7 @@ function renderSP(){
         <th colspan="${periods.planMonths.length}" style="background:var(--navy);color:#fff;padding:7px 8px;font-weight:700;text-align:center;">계 획</th>
         <th colspan="2" style="background:#1d3570;color:#fff;padding:7px 8px;font-weight:700;text-align:center;">참 고</th>
         <th rowspan="2" class="sp-cum-col" style="background:#24305f;color:#fff;padding:7px 8px;font-weight:700;text-align:right;">누계</th>
+        <th rowspan="2" class="sp-cum-col" style="background:#36406f;color:#fff;padding:7px 8px;font-weight:700;text-align:right;">목표비</th>
       </tr>
       <tr>
         ${periods.displayMonths.map(m=>{
@@ -5424,6 +5464,7 @@ function renderSP(){
       <td style="padding:5px 8px;font-weight:700;color:var(--text);">${r.name}</td>
       ${values.map((v,i)=>`<td class="${spMetricClass(v)}" style="padding:5px 4px;text-align:right;${periods.planMonths.includes(periods.displayMonths[i])?'color:var(--muted);':''}">${fmtSPMetric(v)}</td>`).join('')}
       <td class="${spMetricClass(series.cumul)}" style="padding:5px 4px;text-align:right;font-weight:900;background:#f5f7ff;">${fmtSPMetric(series.cumul)}</td>
+      <td style="padding:5px 4px;text-align:right;font-weight:900;background:#f5f7ff;">-</td>
     </tr>`;
   });
   // 합계 행
@@ -5431,6 +5472,7 @@ function renderSP(){
     <td style="padding:5px 8px;">합 계</td>
     ${totalValues.map((v,i)=>`<td class="${spMetricClass(v)}" style="padding:5px 4px;text-align:right;${periods.planMonths.includes(periods.displayMonths[i])?'color:var(--muted);':''}">${fmtSPMetric(v)}</td>`).join('')}
     <td class="${spMetricClass(totalSeries.cumul)}" style="padding:5px 4px;text-align:right;font-weight:900;background:#e5e9f7;">${fmtSPMetric(totalSeries.cumul)}</td>
+    <td style="padding:5px 4px;text-align:right;font-weight:900;background:#e5e9f7;">${fmtSPGoalRate(targetSeries.cumul>0?totalSeries.cumul/targetSeries.cumul*100:null)}</td>
   </tr>`;
   h+='</tbody></table>';
   tbl.innerHTML = h;
