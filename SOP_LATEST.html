@@ -196,9 +196,13 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .psi-tbl.monthly th.month-end{border-right:3px solid #fff;}
 .psi-tbl.monthly td.month-start{border-left:3px solid #8d95c9;}
 .psi-tbl.monthly td.month-end{border-right:3px solid #8d95c9;}
-.sp-table{width:100%;border-collapse:collapse;font-size:14px;min-width:820px;}
-.sp-table th{font-size:12px;font-weight:900;}
-.sp-table td{font-size:13px;font-weight:700;}
+.sp-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:0;}
+.sp-table th{font-size:11px;font-weight:900;}
+.sp-table td{font-size:11.5px;font-weight:700;}
+.sp-table th,.sp-table td{box-sizing:border-box;white-space:nowrap;}
+.sp-table .sp-name-col{width:72px;}
+.sp-table .sp-month-col{width:7.1%;}
+.sp-table .sp-cum-col{width:7.6%;}
 .sp-sim{margin-top:14px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:12px 14px;}
 .sp-sim-title{font-size:14px;font-weight:900;color:var(--navy);margin-bottom:8px;}
 .sp-sim-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
@@ -643,11 +647,11 @@ table.base tr:last-child td{border-bottom:none;}
           <button class="sc-btn metric-yoy" id="spMetricCumYoyBtn" onclick="toggleSPMetric('cumYoy',this)">전년비(누계)</button>
         </div>
         <div class="sp-metric-note" id="spMetricNote">금액: 억원</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.75);font-weight:700;" id="spPeriodNote">단위: 억원 &nbsp;|&nbsp; 1~5월: 실적 &nbsp;/&nbsp; 6~9월: 계획</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.75);font-weight:700;" id="spPeriodNote">단위: 억원 &nbsp;|&nbsp; 1~5월: 실적 &nbsp;/&nbsp; 6~10월: 계획</div>
       </div>
     </div>
     <div class="sec-body">
-      <div style="display:grid;grid-template-columns:55fr 45fr;gap:20px;align-items:start;">
+      <div style="display:grid;grid-template-columns:48fr 52fr;gap:14px;align-items:start;">
         <div><div class="cw" style="height:300px;"><canvas id="spChart"></canvas></div></div>
         <div style="overflow-x:auto;"><div id="spTableWrap"></div></div>
       </div>
@@ -5274,49 +5278,54 @@ function getSPRows(){
   return fallback;
 }
 function getSPPeriods(rows){
-  const actualCount=Math.max(5,...rows.map(r=>Array.isArray(r.actual)?r.actual.length:0));
-  const planCount=4;
   return {
-    actualMonths:Array.from({length:actualCount},(_,i)=>i+1),
-    planMonths:Array.from({length:planCount},(_,i)=>i+6)
+    actualMonths:[1,2,3,4,5],
+    planMonths:[6,7,8,9,10],
+    displayMonths:[1,2,3,4,5,6,7,8,9,10,11,12]
   };
 }
 function spPointSeries(row,periods=getSPPeriods([row])){
-  const actualCurrent=periods.actualMonths.map((_,i)=>Number(row.actual?.[i])||0);
-  const planCurrent=periods.planMonths.map((_,i)=>Number(row.plan?.[i])||0);
-  const current=[...actualCurrent,...planCurrent];
-  const prev=[
-    ...periods.actualMonths.map(m=>Number(row.prevActual?.[m-1])||0),
-    ...periods.planMonths.map(m=>Number(row.prevActual?.[m-1])||0)
-  ];
-  if(spMetric==='amount') return {current,prev,values:current};
+  const current=periods.displayMonths.map(m=>{
+    if(periods.actualMonths.includes(m)) return Number(row.actual?.[m-1])||0;
+    if(periods.planMonths.includes(m)) return Number(row.plan?.[m-6])||0;
+    return null;
+  });
+  const prev=periods.displayMonths.map(m=>Number(row.prevActual?.[m-1])||0);
+  const cumulCurrent=current.reduce((s,v)=>s+(Number(v)||0),0);
+  const cumulPrev=prev.reduce((s,v)=>s+(Number(v)||0),0);
+  if(spMetric==='amount') return {current,prev,values:current,cumul:cumulCurrent};
   let currCum=0,prevCum=0;
   const values=current.map((v,i)=>{
+    if(v==null) return null;
     if(spMetric==='cumYoy'){
       currCum+=v; prevCum+=prev[i];
       return prevCum>0?(currCum/prevCum-1)*100:null;
     }
     return prev[i]>0?(v/prev[i]-1)*100:null;
   });
-  return {current,prev,values};
+  const cumul=cumulPrev>0?(cumulCurrent/cumulPrev-1)*100:null;
+  return {current,prev,values,cumul};
 }
 function spMetricTotalValues(rows,periods=getSPPeriods(rows)){
-  const totalCurrent=Array(periods.actualMonths.length+periods.planMonths.length).fill(0);
+  const totalCurrent=Array(periods.displayMonths.length).fill(0);
   const totalPrev=Array(totalCurrent.length).fill(0);
   rows.forEach(row=>{
     const s=spPointSeries({...row},periods);
-    s.current.forEach((v,i)=>totalCurrent[i]+=v);
+    s.current.forEach((v,i)=>{if(v!=null) totalCurrent[i]+=Number(v)||0;});
     s.prev.forEach((v,i)=>totalPrev[i]+=v);
   });
-  if(spMetric==='amount') return totalCurrent;
+  const cumulCurrent=totalCurrent.reduce((s,v)=>s+(Number(v)||0),0);
+  const cumulPrev=totalPrev.reduce((s,v)=>s+(Number(v)||0),0);
+  if(spMetric==='amount') return {values:totalCurrent,cumul:cumulCurrent};
   let currCum=0,prevCum=0;
-  return totalCurrent.map((v,i)=>{
+  const values=totalCurrent.map((v,i)=>{
     if(spMetric==='cumYoy'){
       currCum+=v; prevCum+=totalPrev[i];
       return prevCum>0?(currCum/prevCum-1)*100:null;
     }
     return totalPrev[i]>0?(v/totalPrev[i]-1)*100:null;
   });
+  return {values,cumul:cumulPrev>0?(cumulCurrent/cumulPrev-1)*100:null};
 }
 function fmtSPMetric(v){
   if(v==null||!Number.isFinite(v)) return '-';
@@ -5331,21 +5340,23 @@ function renderSP(){
   safeDestroyChart('spChart'); spChart=null;
   const rows = getSPRows();
   const periods=getSPPeriods(rows);
-  const labels = [...periods.actualMonths.map(m=>`${m}월`),...periods.planMonths.map(m=>`${m}월(P)`)];
+  const labels = periods.displayMonths.map(m=>periods.planMonths.includes(m)?`${m}월(P)`:`${m}월`);
   const metricNote=document.getElementById('spMetricNote');
   if(metricNote){
     metricNote.textContent=spMetric==='amount'?'금액: 억원':spMetric==='yoy'?'전년 동월 대비':'1월부터 누계 기준 전년비';
   }
   const periodNote=document.getElementById('spPeriodNote');
-  if(periodNote) periodNote.innerHTML=`단위: 억원 &nbsp;|&nbsp; 1~${periods.actualMonths.length}월: 실적 &nbsp;/&nbsp; 6~9월: 계획`;
+  if(periodNote) periodNote.innerHTML=`단위: 억원 &nbsp;|&nbsp; 1~5월: 실적 &nbsp;/&nbsp; 6~10월: 계획`;
 
   // 합계 행 계산
-  const totalValues=spMetricTotalValues(rows,periods);
+  const totalSeries=spMetricTotalValues(rows,periods);
+  const totalValues=totalSeries.values;
 
   const datasets = rows.map((r,ri)=>{
-    const values=spPointSeries(r,periods).values;
-    const actData = [...values.slice(0,periods.actualMonths.length),...Array(periods.planMonths.length).fill(null)];
-    const planData= [...Array(periods.actualMonths.length).fill(null),...values.slice(periods.actualMonths.length)];
+    const series=spPointSeries(r,periods);
+    const values=series.values;
+    const actData = values.map((v,i)=>periods.actualMonths.includes(periods.displayMonths[i])?v:null);
+    const planData= values.map((v,i)=>periods.planMonths.includes(periods.displayMonths[i])?v:null);
     const col = BRAND_COLORS[ri%BRAND_COLORS.length];
     return [
       {label:r.name+' 실적', data:actData, borderColor:col, backgroundColor:col,
@@ -5392,28 +5403,34 @@ function renderSP(){
   let h=`<table class="sp-table">
     <thead>
       <tr>
-        <th rowspan="2" style="background:var(--navy);color:#fff;padding:7px 8px;font-weight:700;text-align:left;min-width:60px;">구분</th>
+        <th rowspan="2" class="sp-name-col" style="background:var(--navy);color:#fff;padding:7px 8px;font-weight:700;text-align:left;">구분</th>
         <th colspan="${periods.actualMonths.length}" style="background:var(--terra);color:#fff;padding:7px 8px;font-weight:700;text-align:center;">실 적</th>
         <th colspan="${periods.planMonths.length}" style="background:var(--navy);color:#fff;padding:7px 8px;font-weight:700;text-align:center;">계 획</th>
+        <th colspan="2" style="background:#1d3570;color:#fff;padding:7px 8px;font-weight:700;text-align:center;">참 고</th>
+        <th rowspan="2" class="sp-cum-col" style="background:#24305f;color:#fff;padding:7px 8px;font-weight:700;text-align:right;">누계</th>
       </tr>
       <tr>
-        ${periods.actualMonths.map(m=>`<th style="background:#d45a35;color:#fff;padding:7px 8px;text-align:right;">${m}월</th>`).join('')}
-        ${periods.planMonths.map(m=>`<th style="background:#2d3a9a;color:#fff;padding:7px 8px;text-align:right;">${m}월(P)</th>`).join('')}
+        ${periods.displayMonths.map(m=>{
+          const bg=periods.actualMonths.includes(m)?'#d45a35':periods.planMonths.includes(m)?'#2d3a9a':'#59627e';
+          const label=periods.planMonths.includes(m)?`${m}월(P)`:`${m}월`;
+          return `<th class="sp-month-col" style="background:${bg};color:#fff;padding:7px 4px;text-align:right;">${label}</th>`;
+        }).join('')}
       </tr>
     </thead><tbody>`;
   rows.forEach(r=>{
-    const values=spPointSeries(r,periods).values;
+    const series=spPointSeries(r,periods);
+    const values=series.values;
     h+=`<tr style="border-bottom:1px solid var(--border);">
       <td style="padding:5px 8px;font-weight:700;color:var(--text);">${r.name}</td>
-      ${values.slice(0,periods.actualMonths.length).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;">${fmtSPMetric(v)}</td>`).join('')}
-      ${values.slice(periods.actualMonths.length).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;color:var(--muted);">${fmtSPMetric(v)}</td>`).join('')}
+      ${values.map((v,i)=>`<td class="${spMetricClass(v)}" style="padding:5px 4px;text-align:right;${periods.planMonths.includes(periods.displayMonths[i])?'color:var(--muted);':''}">${fmtSPMetric(v)}</td>`).join('')}
+      <td class="${spMetricClass(series.cumul)}" style="padding:5px 4px;text-align:right;font-weight:900;background:#f5f7ff;">${fmtSPMetric(series.cumul)}</td>
     </tr>`;
   });
   // 합계 행
   h+=`<tr style="background:#eef0f9;font-weight:800;">
     <td style="padding:5px 8px;">합 계</td>
-    ${totalValues.slice(0,periods.actualMonths.length).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;">${fmtSPMetric(v)}</td>`).join('')}
-    ${totalValues.slice(periods.actualMonths.length).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;">${fmtSPMetric(v)}</td>`).join('')}
+    ${totalValues.map((v,i)=>`<td class="${spMetricClass(v)}" style="padding:5px 4px;text-align:right;${periods.planMonths.includes(periods.displayMonths[i])?'color:var(--muted);':''}">${fmtSPMetric(v)}</td>`).join('')}
+    <td class="${spMetricClass(totalSeries.cumul)}" style="padding:5px 4px;text-align:right;font-weight:900;background:#e5e9f7;">${fmtSPMetric(totalSeries.cumul)}</td>
   </tr>`;
   h+='</tbody></table>';
   tbl.innerHTML = h;
