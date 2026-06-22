@@ -88,6 +88,10 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .sec-body.flush{padding:0;}
 /* filters inside dark sec-head */
 .sec-head select,.sec-head input{background:#fff;color:var(--text);border:1px solid rgba(255,255,255,.3);}
+.sp-metric-note{font-size:10.5px;color:rgba(255,255,255,.7);font-weight:800;white-space:nowrap;}
+.sp-rate-pos{color:var(--green)!important;font-weight:900;}
+.sp-rate-neg{color:var(--red)!important;font-weight:900;}
+.sp-rate-zero{color:var(--muted)!important;font-weight:800;}
 
 /* GRID */
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
@@ -340,7 +344,8 @@ table.base tr:last-child td{border-bottom:none;}
 .sig-gray{background:#bbb;} .days-gray{color:#888;font-weight:600;}
 
 /* SALES HIT RESTORE */
-#p2 .grid-5-5{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+#p2 .grid-5-5{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px;align-items:start;}
+#p2 .grid-5-5>div{align-self:start;}
 #p2 .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
 #p2 .sec-hdr{background:#2b2b2b;color:#fff;font-size:11.5px;font-weight:700;padding:7px 14px;border-radius:5px 5px 0 0;display:flex;align-items:center;justify-content:space-between;letter-spacing:.3px;}
 #p2 .panel{background:var(--white);border:1px solid var(--gray-bd);border-radius:0 5px 5px 5px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.05);}
@@ -369,16 +374,52 @@ table.base tr:last-child td{border-bottom:none;}
 #p2 .insight-table th,#p2 .insight-table td{box-sizing:border-box;}
 #p2 .insight-table td.insight-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #p2 .insight-table td.insight-num{text-align:right;font-variant-numeric:tabular-nums;}
+#p2 th.sortable{cursor:pointer;user-select:none;}
+#p2 th.sortable:hover{background:#e9ecf7;}
+#p2 .sort-mark{display:inline-flex;align-items:center;gap:2px;margin-left:4px;color:var(--terra);font-size:10px;font-weight:900;vertical-align:1px;}
+#p2 .sort-priority{display:inline-flex;align-items:center;justify-content:center;min-width:14px;height:14px;border-radius:50%;background:#eef0f9;color:var(--navy);font-size:9px;font-weight:900;margin-left:2px;}
+#p2 .sort-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px;font-size:11px;color:var(--muted);font-weight:800;}
+#p2 .sort-toolbar button{height:24px;border:1px solid var(--border);border-radius:5px;background:#fff;color:var(--navy);font-size:11px;font-weight:900;padding:0 8px;cursor:pointer;}
+#p2 .sort-toolbar button:hover{background:#f5f7ff;}
+#p2 .sort-summary{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 #p2 .item-ellipsis{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;}
 #p2 .diff-pos{color:var(--green);font-weight:900;}
 #p2 .diff-neg{color:var(--red);font-weight:900;}
 #p2 .hit-month-summary{margin-top:10px;border-left:3px solid var(--navy);background:#f5f7ff;padding:9px 11px;border-radius:6px;font-size:13px;font-weight:800;color:var(--navy);line-height:1.45;}
+#p2 .hit-chart-frame{height:270px;}
+#p2 .hit-top-panel{max-height:460px;overflow-y:auto;overflow-x:hidden;padding-right:10px;}
+#p2 .hit-top-panel::-webkit-scrollbar{width:8px;}
+#p2 .hit-top-panel::-webkit-scrollbar-thumb{background:#cfd4e4;border-radius:8px;}
+#p2 .hit-insight-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px;}
+#p2 .hit-insight-item{background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px;}
+#p2 .hit-insight-label{font-size:10px;color:var(--muted);font-weight:800;margin-bottom:3px;}
+#p2 .hit-insight-value{font-size:13px;color:var(--navy);font-weight:900;line-height:1.35;}
+#p2 .hit-adjust-copy{margin-top:8px;border:1px solid #f1c27d;background:#fffaf1;color:#6d3d00;border-radius:6px;padding:9px 11px;font-size:12.5px;font-weight:800;line-height:1.45;}
 #p2 .analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
 #p2 .analysis-box{border:1px solid var(--border);border-radius:7px;background:#fff;padding:12px;}
 #p2 .analysis-title{font-size:13px;font-weight:900;color:var(--navy);margin-bottom:8px;}
 #p2 .action-memo{width:100%;min-height:78px;border:1px solid var(--border);border-radius:6px;padding:9px 10px;font-family:inherit;font-size:13px;resize:vertical;}
 #p2 .tbl tr:hover td{background:#f8f9ff;}
 #p2 .tbl tr:last-child td{border-bottom:none;}
+
+#planAdjustModal .analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
+#planAdjustModal .analysis-box{border:1px solid var(--border);border-radius:7px;background:#fff;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+#planAdjustModal .analysis-title{font-size:13px;font-weight:900;color:var(--navy);margin-bottom:8px;}
+#planAdjustModal .analysis-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px;}
+#planAdjustModal .analysis-table th{background:#f5f7ff;color:var(--navy);font-weight:900;padding:8px 10px;border-bottom:2px solid var(--border);white-space:nowrap;}
+#planAdjustModal .analysis-table td{padding:8px 10px;border-bottom:1px solid #eef0f4;vertical-align:middle;line-height:1.35;}
+#planAdjustModal .analysis-table tr:last-child td{border-bottom:none;}
+#planAdjustModal .analysis-table th.l,#planAdjustModal .analysis-table td.l{text-align:left;}
+#planAdjustModal .analysis-table th.r,#planAdjustModal .analysis-table td.r{text-align:right;font-variant-numeric:tabular-nums;}
+#planAdjustModal .analysis-table th.c,#planAdjustModal .analysis-table td.c{text-align:center;}
+#planAdjustModal .analysis-table tr:hover td{background:#fafbff;}
+#planAdjustModal .analysis-kv{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px;}
+#planAdjustModal .analysis-kv th{width:34%;background:#f5f7ff;color:var(--navy);font-weight:900;text-align:left;padding:10px;border-bottom:1px solid var(--border);}
+#planAdjustModal .analysis-kv td{padding:10px;border-bottom:1px solid var(--border);font-weight:800;line-height:1.45;}
+#planAdjustModal .action-memo{width:100%;min-height:106px;border:1px solid #cfd5e6;border-radius:7px;padding:10px 12px;font-family:inherit;font-size:13px;line-height:1.45;resize:vertical;background:#fff;}
+#planAdjustModal .action-memo:focus{outline:2px solid rgba(29,39,131,.16);border-color:var(--navy);}
+#planAdjustModal .diff-pos{color:var(--green);font-weight:900;}
+#planAdjustModal .diff-neg{color:var(--red);font-weight:900;}
 
 /* SKU 정상소진 모달 */
 .sku-modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;}
@@ -591,6 +632,12 @@ table.base tr:last-child td{border-bottom:none;}
           <button class="sc-btn on" id="spBrandBtn" onclick="toggleSP('brand',this)">브랜드별</button>
           <button class="sc-btn" id="spChBtn"    onclick="toggleSP('ch',this)">채널별</button>
         </div>
+        <div style="display:flex;gap:6px;">
+          <button class="sc-btn on" id="spMetricAmountBtn" onclick="toggleSPMetric('amount',this)">금액</button>
+          <button class="sc-btn" id="spMetricYoyBtn" onclick="toggleSPMetric('yoy',this)">전년비</button>
+          <button class="sc-btn" id="spMetricCumYoyBtn" onclick="toggleSPMetric('cumYoy',this)">누계전년비</button>
+        </div>
+        <div class="sp-metric-note" id="spMetricNote">금액: 억원</div>
         <div style="font-size:11px;color:rgba(255,255,255,.75);font-weight:700;">단위: 억원 &nbsp;|&nbsp; 1~4월: 실적 &nbsp;/&nbsp; 6~9월: 계획</div>
       </div>
     </div>
@@ -757,8 +804,16 @@ table.base tr:last-child td{border-bottom:none;}
         </div>
       </div>
       <div class="panel">
-        <div class="cw" style="height:285px;"><canvas id="chAcc"></canvas></div>
+        <div class="cw hit-chart-frame"><canvas id="chAcc"></canvas></div>
         <div class="hit-month-summary" id="hitMonthSummary">월을 선택하면 계획 대비 실적 요약이 표시됩니다.</div>
+        <div id="monthlyAdjustInsight">
+          <div class="hit-insight-grid">
+            <div class="hit-insight-item"><div class="hit-insight-label">당월 차이</div><div class="hit-insight-value">—</div></div>
+            <div class="hit-insight-item"><div class="hit-insight-label">당월 달성률</div><div class="hit-insight-value">—</div></div>
+            <div class="hit-insight-item"><div class="hit-insight-label">주요 채널</div><div class="hit-insight-value">—</div></div>
+            <div class="hit-insight-item"><div class="hit-insight-label">조정 방향</div><div class="hit-insight-value">—</div></div>
+          </div>
+        </div>
       </div>
     </div>
     <div>
@@ -769,11 +824,12 @@ table.base tr:last-child td{border-bottom:none;}
           <button id="insightQtyBtn" class="aging-mode-btn" onclick="setInsightUnit('qty',this)">수량</button>
         </span>
       </div>
-      <div class="panel">
+      <div class="panel hit-top-panel">
         <div style="font-size:13px;font-weight:900;color:var(--navy);margin-bottom:7px;">오차 기여 TOP 10</div>
+        <div class="sort-toolbar"><span class="sort-summary" id="impactSortSummary">정렬: 기본</span><button onclick="resetImpactSort()">정렬 초기화</button></div>
         <table class="tbl insight-table" style="margin-bottom:12px;">
           <colgroup><col style="width:10%;"><col style="width:13%;"><col style="width:24%;"><col style="width:10%;"><col style="width:10%;"><col style="width:11%;"><col style="width:9%;"><col style="width:13%;"></colgroup>
-          <thead><tr><th class="l">채널</th><th class="l">자재코드</th><th class="l">품목</th><th class="r">계획</th><th class="r">실적</th><th class="r">차이금액</th><th class="r">오차율</th><th class="c">보정유형</th></tr></thead>
+          <thead><tr><th class="l sortable" onclick="handleImpactSort('ch',event)">채널<span data-sort-table="impact" data-sort-key="ch"></span></th><th class="l sortable" onclick="handleImpactSort('mat',event)">자재코드<span data-sort-table="impact" data-sort-key="mat"></span></th><th class="l sortable" onclick="handleImpactSort('name',event)">품목<span data-sort-table="impact" data-sort-key="name"></span></th><th class="r sortable" onclick="handleImpactSort('plan',event)">계획<span data-sort-table="impact" data-sort-key="plan"></span></th><th class="r sortable" onclick="handleImpactSort('actual',event)">실적<span data-sort-table="impact" data-sort-key="actual"></span></th><th class="r sortable" onclick="handleImpactSort('diff',event)">차이금액<span data-sort-table="impact" data-sort-key="diff"></span></th><th class="r sortable" onclick="handleImpactSort('errorRate',event)">오차율<span data-sort-table="impact" data-sort-key="errorRate"></span></th><th class="c sortable" onclick="handleImpactSort('correctionType',event)">보정유형<span data-sort-table="impact" data-sort-key="correctionType"></span></th></tr></thead>
           <tbody id="impactBody10"></tbody>
         </table>
         <div style="font-size:13px;font-weight:900;color:var(--green);margin-bottom:7px;">계획 초과 TOP 5</div>
@@ -804,6 +860,7 @@ table.base tr:last-child td{border-bottom:none;}
         <button id="htQtyBtn" class="aging-mode-btn" onclick="setHTUnit('qty',this)">수량</button>
       </span>
     </div>
+    <div class="sort-toolbar"><span class="sort-summary" id="htSortSummary">정렬: 기본</span><button onclick="resetHTSort()">정렬 초기화</button></div>
     <div id="htWrap" class="ht-scroll"></div>
   </div>
 </div>
@@ -1719,6 +1776,7 @@ function parseSalesPlanSheet(ws){
   // 34행=판매계획 헤더, 35행=년월, 36행(index 35)~=데이터
   // I(8)~AF(31): 25/1~26/12 실적금액  AG(32)~AK(36): 26/6~10 계획금액
   // AL(37)~AP(41): 26/6~10 단가  AQ(42)~AU(46): 26/6~10 계획수량
+  const summary=parseSalesPlanSummaryRows(rows);
   const data=rows.slice(35);
   // 동일 자재코드 여러 행을 누적 집계 (덮어쓰기 금지)
   const acc={};
@@ -1761,7 +1819,7 @@ function parseSalesPlanSheet(ws){
       a.byChannel[ch].planQtys[c-42]+=q;
     }
   });
-  const result={};
+  const result={__summary:summary};
   Object.entries(acc).forEach(([mat,a])=>{
     const unitPrice=a.unitPrice;
     const monthly=[];
@@ -1788,6 +1846,30 @@ function parseSalesPlanSheet(ws){
     result[mat]={mat,monthly,unitPrice,planAmt,planQty,byChannel};
   });
   return result;
+}
+function parseSalesPlanSummaryRows(rows){
+  const groups={brand:[],ch:[]};
+  const readSection=(startRow,type)=>{
+    for(let r=startRow;r<rows.length;r++){
+      const row=rows[r]||[];
+      const name=String(row[7]||'').trim();
+      if(!name) break;
+      if(name==='총계'||name==='합계') continue;
+      const prevActual=Array.from({length:12},(_,i)=>Number(row[8+i])||0);
+      const actual=Array.from({length:4},(_,i)=>Number(row[20+i])||0);
+      const plan=Array.from({length:5},(_,i)=>Number(row[32+i])||0);
+      if(prevActual.some(Boolean)||actual.some(Boolean)||plan.some(Boolean)){
+        groups[type].push({name,prevActual,actual,plan});
+      }
+    }
+  };
+  rows.forEach((row,idx)=>{
+    if(String(row?.[7]||'').trim()==='구분'){
+      if(!groups.brand.length) readSection(idx+1,'brand');
+      else if(!groups.ch.length) readSection(idx+1,'ch');
+    }
+  });
+  return groups;
 }
 function parseMasterRefSheet(ws){
   // 기준정보 시트: 2행=헤더, 3행~=데이터
@@ -4851,6 +4933,106 @@ function renderAlarms(){
 
 let htUnit='amt';
 let planAdjustRowsCache=[];
+const CORRECTION_PRIORITY={'계획 하향 검토':1,'계획 상향 검토':2,'채널 계획 재점검':3,'금액 영향 확인':4,'일시성 확인':5,'모니터링':6,'계획 유지':7};
+const IMPACT_DEFAULT_SORT=[
+  {key:'absDiff',dir:'desc',label:'차이금액 절대값'},
+  {key:'errorRate',dir:'desc',label:'오차율'},
+  {key:'ch',dir:'asc',label:'채널'}
+];
+const HT_DEFAULT_SORT=[
+  {key:'correctionPriority',dir:'asc',label:'보정유형 우선순위'},
+  {key:'absDiff',dir:'desc',label:'차이금액 절대값'},
+  {key:'errorRate',dir:'desc',label:'오차율'},
+  {key:'name',dir:'asc',label:'품목명'}
+];
+let impactSort=IMPACT_DEFAULT_SORT.map(s=>({...s}));
+let htSort=HT_DEFAULT_SORT.map(s=>({...s}));
+const SORT_LABELS={
+  ch:'채널',mat:'자재코드',name:'품목명',plan:'계획',actual:'실적',diff:'차이금액',absDiff:'차이금액 절대값',
+  over:'초과금액',under:'미달금액',errorRate:'오차율',recentDirection:'최근 3개월 방향',
+  correctionType:'보정유형',correctionPriority:'보정유형 우선순위',recommendedAction:'권장조치',memo:'조치의견'
+};
+function defaultSortDir(key){
+  if(['ch','mat','name','recentDirection','correctionType','recommendedAction','memo'].includes(key)) return 'asc';
+  if(key==='correctionPriority') return 'asc';
+  return 'desc';
+}
+function sortLabelFor(key){return SORT_LABELS[key]||key;}
+function cloneSort(sort){return sort.map(s=>({...s}));}
+function correctionPriority(row){return CORRECTION_PRIORITY[row.correctionType]||CORRECTION_PRIORITY['계획 유지'];}
+function sortValue(row,key){
+  if(key==='ch') return String(row.ch||'');
+  if(key==='mat') return String(row.mat||'');
+  if(key==='name') return String(row.n||row.name||'');
+  if(key==='plan') return Number(row.plan)||0;
+  if(key==='actual') return Number(row.actual)||0;
+  if(key==='diff') return Number(row.diff)||0;
+  if(key==='absDiff') return Math.abs(Number(row.diff)||0);
+  if(key==='over') return Math.max(Number(row.diff)||0,0);
+  if(key==='under') return Math.abs(Math.min(Number(row.diff)||0,0));
+  if(key==='errorRate') return row.errorRate==null?-Infinity:Number(row.errorRate)||0;
+  if(key==='recentDirection') return String(row.recentDirection||'');
+  if(key==='correctionType') return String(row.correctionType||'');
+  if(key==='correctionPriority') return correctionPriority(row);
+  if(key==='recommendedAction') return String(row.recommendedAction||'');
+  if(key==='memo') return String(localStorage.getItem(`hitAdjustMemo|${hitRowKey(row)}`)||'');
+  return '';
+}
+function compareSortRows(a,b,sorts){
+  for(const s of sorts){
+    const av=sortValue(a,s.key), bv=sortValue(b,s.key);
+    let cmp=0;
+    if(typeof av==='number'||typeof bv==='number'){
+      const an=Number.isFinite(Number(av))?Number(av):-Infinity;
+      const bn=Number.isFinite(Number(bv))?Number(bv):-Infinity;
+      cmp=an===bn?0:(an>bn?1:-1);
+    }else{
+      cmp=String(av).localeCompare(String(bv),'ko',{numeric:true,sensitivity:'base'});
+    }
+    if(cmp!==0) return s.dir==='asc'?cmp:-cmp;
+  }
+  return 0;
+}
+function applySort(rows,sorts){
+  return [...rows].sort((a,b)=>compareSortRows(a,b,sorts));
+}
+function nextSortState(current,key,shiftKey){
+  const next=shiftKey?cloneSort(current):[];
+  const idx=next.findIndex(s=>s.key===key);
+  if(idx>=0){
+    next[idx]={...next[idx],dir:next[idx].dir==='asc'?'desc':'asc',label:sortLabelFor(key)};
+  }else{
+    next.push({key,dir:defaultSortDir(key),label:sortLabelFor(key)});
+  }
+  return next;
+}
+function sortSummary(sort){return '정렬: '+sort.map(s=>`${s.label||sortLabelFor(s.key)} ${s.dir==='asc'?'▲':'▼'}`).join(' > ');}
+function renderSortIndicators(table,sort,summaryId){
+  document.querySelectorAll(`[data-sort-table="${table}"]`).forEach(el=>{el.innerHTML='';});
+  sort.forEach((s,i)=>{
+    const displayKey=s.key==='absDiff'?'diff':s.key;
+    const el=document.querySelector(`[data-sort-table="${table}"][data-sort-key="${displayKey}"]`);
+    if(el) el.innerHTML=`<span class="sort-mark">${s.dir==='asc'?'▲':'▼'}<span class="sort-priority">${i+1}</span></span>`;
+  });
+  const sum=document.getElementById(summaryId);
+  if(sum) sum.textContent=sortSummary(sort);
+}
+function handleImpactSort(key,event){
+  impactSort=nextSortState(impactSort,key,!!event?.shiftKey);
+  renderInsightTables();
+}
+function resetImpactSort(){
+  impactSort=cloneSort(IMPACT_DEFAULT_SORT);
+  renderInsightTables();
+}
+function handleHTSort(key,event){
+  htSort=nextSortState(htSort,key,!!event?.shiftKey);
+  renderHT();
+}
+function resetHTSort(){
+  htSort=cloneSort(HT_DEFAULT_SORT);
+  renderHT();
+}
 function setHTUnit(unit,btn){
   htUnit=unit;
   document.querySelectorAll('#htAmtBtn,#htQtyBtn').forEach(b=>b.classList.remove('on'));
@@ -4970,8 +5152,8 @@ function renderHT(){
   const fhc=document.getElementById('fhc')?.value||'';
   const fht=document.getElementById('fht')?.value||'';
   const allRows=getVisibleAdjustmentRows();
-  const data=(fht?allRows.filter(d=>d.correctionType===fht):allRows)
-    .sort((a,b)=>(b.needCorrection-a.needCorrection)||Math.abs(Number(b.diff)||0)-Math.abs(Number(a.diff)||0));
+  const filteredRows=fht?allRows.filter(d=>d.correctionType===fht):allRows;
+  const data=applySort(filteredRows,htSort);
   planAdjustRowsCache=data;
   const totals=getHTTotals(data);
   // 필터 적용 시: 전체 계획 대비 기여 오차율 (분모를 전체 계획으로 고정)
@@ -4986,7 +5168,19 @@ function renderHT(){
   let h=`<table class="tbl ht-table" style="min-width:1480px;"><colgroup>
     <col style="width:7%"><col style="width:9%"><col style="width:20%"><col style="width:9%"><col style="width:9%"><col style="width:9%">
     <col style="width:7%"><col style="width:9%"><col style="width:10%"><col style="width:12%"><col style="width:13%">
-  </colgroup><thead><tr><th class="l">채널</th><th class="l">자재코드</th><th class="l">품목</th><th class="r">당월 계획(${unitLabel})</th><th class="r">당월 실적(${unitLabel})</th><th class="r">차이금액</th><th class="r">오차율</th><th class="c">최근 3개월 방향</th><th class="c">보정유형</th><th class="l">권장조치</th><th class="l">조치의견</th></tr></thead><tbody>`;
+  </colgroup><thead><tr>
+    <th class="l sortable" onclick="handleHTSort('ch',event)">채널<span data-sort-table="ht" data-sort-key="ch"></span></th>
+    <th class="l sortable" onclick="handleHTSort('mat',event)">자재코드<span data-sort-table="ht" data-sort-key="mat"></span></th>
+    <th class="l sortable" onclick="handleHTSort('name',event)">품목<span data-sort-table="ht" data-sort-key="name"></span></th>
+    <th class="r sortable" onclick="handleHTSort('plan',event)">당월 계획(${unitLabel})<span data-sort-table="ht" data-sort-key="plan"></span></th>
+    <th class="r sortable" onclick="handleHTSort('actual',event)">당월 실적(${unitLabel})<span data-sort-table="ht" data-sort-key="actual"></span></th>
+    <th class="r sortable" onclick="handleHTSort('diff',event)">차이금액<span data-sort-table="ht" data-sort-key="diff"></span></th>
+    <th class="r sortable" onclick="handleHTSort('errorRate',event)">오차율<span data-sort-table="ht" data-sort-key="errorRate"></span></th>
+    <th class="c sortable" onclick="handleHTSort('recentDirection',event)">최근 3개월 방향<span data-sort-table="ht" data-sort-key="recentDirection"></span></th>
+    <th class="c sortable" onclick="handleHTSort('correctionPriority',event)">보정유형<span data-sort-table="ht" data-sort-key="correctionPriority"></span></th>
+    <th class="l sortable" onclick="handleHTSort('recommendedAction',event)">권장조치<span data-sort-table="ht" data-sort-key="recommendedAction"></span></th>
+    <th class="l sortable" onclick="handleHTSort('memo',event)">조치의견<span data-sort-table="ht" data-sort-key="memo"></span></th>
+  </tr></thead><tbody>`;
   if(data.length){
     const totalClass=displayWape<30?'g':displayWape<50?'y':'r';
     h+=`<tr class="ht-total-row" style="font-weight:900;">
@@ -5018,6 +5212,7 @@ function renderHT(){
     h+=`<tr><td colspan="11" style="text-align:center;padding:16px;color:var(--muted);">해당 없음</td></tr>`;
   }
   document.getElementById('htWrap').innerHTML=h+`</tbody></table>`;
+  renderSortIndicators('ht',htSort,'htSortSummary');
 }
 
 
@@ -5046,6 +5241,7 @@ const SP_CH = [
 ];
 
 let spMode = 'brand';
+let spMetric = 'amount';
 let spChart = null;
 
 function toggleSP(mode, btn){
@@ -5054,21 +5250,82 @@ function toggleSP(mode, btn){
   btn.classList.add('on');
   renderSP();
 }
+function toggleSPMetric(metric, btn){
+  spMetric = metric;
+  document.querySelectorAll('#spMetricAmountBtn,#spMetricYoyBtn,#spMetricCumYoyBtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderSP();
+}
+function getSPRows(){
+  const key=spMode==='brand'?'brand':'ch';
+  const uploaded=UPLOADED?.sales_plan?.__summary?.[key];
+  if(uploaded?.length) return uploaded;
+  const fallback=spMode==='brand'?SP_BRAND:SP_CH;
+  return fallback.map(r=>({...r,prevActual:[]}));
+}
+function spPointSeries(row){
+  const current=[
+    Number(row.actual?.[0])||0,Number(row.actual?.[1])||0,Number(row.actual?.[2])||0,Number(row.actual?.[3])||0,
+    Number(row.plan?.[0])||0,Number(row.plan?.[1])||0,Number(row.plan?.[2])||0,Number(row.plan?.[3])||0
+  ];
+  const prev=[
+    Number(row.prevActual?.[0])||0,Number(row.prevActual?.[1])||0,Number(row.prevActual?.[2])||0,Number(row.prevActual?.[3])||0,
+    Number(row.prevActual?.[5])||0,Number(row.prevActual?.[6])||0,Number(row.prevActual?.[7])||0,Number(row.prevActual?.[8])||0
+  ];
+  if(spMetric==='amount') return {current,prev,values:current};
+  let currCum=0,prevCum=0;
+  const values=current.map((v,i)=>{
+    if(spMetric==='cumYoy'){
+      currCum+=v; prevCum+=prev[i];
+      return prevCum>0?(currCum/prevCum-1)*100:null;
+    }
+    return prev[i]>0?(v/prev[i]-1)*100:null;
+  });
+  return {current,prev,values};
+}
+function spMetricTotalValues(rows){
+  const totalCurrent=Array(8).fill(0);
+  const totalPrev=Array(8).fill(0);
+  rows.forEach(row=>{
+    const s=spPointSeries({...row});
+    s.current.forEach((v,i)=>totalCurrent[i]+=v);
+    s.prev.forEach((v,i)=>totalPrev[i]+=v);
+  });
+  if(spMetric==='amount') return totalCurrent;
+  let currCum=0,prevCum=0;
+  return totalCurrent.map((v,i)=>{
+    if(spMetric==='cumYoy'){
+      currCum+=v; prevCum+=totalPrev[i];
+      return prevCum>0?(currCum/prevCum-1)*100:null;
+    }
+    return totalPrev[i]>0?(v/totalPrev[i]-1)*100:null;
+  });
+}
+function fmtSPMetric(v){
+  if(v==null||!Number.isFinite(v)) return '-';
+  return spMetric==='amount'?v.toFixed(1):`${v>=0?'+':''}${v.toFixed(1)}%`;
+}
+function spMetricClass(v){
+  if(spMetric==='amount'||v==null||!Number.isFinite(v)) return '';
+  return v>0?'sp-rate-pos':v<0?'sp-rate-neg':'sp-rate-zero';
+}
 
 function renderSP(){
   safeDestroyChart('spChart'); spChart=null;
-  const rows = spMode==='brand' ? SP_BRAND : SP_CH;
-  const acts = Array(9).fill(null);
-  const plans = Array(9).fill(null);
+  const rows = getSPRows();
+  const labels = ['1월','2월','3월','4월','6월(P)','7월(P)','8월(P)','9월(P)'];
+  const metricNote=document.getElementById('spMetricNote');
+  if(metricNote){
+    metricNote.textContent=spMetric==='amount'?'금액: 억원':spMetric==='yoy'?'전년 동월 대비':'1월부터 누계 기준 전년비';
+  }
 
   // 합계 행 계산
-  const totActual = [0,0,0,0];
-  const totPlan   = [0,0,0,0,0];
-  rows.forEach(r=>{r.actual.forEach((v,i)=>totActual[i]+=v); r.plan.forEach((v,i)=>totPlan[i]+=v);});
+  const totalValues=spMetricTotalValues(rows);
 
   const datasets = rows.map((r,ri)=>{
-    const actData = [r.actual[0],r.actual[1],r.actual[2],r.actual[3],null,null,null,null,null];
-    const planData= [null,null,null,null,r.plan[0],r.plan[1],r.plan[2],r.plan[3],r.plan[4]];
+    const values=spPointSeries(r).values;
+    const actData = [values[0],values[1],values[2],values[3],null,null,null,null];
+    const planData= [null,null,null,null,values[4],values[5],values[6],values[7]];
     const col = BRAND_COLORS[ri%BRAND_COLORS.length];
     return [
       {label:r.name+' 실적', data:actData, borderColor:col, backgroundColor:col,
@@ -5078,17 +5335,14 @@ function renderSP(){
       borderDashOffset:0, datalabels:{display:false}},
     ];
   }).flat();
-  const spTotalLabels=[
-    totActual[0],totActual[1],totActual[2],totActual[3],
-    totPlan[0],totPlan[1],totPlan[2],totPlan[3],totPlan[4]
-  ].map(v=>'합계 '+v.toFixed(1)+'억');
+  const spTotalLabels=totalValues.map(v=>`합계 ${fmtSPMetric(v)}${spMetric==='amount'?'억':''}`);
 
   const canvas = document.getElementById('spChart');
   if(hasChart()){
   spChart = new Chart(canvas,{
     type:'line',
     plugins:[ChartDataLabels],
-    data:{labels:SP_LABELS.map((m,i)=>[m,spTotalLabels[i]]), datasets},
+    data:{labels:labels.map((m,i)=>[m,spTotalLabels[i]]), datasets},
     options:{
       responsive:true, maintainAspectRatio:false,
       plugins:{
@@ -5100,12 +5354,12 @@ function renderSP(){
           }
         },
         tooltip:{mode:'index',intersect:false,
-          callbacks:{label:c=>c.dataset.label+': '+fmtAmt(c.parsed.y)}},
+          callbacks:{label:c=>`${c.dataset.label}: ${spMetric==='amount'?fmtAmt(c.parsed.y):fmtSPMetric(c.parsed.y)}`}},
         datalabels:{display:false}
       },
       scales:{
         x:{grid:{color:'#f0f1f5'}, ticks:{font:{size:12,weight:'bold'},padding:8}},
-        y:{grid:{color:'#f0f1f5'}, ticks:{callback:v=>v+'억',font:{size:12,weight:'bold'}}, border:{display:false}}
+        y:{grid:{color:'#f0f1f5'}, ticks:{callback:v=>spMetric==='amount'?v+'억':v+'%',font:{size:12,weight:'bold'}}, border:{display:false}}
       }
     }
   });
@@ -5134,17 +5388,18 @@ function renderSP(){
       </tr>
     </thead><tbody>`;
   rows.forEach(r=>{
+    const values=spPointSeries(r).values;
     h+=`<tr style="border-bottom:1px solid var(--border);">
       <td style="padding:5px 8px;font-weight:700;color:var(--text);">${r.name}</td>
-      ${r.actual.map(v=>`<td style="padding:5px 6px;text-align:right;">${v.toFixed(1)}</td>`).join('')}
-      ${r.plan.slice(1).map(v=>`<td style="padding:5px 6px;text-align:right;color:var(--muted);">${v.toFixed(1)}</td>`).join('')}
+      ${values.slice(0,4).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;">${fmtSPMetric(v)}</td>`).join('')}
+      ${values.slice(4,8).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;color:var(--muted);">${fmtSPMetric(v)}</td>`).join('')}
     </tr>`;
   });
   // 합계 행
   h+=`<tr style="background:#eef0f9;font-weight:800;">
     <td style="padding:5px 8px;">합 계</td>
-    ${totActual.map(v=>`<td style="padding:5px 6px;text-align:right;">${v.toFixed(1)}</td>`).join('')}
-    ${totPlan.slice(1).map(v=>`<td style="padding:5px 6px;text-align:right;">${v.toFixed(1)}</td>`).join('')}
+    ${totalValues.slice(0,4).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;">${fmtSPMetric(v)}</td>`).join('')}
+    ${totalValues.slice(4,8).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;">${fmtSPMetric(v)}</td>`).join('')}
   </tr>`;
   h+='</tbody></table>';
   tbl.innerHTML = h;
@@ -5426,6 +5681,28 @@ function renderChAchieve(){
   const selected=rows.find(r=>r.month===month)||rows[rows.length-1];
   const summary=document.getElementById('hitMonthSummary');
   if(summary) summary.textContent=`${selected.month} 실적은 계획 대비 ${diffText(selected.diff)}, 달성률 ${selected.acc.toFixed(1)}%`;
+  const channelRows=getChAchieveRows(month,'month');
+  const overCh=channelRows.filter(r=>(Number(r.actual)||0)>(Number(r.plan)||0))
+    .sort((a,b)=>((Number(b.actual)||0)-(Number(b.plan)||0))-((Number(a.actual)||0)-(Number(a.plan)||0)))[0];
+  const underCh=channelRows.filter(r=>(Number(r.actual)||0)<(Number(r.plan)||0))
+    .sort((a,b)=>((Number(a.actual)||0)-(Number(a.plan)||0))-((Number(b.actual)||0)-(Number(b.plan)||0)))[0];
+  const correctionCount=getVisibleAdjustmentRows().filter(r=>r.needCorrection).length;
+  const adjustDirection=selected.diff<0?'계획 미달 영향 품목 중심 하향 검토 또는 일시성 확인':selected.diff>0?'계획 초과 영향 품목 중심 상향 검토 또는 채널 배분 점검':'현 계획 유지 및 모니터링';
+  const insight=document.getElementById('monthlyAdjustInsight');
+  if(insight){
+    const channelText=[
+      overCh?`초과 ${overCh.ch} ${amountFmtEok((Number(overCh.actual)||0)-(Number(overCh.plan)||0))}`:'',
+      underCh?`미달 ${underCh.ch} ${amountFmtEok((Number(underCh.actual)||0)-(Number(underCh.plan)||0))}`:''
+    ].filter(Boolean).join(' · ')||'주요 초과/미달 채널 없음';
+    insight.innerHTML=`
+      <div class="hit-insight-grid">
+        <div class="hit-insight-item"><div class="hit-insight-label">당월 계획 대비 실적 차이</div><div class="hit-insight-value ${selected.diff>=0?'diff-pos':'diff-neg'}">${amountFmtEok(selected.diff)}</div></div>
+        <div class="hit-insight-item"><div class="hit-insight-label">당월 달성률</div><div class="hit-insight-value">${selected.acc.toFixed(1)}%</div></div>
+        <div class="hit-insight-item"><div class="hit-insight-label">주요 초과/미달 채널</div><div class="hit-insight-value">${channelText}</div></div>
+        <div class="hit-insight-item"><div class="hit-insight-label">보정 필요 품목 수</div><div class="hit-insight-value">${correctionCount.toLocaleString()}개</div></div>
+      </div>
+      <div class="hit-adjust-copy">${selected.month} 실적은 계획 대비 ${diffText(selected.diff)}, 달성률 ${selected.acc.toFixed(1)}%입니다. ${adjustDirection}이 필요합니다.</div>`;
+  }
   const monthDiffLabelPlugin={
     id:'monthDiffLabel',
     afterDraw(chart){
@@ -5536,7 +5813,9 @@ function insightRows(type){
     over:r=>(Number(r.diff)||0)>0,
     under:r=>(Number(r.diff)||0)<0
   };
-  return rows.filter(filters[type]||(()=>false)).sort((a,b)=>score(b)-score(a)).slice(0,type==='impact'?10:5);
+  const filtered=rows.filter(filters[type]||(()=>false));
+  if(type==='impact') return applySort(filtered,impactSort).slice(0,10);
+  return filtered.sort((a,b)=>score(b)-score(a)).slice(0,5);
 }
 function renderInsightBody(id,rows,mode){
   const body=document.getElementById(id);
@@ -5575,6 +5854,7 @@ function renderInsightTables(){
   renderInsightBody('impactBody10',insightRows('impact'),'impact');
   renderInsightBody('overBody3',insightRows('over'),'over');
   renderInsightBody('underBody3',insightRows('under'),'under');
+  renderSortIndicators('impact',impactSort,'impactSortSummary');
 }
 
 let planAdjustModalChart=null;
@@ -5635,28 +5915,38 @@ function openPlanAdjustModal(row){
     <div class="analysis-grid">
       <div class="analysis-box">
         <div class="analysis-title">최근 3개월 오차 방향</div>
-        <table class="tbl"><thead><tr><th>월</th><th class="r">계획</th><th class="r">실적</th><th class="c">방향</th></tr></thead><tbody>
-          ${row.history.map(h=>`<tr><td>${h.month}</td><td class="r">${amountFmtEokPlain(h.plan)}</td><td class="r">${amountFmtEokPlain(h.actual)}</td><td class="c">${h.direction}</td></tr>`).join('')}
+        <table class="analysis-table"><colgroup><col style="width:22%"><col style="width:26%"><col style="width:26%"><col style="width:26%"></colgroup><thead><tr><th class="l">월</th><th class="r">계획</th><th class="r">실적</th><th class="c">방향</th></tr></thead><tbody>
+          ${row.history.map(h=>`<tr><td class="l">${h.month}</td><td class="r">${amountFmtEokPlain(h.plan)}</td><td class="r">${amountFmtEokPlain(h.actual)}</td><td class="c"><span class="tag ${h.direction==='초과'?'y':h.direction==='미달'?'r':'g'}">${h.direction}</span></td></tr>`).join('')}
         </tbody></table>
       </div>
       <div class="analysis-box">
         <div class="analysis-title">채널별 계획·실적·차이</div>
-        <table class="tbl"><thead><tr><th class="l">채널</th><th class="r">계획</th><th class="r">실적</th><th class="r">차이</th></tr></thead><tbody>
+        <table class="analysis-table"><colgroup><col style="width:28%"><col style="width:24%"><col style="width:24%"><col style="width:24%"></colgroup><thead><tr><th class="l">채널</th><th class="r">계획</th><th class="r">실적</th><th class="r">차이</th></tr></thead><tbody>
           ${channels.map(c=>`<tr><td class="l">${c.ch}</td><td class="r">${amountFmtEokPlain(c.plan)}</td><td class="r">${amountFmtEokPlain(c.actual)}</td><td class="r ${c.diff>=0?'diff-pos':'diff-neg'}">${amountFmtEok(c.diff)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--muted);">채널 데이터 없음</td></tr>'}
         </tbody></table>
       </div>
       <div class="analysis-box">
-        <div class="analysis-title">오차 원인 추정</div>
-        <div>${row.cause}</div>
+        <div class="analysis-title">오차 원인·보정 판단</div>
+        <table class="analysis-kv"><tbody>
+          <tr><th>오차 원인 추정</th><td>${row.cause}</td></tr>
+          <tr><th>최근 3개월 방향</th><td>${row.recentDirection}</td></tr>
+          <tr><th>보정유형</th><td>${row.correctionType}</td></tr>
+        </tbody></table>
       </div>
       <div class="analysis-box">
         <div class="analysis-title">다음 계획 보정 제안</div>
-        <div>${row.recommendedAction}</div>
+        <table class="analysis-kv"><tbody>
+          <tr><th>권장조치</th><td>${row.recommendedAction}</td></tr>
+          <tr><th>차월 기존계획</th><td>${amountFmtEokPlain(row.nextPlanAmt)}</td></tr>
+          <tr><th>권고 판매계획</th><td>${amountFmtEokPlain(row.recommendedAmt)}</td></tr>
+        </tbody></table>
       </div>
     </div>
     <div class="analysis-box" style="margin-top:14px;">
       <div class="analysis-title">조치의견</div>
-      <textarea class="action-memo" style="min-height:92px;" data-memo-key="${memoKey}" oninput="localStorage.setItem(this.dataset.memoKey,this.value)" placeholder="조치의견 입력">${memo}</textarea>
+      <table class="analysis-kv"><tbody>
+        <tr><th>담당 의견</th><td><textarea class="action-memo" data-memo-key="${memoKey}" oninput="localStorage.setItem(this.dataset.memoKey,this.value)" placeholder="조치의견 입력">${memo}</textarea></td></tr>
+      </tbody></table>
     </div>
     <div class="sku-insight good" style="font-weight:900;">${statement}</div>`;
   modal.style.display='flex';
