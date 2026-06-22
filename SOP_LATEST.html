@@ -88,7 +88,10 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .sec-body.flush{padding:0;}
 /* filters inside dark sec-head */
 .sec-head select,.sec-head input{background:#fff;color:var(--text);border:1px solid rgba(255,255,255,.3);}
-.sp-metric-note{font-size:10.5px;color:rgba(255,255,255,.7);font-weight:800;white-space:nowrap;}
+.sp-head-controls{display:grid;grid-template-columns:auto auto 118px auto;align-items:center;gap:12px;flex:0 0 auto;}
+.sp-toggle-group{display:flex;gap:6px;flex:0 0 auto;}
+.sp-toggle-group.metric .sc-btn{width:76px;text-align:center;justify-content:center;}
+.sp-metric-note{width:118px;font-size:10.5px;color:rgba(255,255,255,.7);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sp-rate-pos{color:var(--green)!important;font-weight:900;}
 .sp-rate-neg{color:var(--red)!important;font-weight:900;}
 .sp-rate-zero{color:var(--muted)!important;font-weight:800;}
@@ -627,12 +630,12 @@ table.base tr:last-child td{border-bottom:none;}
   <div class="sec-card">
     <div class="sec-head">
       <div class="sec-tw"><div class="sec-bar"></div><div class="sec-title">영업 판매계획 실적</div></div>
-      <div style="display:flex;align-items:center;gap:14px;">
-        <div style="display:flex;gap:6px;">
+      <div class="sp-head-controls">
+        <div class="sp-toggle-group">
           <button class="sc-btn on" id="spBrandBtn" onclick="toggleSP('brand',this)">브랜드별</button>
           <button class="sc-btn" id="spChBtn"    onclick="toggleSP('ch',this)">채널별</button>
         </div>
-        <div style="display:flex;gap:6px;">
+        <div class="sp-toggle-group metric">
           <button class="sc-btn on" id="spMetricAmountBtn" onclick="toggleSPMetric('amount',this)">금액</button>
           <button class="sc-btn" id="spMetricYoyBtn" onclick="toggleSPMetric('yoy',this)">전년비</button>
           <button class="sc-btn" id="spMetricCumYoyBtn" onclick="toggleSPMetric('cumYoy',this)">누계전년비</button>
@@ -5223,21 +5226,21 @@ const SP_PLAN_IDX   = [4,5,6,7,8]; // May~Sep
 const BRAND_COLORS = ['#1D2783','#C46B4D','#33512E','#E3B341','#9B59B6','#E3521A','#7a8099','#5AA469'];
 
 const SP_BRAND = [
-  {name:'닥터베어',  actual:[21.0,20.8,26.5,26.6], plan:[24.9,29.0,28.6,28.8,28.8]},
-  {name:'플래티넘',  actual:[10.7,11.0,12.3, 9.5], plan:[10.0,10.3,10.4,10.7,10.7]},
-  {name:'집중샷',    actual:[ 4.4, 4.9,12.3,11.2], plan:[20.0, 7.9, 9.6,22.2,22.2]},
-  {name:'팍트샷',    actual:[ 3.9, 3.3, 6.3, 4.4], plan:[ 8.1, 3.4, 3.3, 8.7, 8.7]},
-  {name:'에너비슐',  actual:[ 2.8, 2.5, 3.9, 7.6], plan:[14.4,10.3,10.6,15.0,15.0]},
-  {name:'합쎈',      actual:[13.6,15.4,13.1, 9.8], plan:[12.1,16.7,17.8,16.2,16.2]},
-  {name:'멘티가드',  actual:[ 0.1, 0.1, 0.2, 0.1], plan:[ 0.1, 0.1, 0.1, 0.1, 0.1]},
-  {name:'기타',      actual:[ 0.1, 0.2, 0.1, 0.3], plan:[ 0.3, 0.2, 0.2, 0.2, 0.2]},
+  {name:'닥터베어',  actual:[21.0,20.8,26.5,26.6], plan:[24.9,29.0,28.6,28.8,28.8], prevActual:[1.7793,9.8894,12.7450,25.2398,33.2853,6.3603,11.4780,14.3586,27.7300,15.1364,17.3384,17.5484]},
+  {name:'플래티넘',  actual:[10.7,11.0,12.3, 9.5], plan:[10.0,10.3,10.4,10.7,10.7], prevActual:[8.8145,8.2926,14.3007,8.4358,9.2056,11.0901,14.8162,12.0521,11.3080,10.3782,16.1051,14.2850]},
+  {name:'집중샷',    actual:[ 4.4, 4.9,12.3,11.2], plan:[20.0, 7.9, 9.6,22.2,22.2], prevActual:[1.3004,1.2011,6.8689,15.6420,5.7077,13.2490,5.1812,6.4047,15.7129,7.9554,6.3928,3.7842]},
+  {name:'팍트샷',    actual:[ 3.9, 3.3, 6.3, 4.4], plan:[ 8.1, 3.4, 3.3, 8.7, 8.7], prevActual:[8.5393,6.7458,10.1054,9.4021,6.1030,6.3043,5.5004,5.4636,7.1943,4.4142,3.5087,4.0063]},
+  {name:'에너비슐',  actual:[ 2.8, 2.5, 3.9, 7.6], plan:[14.4,10.3,10.6,15.0,15.0], prevActual:[3.9054,1.9741,2.9661,3.1044,4.4814,2.3948,3.7409,2.8697,3.0221,2.2344,4.1509,2.4835]},
+  {name:'합쎈',      actual:[13.6,15.4,13.1, 9.8], plan:[12.1,16.7,17.8,16.2,16.2], prevActual:[0.0267,0,0.0089,0,0,0,0.5003,7.6906,13.9002,13.2449,13.2257,13.0773]},
+  {name:'멘티가드',  actual:[ 0.1, 0.1, 0.2, 0.1], plan:[ 0.1, 0.1, 0.1, 0.1, 0.1], prevActual:[0.1564,0.1140,0.1059,0.1190,0.1241,0.0685,0.1422,0.1275,0.1921,0.1479,0.1046,0.1142]},
+  {name:'기타',      actual:[ 0.1, 0.2, 0.1, 0.3], plan:[ 0.3, 0.2, 0.2, 0.2, 0.2], prevActual:[0.0476,0.0073,1.1114,0.0256,0.0096,0.0074,0.0043,0.0027,0.0056,0.0112,0.0291,0.0469]},
 ];
 const SP_CH = [
-  {name:'직영몰', actual:[22.1,23.5,28.0,27.2], plan:[32.0,35.0,30.0,31.0,40.0]},
-  {name:'다이소',  actual:[18.0,19.2,24.5,22.1], plan:[25.0,28.0,25.0,26.0,30.0]},
-  {name:'쿠팡',   actual:[ 7.5, 6.8,10.2, 9.8], plan:[10.0,12.0, 9.0, 9.5,14.0]},
-  {name:'스/스',  actual:[ 5.2, 5.0, 7.5, 6.8], plan:[ 7.0, 8.5, 7.0, 7.5,10.0]},
-  {name:'기타',   actual:[ 3.8, 3.7, 4.5, 3.6], plan:[ 5.9, 6.4, 6.9, 6.6, 7.9]},
+  {name:'직영몰', actual:[22.1,23.5,28.0,27.2], plan:[32.0,35.0,30.0,31.0,40.0], prevActual:[13.8987,13.0713,23.0308,25.3853,14.9221,21.8046,16.4165,20.5326,31.9079,23.4472,26.5678,23.6391]},
+  {name:'다이소',  actual:[18.0,19.2,24.5,22.1], plan:[25.0,28.0,25.0,26.0,30.0], prevActual:[0,8.8125,11.4399,23.9233,32.3179,5.5913,10.3805,12.6007,25.9450,14.2786,16.5973,16.6249]},
+  {name:'쿠팡',   actual:[ 7.5, 6.8,10.2, 9.8], plan:[10.0,12.0, 9.0, 9.5,14.0], prevActual:[4.7804,3.0913,7.1195,7.4709,6.6788,7.3328,7.0391,8.0412,10.0838,7.5014,8.3495,7.2804]},
+  {name:'스/스',  actual:[ 5.2, 5.0, 7.5, 6.8], plan:[ 7.0, 8.5, 7.0, 7.5,10.0], prevActual:[2.6151,1.1744,2.3137,2.9310,2.2442,2.7316,4.9909,4.4761,8.1628,5.7434,6.4743,4.7206]},
+  {name:'기타',   actual:[ 3.8, 3.7, 4.5, 3.6], plan:[ 5.9, 6.4, 6.9, 6.6, 7.9], prevActual:[2.7820,2.0731,3.5594,2.2342,2.7530,2.0046,2.5248,3.1798,2.0267,2.1700,2.5144,2.4246]},
 ];
 
 let spMode = 'brand';
