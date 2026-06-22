@@ -643,7 +643,7 @@ table.base tr:last-child td{border-bottom:none;}
           <button class="sc-btn metric-yoy" id="spMetricCumYoyBtn" onclick="toggleSPMetric('cumYoy',this)">전년비(누계)</button>
         </div>
         <div class="sp-metric-note" id="spMetricNote">금액: 억원</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.75);font-weight:700;">단위: 억원 &nbsp;|&nbsp; 1~4월: 실적 &nbsp;/&nbsp; 6~9월: 계획</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.75);font-weight:700;" id="spPeriodNote">단위: 억원 &nbsp;|&nbsp; 1~5월: 실적 &nbsp;/&nbsp; 6~9월: 계획</div>
       </div>
     </div>
     <div class="sec-body">
@@ -1861,7 +1861,7 @@ function parseSalesPlanSummaryRows(rows){
       if(!name) break;
       if(name==='총계'||name==='합계') continue;
       const prevActual=Array.from({length:12},(_,i)=>Number(row[8+i])||0);
-      const actual=Array.from({length:4},(_,i)=>Number(row[20+i])||0);
+      const actual=Array.from({length:5},(_,i)=>Number(row[20+i])||0);
       const plan=Array.from({length:5},(_,i)=>Number(row[32+i])||0);
       if(prevActual.some(Boolean)||actual.some(Boolean)||plan.some(Boolean)){
         groups[type].push({name,prevActual,actual,plan});
@@ -5222,27 +5222,24 @@ function renderHT(){
 
 
 // ═══════════ 영업 판매계획 실적 데이터 ══════════════════════════
-const SP_LABELS = ['1월','2월','3월','4월','5월(P)','6월(P)','7월(P)','8월(P)','9월(P)'];
-const SP_ACTUAL_IDX = [0,1,2,3]; // Jan~Apr
-const SP_PLAN_IDX   = [4,5,6,7,8]; // May~Sep
 const BRAND_COLORS = ['#1D2783','#C46B4D','#33512E','#E3B341','#9B59B6','#E3521A','#7a8099','#5AA469'];
 
 const SP_BRAND = [
-  {name:'닥터베어',  actual:[21.0,20.8,26.5,26.6], plan:[24.9,29.0,28.6,28.8,28.8], prevActual:[1.7793,9.8894,12.7450,25.2398,33.2853,6.3603,11.4780,14.3586,27.7300,15.1364,17.3384,17.5484]},
-  {name:'플래티넘',  actual:[10.7,11.0,12.3, 9.5], plan:[10.0,10.3,10.4,10.7,10.7], prevActual:[8.8145,8.2926,14.3007,8.4358,9.2056,11.0901,14.8162,12.0521,11.3080,10.3782,16.1051,14.2850]},
-  {name:'집중샷',    actual:[ 4.4, 4.9,12.3,11.2], plan:[20.0, 7.9, 9.6,22.2,22.2], prevActual:[1.3004,1.2011,6.8689,15.6420,5.7077,13.2490,5.1812,6.4047,15.7129,7.9554,6.3928,3.7842]},
-  {name:'팍트샷',    actual:[ 3.9, 3.3, 6.3, 4.4], plan:[ 8.1, 3.4, 3.3, 8.7, 8.7], prevActual:[8.5393,6.7458,10.1054,9.4021,6.1030,6.3043,5.5004,5.4636,7.1943,4.4142,3.5087,4.0063]},
-  {name:'에너비슐',  actual:[ 2.8, 2.5, 3.9, 7.6], plan:[14.4,10.3,10.6,15.0,15.0], prevActual:[3.9054,1.9741,2.9661,3.1044,4.4814,2.3948,3.7409,2.8697,3.0221,2.2344,4.1509,2.4835]},
-  {name:'합쎈',      actual:[13.6,15.4,13.1, 9.8], plan:[12.1,16.7,17.8,16.2,16.2], prevActual:[0.0267,0,0.0089,0,0,0,0.5003,7.6906,13.9002,13.2449,13.2257,13.0773]},
-  {name:'멘티가드',  actual:[ 0.1, 0.1, 0.2, 0.1], plan:[ 0.1, 0.1, 0.1, 0.1, 0.1], prevActual:[0.1564,0.1140,0.1059,0.1190,0.1241,0.0685,0.1422,0.1275,0.1921,0.1479,0.1046,0.1142]},
-  {name:'기타',      actual:[ 0.1, 0.2, 0.1, 0.3], plan:[ 0.3, 0.2, 0.2, 0.2, 0.2], prevActual:[0.0476,0.0073,1.1114,0.0256,0.0096,0.0074,0.0043,0.0027,0.0056,0.0112,0.0291,0.0469]},
+  {name:'닥터베어',  actual:[21.0,20.8,26.5,26.6,26.6], plan:[24.9,29.0,28.6,28.8,28.8], prevActual:[1.7793,9.8894,12.7450,25.2398,33.2853,6.3603,11.4780,14.3586,27.7300,15.1364,17.3384,17.5484]},
+  {name:'플래티넘',  actual:[10.7,11.0,12.3, 9.5, 9.5], plan:[10.0,10.3,10.4,10.7,10.7], prevActual:[8.8145,8.2926,14.3007,8.4358,9.2056,11.0901,14.8162,12.0521,11.3080,10.3782,16.1051,14.2850]},
+  {name:'집중샷',    actual:[ 4.4, 4.9,12.3,11.2,16.3], plan:[20.0, 7.9, 9.6,22.2,22.2], prevActual:[1.3004,1.2011,6.8689,15.6420,5.7077,13.2490,5.1812,6.4047,15.7129,7.9554,6.3928,3.7842]},
+  {name:'팍트샷',    actual:[ 3.9, 3.3, 6.3, 4.4, 4.4], plan:[ 8.1, 3.4, 3.3, 8.7, 8.7], prevActual:[8.5393,6.7458,10.1054,9.4021,6.1030,6.3043,5.5004,5.4636,7.1943,4.4142,3.5087,4.0063]},
+  {name:'에너비슐',  actual:[ 2.8, 2.5, 3.9, 7.6, 2.4], plan:[14.4,10.3,10.6,15.0,15.0], prevActual:[3.9054,1.9741,2.9661,3.1044,4.4814,2.3948,3.7409,2.8697,3.0221,2.2344,4.1509,2.4835]},
+  {name:'합쎈',      actual:[13.6,15.4,13.1, 9.8, 9.8], plan:[12.1,16.7,17.8,16.2,16.2], prevActual:[0.0267,0,0.0089,0,0,0,0.5003,7.6906,13.9002,13.2449,13.2257,13.0773]},
+  {name:'멘티가드',  actual:[ 0.1, 0.1, 0.2, 0.1, 0.1], plan:[ 0.1, 0.1, 0.1, 0.1, 0.1], prevActual:[0.1564,0.1140,0.1059,0.1190,0.1241,0.0685,0.1422,0.1275,0.1921,0.1479,0.1046,0.1142]},
+  {name:'기타',      actual:[ 0.1, 0.2, 0.1, 0.3, 0.3], plan:[ 0.3, 0.2, 0.2, 0.2, 0.2], prevActual:[0.0476,0.0073,1.1114,0.0256,0.0096,0.0074,0.0043,0.0027,0.0056,0.0112,0.0291,0.0469]},
 ];
 const SP_CH = [
-  {name:'직영몰', actual:[22.1,23.5,28.0,27.2], plan:[32.0,35.0,30.0,31.0,40.0], prevActual:[13.8987,13.0713,23.0308,25.3853,14.9221,21.8046,16.4165,20.5326,31.9079,23.4472,26.5678,23.6391]},
-  {name:'다이소',  actual:[18.0,19.2,24.5,22.1], plan:[25.0,28.0,25.0,26.0,30.0], prevActual:[0,8.8125,11.4399,23.9233,32.3179,5.5913,10.3805,12.6007,25.9450,14.2786,16.5973,16.6249]},
-  {name:'쿠팡',   actual:[ 7.5, 6.8,10.2, 9.8], plan:[10.0,12.0, 9.0, 9.5,14.0], prevActual:[4.7804,3.0913,7.1195,7.4709,6.6788,7.3328,7.0391,8.0412,10.0838,7.5014,8.3495,7.2804]},
-  {name:'스/스',  actual:[ 5.2, 5.0, 7.5, 6.8], plan:[ 7.0, 8.5, 7.0, 7.5,10.0], prevActual:[2.6151,1.1744,2.3137,2.9310,2.2442,2.7316,4.9909,4.4761,8.1628,5.7434,6.4743,4.7206]},
-  {name:'기타',   actual:[ 3.8, 3.7, 4.5, 3.6], plan:[ 5.9, 6.4, 6.9, 6.6, 7.9], prevActual:[2.7820,2.0731,3.5594,2.2342,2.7530,2.0046,2.5248,3.1798,2.0267,2.1700,2.5144,2.4246]},
+  {name:'직영몰', actual:[22.1,23.5,28.0,27.2,25.5], plan:[32.0,35.0,30.0,31.0,40.0], prevActual:[13.8987,13.0713,23.0308,25.3853,14.9221,21.8046,16.4165,20.5326,31.9079,23.4472,26.5678,23.6391]},
+  {name:'다이소',  actual:[18.0,19.2,24.5,22.1,25.7], plan:[25.0,28.0,25.0,26.0,30.0], prevActual:[0,8.8125,11.4399,23.9233,32.3179,5.5913,10.3805,12.6007,25.9450,14.2786,16.5973,16.6249]},
+  {name:'쿠팡',   actual:[ 7.5, 6.8,10.2, 9.8, 8.5], plan:[10.0,12.0, 9.0, 9.5,14.0], prevActual:[4.7804,3.0913,7.1195,7.4709,6.6788,7.3328,7.0391,8.0412,10.0838,7.5014,8.3495,7.2804]},
+  {name:'스/스',  actual:[ 5.2, 5.0, 7.5, 6.8, 7.5], plan:[ 7.0, 8.5, 7.0, 7.5,10.0], prevActual:[2.6151,1.1744,2.3137,2.9310,2.2442,2.7316,4.9909,4.4761,8.1628,5.7434,6.4743,4.7206]},
+  {name:'기타',   actual:[ 3.8, 3.7, 4.5, 3.6, 2.0], plan:[ 5.9, 6.4, 6.9, 6.6, 7.9], prevActual:[2.7820,2.0731,3.5594,2.2342,2.7530,2.0046,2.5248,3.1798,2.0267,2.1700,2.5144,2.4246]},
 ];
 
 let spMode = 'brand';
@@ -5264,18 +5261,33 @@ function toggleSPMetric(metric, btn){
 function getSPRows(){
   const key=spMode==='brand'?'brand':'ch';
   const uploaded=UPLOADED?.sales_plan?.__summary?.[key];
-  if(uploaded?.length) return uploaded;
   const fallback=spMode==='brand'?SP_BRAND:SP_CH;
+  if(uploaded?.length){
+    const fallbackByName=new Map(fallback.map(r=>[r.name,r]));
+    return uploaded.map(r=>{
+      const fb=fallbackByName.get(r.name)||{};
+      const actual=[...(r.actual||[])];
+      if(actual.length<5&&fb.actual?.[4]!=null) actual[4]=fb.actual[4];
+      return {...r,actual,prevActual:(r.prevActual?.length?r.prevActual:fb.prevActual)||[],plan:(r.plan?.length?r.plan:fb.plan)||[]};
+    });
+  }
   return fallback;
 }
-function spPointSeries(row){
-  const current=[
-    Number(row.actual?.[0])||0,Number(row.actual?.[1])||0,Number(row.actual?.[2])||0,Number(row.actual?.[3])||0,
-    Number(row.plan?.[0])||0,Number(row.plan?.[1])||0,Number(row.plan?.[2])||0,Number(row.plan?.[3])||0
-  ];
+function getSPPeriods(rows){
+  const actualCount=Math.max(5,...rows.map(r=>Array.isArray(r.actual)?r.actual.length:0));
+  const planCount=4;
+  return {
+    actualMonths:Array.from({length:actualCount},(_,i)=>i+1),
+    planMonths:Array.from({length:planCount},(_,i)=>i+6)
+  };
+}
+function spPointSeries(row,periods=getSPPeriods([row])){
+  const actualCurrent=periods.actualMonths.map((_,i)=>Number(row.actual?.[i])||0);
+  const planCurrent=periods.planMonths.map((_,i)=>Number(row.plan?.[i])||0);
+  const current=[...actualCurrent,...planCurrent];
   const prev=[
-    Number(row.prevActual?.[0])||0,Number(row.prevActual?.[1])||0,Number(row.prevActual?.[2])||0,Number(row.prevActual?.[3])||0,
-    Number(row.prevActual?.[5])||0,Number(row.prevActual?.[6])||0,Number(row.prevActual?.[7])||0,Number(row.prevActual?.[8])||0
+    ...periods.actualMonths.map(m=>Number(row.prevActual?.[m-1])||0),
+    ...periods.planMonths.map(m=>Number(row.prevActual?.[m-1])||0)
   ];
   if(spMetric==='amount') return {current,prev,values:current};
   let currCum=0,prevCum=0;
@@ -5288,11 +5300,11 @@ function spPointSeries(row){
   });
   return {current,prev,values};
 }
-function spMetricTotalValues(rows){
-  const totalCurrent=Array(8).fill(0);
-  const totalPrev=Array(8).fill(0);
+function spMetricTotalValues(rows,periods=getSPPeriods(rows)){
+  const totalCurrent=Array(periods.actualMonths.length+periods.planMonths.length).fill(0);
+  const totalPrev=Array(totalCurrent.length).fill(0);
   rows.forEach(row=>{
-    const s=spPointSeries({...row});
+    const s=spPointSeries({...row},periods);
     s.current.forEach((v,i)=>totalCurrent[i]+=v);
     s.prev.forEach((v,i)=>totalPrev[i]+=v);
   });
@@ -5318,19 +5330,22 @@ function spMetricClass(v){
 function renderSP(){
   safeDestroyChart('spChart'); spChart=null;
   const rows = getSPRows();
-  const labels = ['1월','2월','3월','4월','6월(P)','7월(P)','8월(P)','9월(P)'];
+  const periods=getSPPeriods(rows);
+  const labels = [...periods.actualMonths.map(m=>`${m}월`),...periods.planMonths.map(m=>`${m}월(P)`)];
   const metricNote=document.getElementById('spMetricNote');
   if(metricNote){
     metricNote.textContent=spMetric==='amount'?'금액: 억원':spMetric==='yoy'?'전년 동월 대비':'1월부터 누계 기준 전년비';
   }
+  const periodNote=document.getElementById('spPeriodNote');
+  if(periodNote) periodNote.innerHTML=`단위: 억원 &nbsp;|&nbsp; 1~${periods.actualMonths.length}월: 실적 &nbsp;/&nbsp; 6~9월: 계획`;
 
   // 합계 행 계산
-  const totalValues=spMetricTotalValues(rows);
+  const totalValues=spMetricTotalValues(rows,periods);
 
   const datasets = rows.map((r,ri)=>{
-    const values=spPointSeries(r).values;
-    const actData = [values[0],values[1],values[2],values[3],null,null,null,null];
-    const planData= [null,null,null,null,values[4],values[5],values[6],values[7]];
+    const values=spPointSeries(r,periods).values;
+    const actData = [...values.slice(0,periods.actualMonths.length),...Array(periods.planMonths.length).fill(null)];
+    const planData= [...Array(periods.actualMonths.length).fill(null),...values.slice(periods.actualMonths.length)];
     const col = BRAND_COLORS[ri%BRAND_COLORS.length];
     return [
       {label:r.name+' 실적', data:actData, borderColor:col, backgroundColor:col,
@@ -5378,33 +5393,27 @@ function renderSP(){
     <thead>
       <tr>
         <th rowspan="2" style="background:var(--navy);color:#fff;padding:7px 8px;font-weight:700;text-align:left;min-width:60px;">구분</th>
-        <th colspan="4" style="background:var(--terra);color:#fff;padding:7px 8px;font-weight:700;text-align:center;">실 적</th>
-        <th colspan="4" style="background:var(--navy);color:#fff;padding:7px 8px;font-weight:700;text-align:center;">계 획</th>
+        <th colspan="${periods.actualMonths.length}" style="background:var(--terra);color:#fff;padding:7px 8px;font-weight:700;text-align:center;">실 적</th>
+        <th colspan="${periods.planMonths.length}" style="background:var(--navy);color:#fff;padding:7px 8px;font-weight:700;text-align:center;">계 획</th>
       </tr>
       <tr>
-        <th style="background:#d45a35;color:#fff;padding:7px 8px;text-align:right;">1월</th>
-        <th style="background:#d45a35;color:#fff;padding:7px 8px;text-align:right;">2월</th>
-        <th style="background:#d45a35;color:#fff;padding:7px 8px;text-align:right;">3월</th>
-        <th style="background:#d45a35;color:#fff;padding:7px 8px;text-align:right;">4월</th>
-        <th style="background:#2d3a9a;color:#fff;padding:7px 8px;text-align:right;">6월(P)</th>
-        <th style="background:#2d3a9a;color:#fff;padding:7px 8px;text-align:right;">7월(P)</th>
-        <th style="background:#2d3a9a;color:#fff;padding:7px 8px;text-align:right;">8월(P)</th>
-        <th style="background:#2d3a9a;color:#fff;padding:7px 8px;text-align:right;">9월(P)</th>
+        ${periods.actualMonths.map(m=>`<th style="background:#d45a35;color:#fff;padding:7px 8px;text-align:right;">${m}월</th>`).join('')}
+        ${periods.planMonths.map(m=>`<th style="background:#2d3a9a;color:#fff;padding:7px 8px;text-align:right;">${m}월(P)</th>`).join('')}
       </tr>
     </thead><tbody>`;
   rows.forEach(r=>{
-    const values=spPointSeries(r).values;
+    const values=spPointSeries(r,periods).values;
     h+=`<tr style="border-bottom:1px solid var(--border);">
       <td style="padding:5px 8px;font-weight:700;color:var(--text);">${r.name}</td>
-      ${values.slice(0,4).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;">${fmtSPMetric(v)}</td>`).join('')}
-      ${values.slice(4,8).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;color:var(--muted);">${fmtSPMetric(v)}</td>`).join('')}
+      ${values.slice(0,periods.actualMonths.length).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;">${fmtSPMetric(v)}</td>`).join('')}
+      ${values.slice(periods.actualMonths.length).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;color:var(--muted);">${fmtSPMetric(v)}</td>`).join('')}
     </tr>`;
   });
   // 합계 행
   h+=`<tr style="background:#eef0f9;font-weight:800;">
     <td style="padding:5px 8px;">합 계</td>
-    ${totalValues.slice(0,4).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;">${fmtSPMetric(v)}</td>`).join('')}
-    ${totalValues.slice(4,8).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;">${fmtSPMetric(v)}</td>`).join('')}
+    ${totalValues.slice(0,periods.actualMonths.length).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;">${fmtSPMetric(v)}</td>`).join('')}
+    ${totalValues.slice(periods.actualMonths.length).map(v=>`<td class="${spMetricClass(v)}" style="padding:5px 6px;text-align:right;">${fmtSPMetric(v)}</td>`).join('')}
   </tr>`;
   h+='</tbody></table>';
   tbl.innerHTML = h;
