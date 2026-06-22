@@ -90,7 +90,9 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .sec-head select,.sec-head input{background:#fff;color:var(--text);border:1px solid rgba(255,255,255,.3);}
 .sp-head-controls{display:grid;grid-template-columns:auto auto 118px auto;align-items:center;gap:12px;flex:0 0 auto;}
 .sp-toggle-group{display:flex;gap:6px;flex:0 0 auto;}
-.sp-toggle-group.metric .sc-btn{width:76px;text-align:center;justify-content:center;}
+.sp-toggle-group.metric .sc-btn{width:82px;height:36px;padding:0 4px;font-size:10px;line-height:1.15;text-align:center;justify-content:center;white-space:normal;}
+.sp-toggle-group.metric .sc-btn.metric-yoy{border-color:#E3B341!important;color:#6d4a00!important;}
+.sp-toggle-group.metric .sc-btn.metric-yoy.on{background:#E3B341!important;border-color:#E3B341!important;color:#1f1f1f!important;}
 .sp-metric-note{width:118px;font-size:10.5px;color:rgba(255,255,255,.7);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sp-rate-pos{color:var(--green)!important;font-weight:900;}
 .sp-rate-neg{color:var(--red)!important;font-weight:900;}
@@ -637,8 +639,8 @@ table.base tr:last-child td{border-bottom:none;}
         </div>
         <div class="sp-toggle-group metric">
           <button class="sc-btn on" id="spMetricAmountBtn" onclick="toggleSPMetric('amount',this)">금액</button>
-          <button class="sc-btn" id="spMetricYoyBtn" onclick="toggleSPMetric('yoy',this)">전년비</button>
-          <button class="sc-btn" id="spMetricCumYoyBtn" onclick="toggleSPMetric('cumYoy',this)">누계전년비</button>
+          <button class="sc-btn metric-yoy" id="spMetricYoyBtn" onclick="toggleSPMetric('yoy',this)">전년비</button>
+          <button class="sc-btn metric-yoy" id="spMetricCumYoyBtn" onclick="toggleSPMetric('cumYoy',this)">전년비(누계)</button>
         </div>
         <div class="sp-metric-note" id="spMetricNote">금액: 억원</div>
         <div style="font-size:11px;color:rgba(255,255,255,.75);font-weight:700;">단위: 억원 &nbsp;|&nbsp; 1~4월: 실적 &nbsp;/&nbsp; 6~9월: 계획</div>
@@ -5264,7 +5266,7 @@ function getSPRows(){
   const uploaded=UPLOADED?.sales_plan?.__summary?.[key];
   if(uploaded?.length) return uploaded;
   const fallback=spMode==='brand'?SP_BRAND:SP_CH;
-  return fallback.map(r=>({...r,prevActual:[]}));
+  return fallback;
 }
 function spPointSeries(row){
   const current=[
