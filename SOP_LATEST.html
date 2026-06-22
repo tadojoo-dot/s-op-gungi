@@ -350,24 +350,33 @@ table.base tr:last-child td{border-bottom:none;}
 #p2 .tile-val{font-size:22px;font-weight:800;line-height:1.15;}
 #p2 .tile-val.red{color:var(--red);} #p2 .tile-val.terra{color:var(--terra);} #p2 .tile-val.navy{color:var(--navy);} #p2 .tile-val.green{color:var(--green);}
 #p2 .tile-sub{font-size:10px;color:var(--muted);margin-top:2px;}
-#p2 .tbl{width:100%;border-collapse:collapse;font-size:12px;}
-#p2 .tbl th{background:var(--gray-bg);color:var(--navy);font-weight:700;padding:7px 10px;text-align:center;border-bottom:2px solid var(--gray-bd);white-space:nowrap;font-size:11px;letter-spacing:.2px;}
-#p2 .tbl td{padding:6px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+#p2 .tbl{width:100%;border-collapse:collapse;font-size:13px;}
+#p2 .tbl th{background:var(--gray-bg);color:var(--navy);font-weight:800;padding:9px 10px;text-align:center;border-bottom:2px solid var(--gray-bd);white-space:nowrap;font-size:12px;letter-spacing:0;}
+#p2 .tbl td{padding:9px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle;line-height:1.35;}
 #p2 .tbl td.r{text-align:right;} #p2 .tbl td.l{text-align:left;}
 #p2 .tbl th.r{text-align:right;} #p2 .tbl th.l{text-align:left;} #p2 .tbl th.c{text-align:center;}
 #p2 .ht-table{table-layout:fixed;}
 #p2 .ht-table th,#p2 .ht-table td{box-sizing:border-box;}
+#p2 .ht-table td.r,#p2 .ht-table th.r,#p2 .insight-table td.insight-num{font-variant-numeric:tabular-nums;}
 #p2 .ht-table .hit-rate-col{width:14%;padding-left:6px;padding-right:6px;text-align:center!important;}
 #p2 .ht-table td.hit-rate-col{overflow:visible;}
 #p2 .ht-table .hit-rate-wrap{display:flex;width:100%;min-height:27px;align-items:center;justify-content:center;}
 #p2 .ht-table .hit-rate-wrap .tag{display:inline-flex;min-width:66px;align-items:center;justify-content:center;box-sizing:border-box;}
 #p2 .ht-scroll{max-height:520px;overflow:auto;position:relative;}
 #p2 .ht-table thead th{position:sticky;top:0;z-index:4;}
-#p2 .ht-table tr.ht-total-row td{position:sticky;top:31px;z-index:3;background:#eef0f9;border-top:2px solid var(--navy);border-bottom:2px solid var(--navy);}
+#p2 .ht-table tr.ht-total-row td{position:sticky;top:39px;z-index:3;background:#eef0f9;border-top:2px solid var(--navy);border-bottom:2px solid var(--navy);}
 #p2 .insight-table{table-layout:fixed;}
 #p2 .insight-table th,#p2 .insight-table td{box-sizing:border-box;}
 #p2 .insight-table td.insight-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #p2 .insight-table td.insight-num{text-align:right;font-variant-numeric:tabular-nums;}
+#p2 .item-ellipsis{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;}
+#p2 .diff-pos{color:var(--green);font-weight:900;}
+#p2 .diff-neg{color:var(--red);font-weight:900;}
+#p2 .hit-month-summary{margin-top:10px;border-left:3px solid var(--navy);background:#f5f7ff;padding:9px 11px;border-radius:6px;font-size:13px;font-weight:800;color:var(--navy);line-height:1.45;}
+#p2 .analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
+#p2 .analysis-box{border:1px solid var(--border);border-radius:7px;background:#fff;padding:12px;}
+#p2 .analysis-title{font-size:13px;font-weight:900;color:var(--navy);margin-bottom:8px;}
+#p2 .action-memo{width:100%;min-height:78px;border:1px solid var(--border);border-radius:6px;padding:9px 10px;font-family:inherit;font-size:13px;resize:vertical;}
 #p2 .tbl tr:hover td{background:#f8f9ff;}
 #p2 .tbl tr:last-child td{border-bottom:none;}
 
@@ -397,7 +406,7 @@ table.base tr:last-child td{border-bottom:none;}
     <div class="hdr-bar"></div>
     <div>
       <div class="hdr-title">건기식사업부 S&amp;OP</div>
-      <div class="hdr-sub">재고 Aging · PSI · 판매계획 오차율 · 회의 의사결정</div>
+      <div class="hdr-sub">재고 Aging · PSI · 판매계획 오차 분석 · 회의 의사결정</div>
     </div>
   </div>
   <div class="hdr-right">기준년월 <strong>2026.06</strong><br>데이터 기준: 현재고 AM2</div>
@@ -420,7 +429,7 @@ table.base tr:last-child td{border-bottom:none;}
   <button class="tab on strategy-tab" data-page="5" onclick="sw(5)"><span class="tab-kr">SCM 운영전략</span></button>
   <button class="tab" data-page="0" onclick="sw(0)"><span class="tab-kr">① 재고 Aging 분석</span></button>
   <button class="tab" data-page="1" onclick="sw(1)"><span class="tab-kr">② PSI 시뮬레이션</span></button>
-  <button class="tab" data-page="2" onclick="sw(2)"><span class="tab-kr">③ 판매계획 오차율</span></button>
+  <button class="tab" data-page="2" onclick="sw(2)"><span class="tab-kr">③ 판매계획 오차 분석</span></button>
   <button class="tab" data-page="3" onclick="sw(3)"><span class="tab-kr">④ 회의록</span></button>
   <button class="tab" data-page="4" onclick="sw(4)"><span class="tab-kr">⑤ 정합성 체크</span></button>
   <div class="tab-tools">
@@ -713,21 +722,23 @@ table.base tr:last-child td{border-bottom:none;}
 </div>
 
 <!-- ═══════════════════════════════════════════════════ -->
-<!-- TAB 3: 판매계획 오차율                               -->
+<!-- TAB 3: 판매계획 오차 분석                            -->
 <!-- ═══════════════════════════════════════════════════ -->
 <div class="page" id="p2">
 
-  <div class="grid-4" style="margin-bottom:14px;">
-    <div class="tile"><div class="tile-label" id="hitKpiLabel1">총 매출 달성율</div><div class="tile-val terra" id="hitKpiVal1">—</div><div class="tile-sub" id="hitKpiSub1">파일 업로드 후 표시</div></div>
-    <div class="tile"><div class="tile-label">판매계획 오차율 (MAPE)</div><div class="tile-val green" id="hitAccKpi">50.0%</div><div class="tile-sub" id="hitAccSub">SKU-채널별 MAPE 평균</div></div>
-    <div class="tile"><div class="tile-label">계획초과 총액</div><div class="tile-val green" id="hitKpiVal3">—</div><div class="tile-sub" id="hitKpiSub3">—</div></div>
-    <div class="tile"><div class="tile-label">계획미달 총액</div><div class="tile-val red" id="hitKpiVal4">—</div><div class="tile-sub" id="hitKpiSub4">—</div></div>
+  <div class="grid-4" style="grid-template-columns:repeat(6,1fr);margin-bottom:14px;">
+    <div class="tile"><div class="tile-label" id="hitKpiLabel1">총 판매 달성률</div><div class="tile-val terra" id="hitKpiVal1">—</div><div class="tile-sub" id="hitKpiSub1">파일 업로드 후 표시</div></div>
+    <div class="tile"><div class="tile-label">판매계획 오차율</div><div class="tile-val green" id="hitAccKpi">—</div><div class="tile-sub" id="hitAccSub">Σ|차이| / Σ계획</div></div>
+    <div class="tile"><div class="tile-label">계획 대비 차이금액</div><div class="tile-val terra" id="hitBiasKpi">—</div><div class="tile-sub" id="hitBiasSub">실적합계 - 계획합계</div></div>
+    <div class="tile"><div class="tile-label">계획 초과 금액</div><div class="tile-val green" id="hitKpiVal3">—</div><div class="tile-sub" id="hitKpiSub3">—</div></div>
+    <div class="tile"><div class="tile-label">계획 미달 금액</div><div class="tile-val red" id="hitKpiVal4">—</div><div class="tile-sub" id="hitKpiSub4">—</div></div>
+    <div class="tile"><div class="tile-label">보정 필요 품목 수</div><div class="tile-val navy" id="hitCorrectionKpi">—</div><div class="tile-sub" id="hitCorrectionSub">정상 제외 + 확인 필요</div></div>
   </div>
 
   <div class="grid-5-5">
     <div>
       <div class="sec-hdr">
-        <span id="chAchieveTitle">채널별 판매달성율 (4월 실적)</span>
+        <span id="chAchieveTitle">월별 판매계획 대비 실적</span>
         <div class="no-print" style="display:flex;gap:6px;align-items:center;">
           <select id="chAchieveMonth" onchange="renderChAchieve();renderHitTrend();renderHT();renderInsightTables();" style="height:26px;border:1px solid #d7dbe7;border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;">
             <option value="1월">1월</option>
@@ -735,47 +746,59 @@ table.base tr:last-child td{border-bottom:none;}
             <option value="3월">3월</option>
             <option value="4월">4월</option>
             <option value="5월" selected>5월</option>
-          </select>
-          <select id="chAchieveMode" onchange="renderChAchieve()" style="height:26px;border:1px solid #d7dbe7;border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;">
-            <option value="month" selected>월별</option>
-            <option value="cum">누계</option>
+            <option value="6월">6월</option>
+            <option value="7월">7월</option>
+            <option value="8월">8월</option>
+            <option value="9월">9월</option>
+            <option value="10월">10월</option>
+            <option value="11월">11월</option>
+            <option value="12월">12월</option>
           </select>
         </div>
       </div>
-      <div class="panel"><div class="cw" style="height:250px;"><canvas id="chAcc"></canvas></div></div>
+      <div class="panel">
+        <div class="cw" style="height:285px;"><canvas id="chAcc"></canvas></div>
+        <div class="hit-month-summary" id="hitMonthSummary">월을 선택하면 계획 대비 실적 요약이 표시됩니다.</div>
+      </div>
     </div>
     <div>
       <div class="sec-hdr" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-        <span>계획초과 / 계획미달 TOP 인사이트</span>
+        <span>오차 영향 품목 TOP</span>
         <span class="no-print" style="display:flex;gap:4px;">
           <button id="insightAmtBtn" class="aging-mode-btn on" onclick="setInsightUnit('amt',this)">금액</button>
           <button id="insightQtyBtn" class="aging-mode-btn" onclick="setInsightUnit('qty',this)">수량</button>
         </span>
       </div>
       <div class="panel">
-        <div style="font-size:11px;font-weight:800;color:var(--green);margin-bottom:7px;">▲ 계획초과 TOP 3 (Over-sale)</div>
+        <div style="font-size:13px;font-weight:900;color:var(--navy);margin-bottom:7px;">오차 기여 TOP 10</div>
         <table class="tbl insight-table" style="margin-bottom:12px;">
-          <colgroup><col style="width:12%;"><col style="width:15%;"><col style="width:31%;"><col style="width:14%;"><col style="width:14%;"><col style="width:14%;"></colgroup>
-          <thead><tr><th class="l">채널</th><th class="l">자재코드</th><th class="l">품목</th><th class="r">계획</th><th class="r">실적</th><th class="r">초과</th></tr></thead>
+          <colgroup><col style="width:10%;"><col style="width:13%;"><col style="width:24%;"><col style="width:10%;"><col style="width:10%;"><col style="width:11%;"><col style="width:9%;"><col style="width:13%;"></colgroup>
+          <thead><tr><th class="l">채널</th><th class="l">자재코드</th><th class="l">품목</th><th class="r">계획</th><th class="r">실적</th><th class="r">차이금액</th><th class="r">오차율</th><th class="c">보정유형</th></tr></thead>
+          <tbody id="impactBody10"></tbody>
+        </table>
+        <div style="font-size:13px;font-weight:900;color:var(--green);margin-bottom:7px;">계획 초과 TOP 5</div>
+        <table class="tbl insight-table" style="margin-bottom:12px;">
+          <colgroup><col style="width:11%;"><col style="width:14%;"><col style="width:29%;"><col style="width:11%;"><col style="width:11%;"><col style="width:12%;"><col style="width:12%;"></colgroup>
+          <thead><tr><th class="l">채널</th><th class="l">자재코드</th><th class="l">품목</th><th class="r">계획</th><th class="r">실적</th><th class="r">초과금액</th><th class="r">오차율</th></tr></thead>
           <tbody id="overBody3"></tbody>
         </table>
-        <div style="font-size:11px;font-weight:800;color:var(--red);margin-bottom:7px;">▼ 계획미달 TOP 3 (Under-sale)</div>
+        <div style="font-size:13px;font-weight:900;color:var(--red);margin-bottom:7px;">계획 미달 TOP 5</div>
         <table class="tbl insight-table">
-          <colgroup><col style="width:12%;"><col style="width:15%;"><col style="width:31%;"><col style="width:14%;"><col style="width:14%;"><col style="width:14%;"></colgroup>
-          <thead><tr><th class="l">채널</th><th class="l">자재코드</th><th class="l">품목</th><th class="r">계획</th><th class="r">실적</th><th class="r">미달</th></tr></thead>
+          <colgroup><col style="width:11%;"><col style="width:14%;"><col style="width:29%;"><col style="width:11%;"><col style="width:11%;"><col style="width:12%;"><col style="width:12%;"></colgroup>
+          <thead><tr><th class="l">채널</th><th class="l">자재코드</th><th class="l">품목</th><th class="r">계획</th><th class="r">실적</th><th class="r">미달금액</th><th class="r">오차율</th></tr></thead>
           <tbody id="underBody3"></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <div class="sec-hdr">SKU-채널 오차율 상세</div>
+  <div class="sec-hdr">판매계획 보정 대상 리스트</div>
   <div class="panel">
     <div class="frow no-print">
       <label>채널</label>
-      <select id="fhc" onchange="renderHT()"><option value="">전체</option><option value="직영몰">직영몰</option><option value="다이소">다이소</option><option value="쿠팡">쿠팡</option><option value="스/스">스/스</option><option value="카카오">카카오</option><option value="올리브영">올리브영</option></select>
-      <label>구분</label>
-      <select id="fht" onchange="renderHT()"><option value="">전체</option><option value="over">계획초과</option><option value="under">계획미달</option></select>
+      <select id="fhc" onchange="renderHitTrend();renderInsightTables();renderHT()"><option value="">전체</option><option value="직영몰">직영몰</option><option value="다이소">다이소</option><option value="쿠팡">쿠팡</option><option value="스/스">스/스</option><option value="카카오">카카오</option><option value="올리브영">올리브영</option></select>
+      <label>보정유형</label>
+      <select id="fht" onchange="renderHT()"><option value="">전체</option><option value="계획 상향 검토">계획 상향 검토</option><option value="계획 하향 검토">계획 하향 검토</option><option value="일시성 확인">일시성 확인</option><option value="채널 계획 재점검">채널 계획 재점검</option><option value="금액 영향 확인">금액 영향 확인</option><option value="모니터링">모니터링</option></select>
       <span style="margin-left:auto;display:flex;gap:4px;">
         <button id="htAmtBtn" class="aging-mode-btn on" onclick="setHTUnit('amt',this)">금액</button>
         <button id="htQtyBtn" class="aging-mode-btn" onclick="setHTUnit('qty',this)">수량</button>
@@ -1166,8 +1189,8 @@ function setAgingMode(mode,btn){
 
 // ═══════════ 파일 업로드 & LOCALSTORAGE ══════════════════════
 let UPLOADED=null;
-const LS_KEY='sopDash_v7';
-const LEGACY_LS_KEYS=['sopDash_v6','sopDash_v5','sopDash_v4','sopDash_v3','sopDash_v2'];
+const LS_KEY='sopDash_v10';
+const LEGACY_LS_KEYS=['sopDash_v9','sopDash_v8','sopDash_v7','sopDash_v6','sopDash_v5','sopDash_v4','sopDash_v3','sopDash_v2'];
 
 function loadFromStorage(){
   try{
@@ -1412,7 +1435,20 @@ function handleUpload(file){
       }else{
         warnings.push('전월 PSI 시트 없음: Supply Risk 전월 비교는 기존 화면 유지');
       }
-      if(hitSheet){result.hit=parseHitSheet(wb.Sheets[hitSheet]);}
+      if(hitSheet){
+        const _diagWs=wb.Sheets[hitSheet];
+        const _diagRows=XLSX.utils.sheet_to_json(_diagWs,{header:1,defval:''});
+        result.hit=parseHitSheet(wb.Sheets[hitSheet]);
+        const _hit=result.hit;
+        const foundMonths=_hit?.byMonth&&Object.keys(_hit.byMonth).length?Object.keys(_hit.byMonth).join(', '):'없음';
+        const totalRows=_hit?.byMonth?Object.values(_hit.byMonth).reduce((s,a)=>s+a.length,0):0;
+        // 진단: 첫 4행 G~K 원시값 (상태 메시지에 포함)
+        const _hdrSample=_diagRows.slice(0,4).map((r,i)=>`R${i}[${r.slice(6,11).map(v=>v===''?'_':String(v).slice(0,10)).join('|')}]`).join(' ');
+        const _eSamples=_diagRows.slice(2,5).map(r=>String(r[4]||'').trim()||'빈칸').join(',');
+        warnings.push(`오차율 분석: 인식된 월→[${foundMonths}] / 데이터행 ${totalRows}건 | G~K: ${_hdrSample} | E열: ${_eSamples}`);
+      }else{
+        warnings.push(`오차율 분석 시트 없음 · 전체 시트: [${wb.SheetNames.join(', ')}]`);
+      }
       if(actualSheet){result.actual_unit=parseActualQtySheet(wb.Sheets[actualSheet]);}
       const salesPlanSheet=findSheetName(wb,'판매계획(SF)')||findSheetName(wb,'판매계획');
       if(salesPlanSheet){
@@ -1443,7 +1479,22 @@ function handleUpload(file){
         ?`⚠ ${result.uploaded_at} 부분 성공 · 기준일 ${result.base_label||'당월'} · 누락: ${missing.join(', ')}`
         :`✅ ${result.uploaded_at} 업로드 성공 · 기준일 ${result.base_label||'당월'}`;
       setUploadStatus(missing.length?'warning':'success',statusMsg);
-      if(warnings.length) console.info('[SOP upload]', warnings.join(' / '));
+      if(warnings.length){
+        console.info('[SOP upload]', warnings.join(' / '));
+        // 오차율 분석 관련 메시지만 화면에 표시
+        const hitMsg=warnings.find(w=>w.includes('오차율 분석')||w.includes('오차율분석')||w.includes('시트 없음'));
+        if(hitMsg) setUploadStatus(missing.length?'warning':'success', statusMsg+' · '+hitMsg);
+      }
+      // 업로드된 오차율 데이터에서 가장 최근 월로 드롭다운 자동 전환
+      const _hitForMonth=getHitData();
+      if(_hitForMonth?.byMonth){
+        const ALL_MO=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+        const latestMo=ALL_MO.filter(m=>(_hitForMonth.byMonth[m]||[]).length>0).pop();
+        if(latestMo){
+          const _sel=document.getElementById('chAchieveMonth');
+          if(_sel) _sel.value=latestMo;
+        }
+      }
       // 전체 리렌더
       renderKPICards();renderChAgingChart();renderTrendChart();renderMatrix();
       renderSensing(parseInt(document.getElementById('monthSlider').value));
@@ -1464,7 +1515,7 @@ function parseInventory(ws){
   // 0-indexed 컬럼: B=1,C=2,AS=44,AT=45,AO=40,AP=41,AV=47,AK=36,AZ=51
   const C={MAT:1,NAME:2,QTY:44,AMT:45,AO:40,AP:41,CHANNEL:47,REM:36,AZ:51,CHDL_MO:50};
   const ch_amt={},ch_delivery={},matrix={},matrix_delivery={};
-  const kpi={'계':0,'환입':0,'6개월 미만':0,'7개월 미만':0,'유효기간 초과':0};
+  const kpi={'계':0,'환입':0,'6개월 미만':0,'7개월 미만':0,'9개월 미만':0,'12개월 미만':0,'유효기간 초과':0};
   const stats={totalRows:data.length,usedRows:0,skippedNoChannel:0,skippedNoAging:0,skippedNoAmount:0};
   data.forEach(row=>{
     const mat=row[C.MAT]; if(!mat) return;
@@ -1484,6 +1535,8 @@ function parseInventory(ws){
     if(aoType==='환입') kpi['환입']+=amt;
     if(aoType==='6개월 미만') kpi['6개월 미만']+=amt;
     if(aoType==='7개월 미만') kpi['7개월 미만']+=amt;
+    if(aoType==='9개월 미만') kpi['9개월 미만']+=amt;
+    if(aoType==='12개월 미만') kpi['12개월 미만']+=amt;
     if(aoType==='유효기간 초과') kpi['유효기간 초과']+=amt;
     const chRemMo=Math.round(parseNum(row[C.CHDL_MO]))||0;
     const sku={m:mat,n:name,q:qty,a:Math.round(amt*1e8/1e6*10)/10,t:matType,r:rem,chRemMo};
@@ -1574,10 +1627,10 @@ function parseHyunhwang(ws){
       });
       chAmt[ch]['합계']={a:CATS.reduce((s,c)=>s+(Number(chAmt[ch][c]?.a)||0),0),q:0};
     }
-    const kpi={'계':0,'환입':0,'6개월 미만':0,'7개월 미만':0,'유효기간 초과':0};
+    const kpi={'계':0,'환입':0,'6개월 미만':0,'7개월 미만':0,'9개월 미만':0,'12개월 미만':0,'유효기간 초과':0};
     if(totalRow){
       kpi['계']=parseNum(totalRow[map['계']])||CATS.reduce((s,c)=>s+parseNum(totalRow[map[c]]),0);
-      ['환입','6개월 미만','7개월 미만','유효기간 초과'].forEach(c=>{kpi[c]=parseNum(totalRow[map[c]]);});
+      ['환입','6개월 미만','7개월 미만','9개월 미만','12개월 미만','유효기간 초과'].forEach(c=>{kpi[c]=parseNum(totalRow[map[c]]);});
     }
     return {label,chAmt,kpi};
   }
@@ -1672,6 +1725,7 @@ function parseSalesPlanSheet(ws){
   data.forEach(row=>{
     const mat=String(row[3]||'').trim();
     if(!mat||!/^\d+$/.test(mat)) return;
+    const ch=String(row[2]||row[1]||row[0]||'미분류').trim()||'미분류';
     let unitPrice=0;
     for(let c=37;c<=41;c++){const v=Number(row[c])||0;if(v>0){unitPrice=v;break;}}
     if(!unitPrice){
@@ -1681,10 +1735,12 @@ function parseSalesPlanSheet(ws){
       }
     }
     if(!acc[mat]){
-      acc[mat]={unitPrice:0,monthlyAmts:new Array(24).fill(0),monthlyHas:new Array(24).fill(false),planQtys:new Array(5).fill(0)};
+      acc[mat]={unitPrice:0,monthlyAmts:new Array(24).fill(0),monthlyHas:new Array(24).fill(false),planAmts:new Array(5).fill(0),planQtys:new Array(5).fill(0),byChannel:{}};
     }
     const a=acc[mat];
     if(unitPrice>0&&a.unitPrice===0) a.unitPrice=unitPrice;
+    if(!a.byChannel[ch]) a.byChannel[ch]={ch,unitPrice:0,planAmts:new Array(5).fill(0),planQtys:new Array(5).fill(0)};
+    if(unitPrice>0&&a.byChannel[ch].unitPrice===0) a.byChannel[ch].unitPrice=unitPrice;
     // 실적금액 월별 합산 (I=col8 ~ AF=col31)
     for(let col=8;col<=31;col++){
       const idx=col-8;
@@ -1692,10 +1748,17 @@ function parseSalesPlanSheet(ws){
       const amt=(rawVal===''||rawVal==null)?null:(Number(rawVal)||0);
       if(amt!=null&&amt>0){a.monthlyAmts[idx]+=amt;a.monthlyHas[idx]=true;}
     }
+    // 계획금액 월별 합산 (AG=col32 ~ AK=col36)
+    for(let c=32;c<=36;c++){
+      const amt=Number(row[c])||0;
+      a.planAmts[c-32]+=amt;
+      a.byChannel[ch].planAmts[c-32]+=amt;
+    }
     // 계획수량 월별 합산 (AQ=col42 ~ AU=col46)
     for(let c=42;c<=46;c++){
       const q=Math.round(Number(row[c])||0);
       a.planQtys[c-42]+=q;
+      a.byChannel[ch].planQtys[c-42]+=q;
     }
   });
   const result={};
@@ -1711,8 +1774,18 @@ function parseSalesPlanSheet(ws){
       const qty=(unitPrice>0&&hasData)?Math.round(amt/unitPrice):0;
       monthly.push({year,month,label:`${String(year).slice(2)}/${month}`,amt:hasData?amt:0,qty,hasData});
     }
+    const planAmt=a.planAmts.map((amt,i)=>({year:2026,month:6+i,amt}));
     const planQty=a.planQtys.map((qty,i)=>({year:2026,month:6+i,qty}));
-    result[mat]={mat,monthly,unitPrice,planQty};
+    const byChannel={};
+    Object.entries(a.byChannel).forEach(([ch,c])=>{
+      byChannel[ch]={
+        ch,
+        unitPrice:c.unitPrice||unitPrice,
+        planAmt:c.planAmts.map((amt,i)=>({year:2026,month:6+i,amt})),
+        planQty:c.planQtys.map((qty,i)=>({year:2026,month:6+i,qty}))
+      };
+    });
+    result[mat]={mat,monthly,unitPrice,planAmt,planQty,byChannel};
   });
   return result;
 }
@@ -1994,83 +2067,270 @@ function classifyHitPkg(name,ch){
   return '기타';
 }
 
-function parseHitSheet(ws){
-  const allRows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-  if(allRows.length<3) return null;
-  const row0=allRows[0];
-  const row1=allRows[1];
-  // 2줄 헤더 여부: row1에 "26.N" 패턴이 있으면 새 형식
-  const hasMonthHeader=row1.some(v=>String(v||'').match(/^26\.\d{1,2}$/));
-  if(!hasMonthHeader) return _parseHitSheetLegacy(allRows);
-
-  // ─── 2줄 헤더 파싱 (오차율 분석 시트) ───────────────────
-  const maxCols=Math.max(row0.length,row1.length);
-  let matCol=-1,nameCol=-1,chCol=-1;
-  for(let i=0;i<maxCols;i++){
-    const h0=String(row0[i]||'').trim();
-    const h1=String(row1[i]||'').trim();
-    if(matCol<0&&(h0.includes('자재코드')||h1.includes('자재코드'))) matCol=i;
-    if(nameCol<0&&(h0==='품목명'||h1==='품목명'||h0==='품목'||h1==='품목')) nameCol=i;
-    if(chCol<0&&(h0.includes('채널')||h1.includes('채널'))) chCol=i;
+// 모든 월 key를 "N월" 형식으로 통일 (공백, 앞자리 0, 연도 prefix 모두 처리)
+function normalizeMonthKey(v){
+  if(v==null) return null;
+  const s=String(v).trim();
+  // "5월", "05월", "5월 " → "5월"
+  const m1=s.match(/^0?(\d{1,2})\s*월\s*$/);
+  if(m1) return parseInt(m1[1])+'월';
+  // "26.5월", "26..11월", "2026-05월" → "5월"
+  const mYearMonth=s.match(/^(?:20)?2\d(?:\s*년|\s*[-./]+\s*)0?(\d{1,2})\s*월$/);
+  if(mYearMonth) return parseInt(mYearMonth[1])+'월';
+  // "26.5", "26-5", "26/5", "2026.05", "2026-05" 등 구분자 있는 연월
+  const m2=s.match(/^(?:20)?2\d[-./]0?(\d{1,2})$/);
+  if(m2) return parseInt(m2[1])+'월';
+  // "2605", "202605" (YYMM / YYYYMM 붙여쓰기)
+  const m3=s.match(/^(?:20)?2\d(0[1-9]|1[0-2])$/);
+  if(m3) return parseInt(m3[1])+'월';
+  // "26년5월", "2026년05월"
+  const m4=s.match(/^(?:20)?2\d년\s*0?(\d{1,2})\s*월$/);
+  if(m4) return parseInt(m4[1])+'월';
+  // Excel 날짜 시리얼 (정수 43000~50000) → UTC 월 추출
+  const numV=Number(v);
+  if(!isNaN(numV)&&Number.isInteger(numV)&&numV>43000&&numV<50000){
+    const d=new Date(Math.round((numV-25569)*86400*1000));
+    return (d.getUTCMonth()+1)+'월';
   }
-  if(matCol<0||chCol<0) return _parseHitSheetLegacy(allRows);
-  if(nameCol<0) nameCol=matCol+1;
+  // 순수 숫자 "5" → "5월"
+  const n=Number(s);
+  if(!isNaN(n)&&n>=1&&n<=12) return n+'월';
+  return s;
+}
 
+// 월 헤더 셀 패턴 인식 (parseHitSheet 및 _parseHitSheetDirect 공용)
+function _isMonthHdrCell(v){
+  if(v===null||v===undefined||v==='') return false;
+  const s=String(v).trim();
+  if(!s) return false;
+  if(/^0?\d{1,2}\s*월\s*$/.test(s)) return true;               // "5월", "05월"
+  if(/^(?:20)?2\d(?:\s*년|\s*[-./]+\s*)0?\d{1,2}\s*월$/.test(s)) return true; // "26.5월"
+  if(/^(?:20)?2\d[-./]0?\d{1,2}$/.test(s)) return true;        // "26.5" "26-5" "2026.05"
+  if(/^(?:20)?2\d(0[1-9]|1[0-2])$/.test(s)) return true;       // "2605" "202605"
+  if(/^(?:20)?2\d년\s*0?\d{1,2}\s*월$/.test(s)) return true;   // "26년5월"
+  // Excel 날짜 시리얼 (2020~2030 범위: 43831~48961)
+  const num=Number(v);
+  if(!isNaN(num)&&Number.isInteger(num)&&num>43000&&num<50000) return true;
+  // 순수 정수 1~12 (월 번호만 있는 경우)
+  if(/^\d{1,2}$/.test(s)&&parseInt(s)>=1&&parseInt(s)<=12) return true;
+  return false;
+}
+
+function pickHitChannel(row){
+  // RAW 우선순위: 채널(D) → 채널(수정)(C) → 채널명 중복검증(B)
+  const ch=String(row?.[3]||row?.[2]||row?.[1]||'').trim();
+  return ch||'미분류';
+}
+
+// 고정 레이아웃 파서: E(4)=자재코드, F(5)=품목명, G~R(6~17)=계획, S~AD(18~29)=실적
+// 헤더 라벨 탐색 없이 고정 컬럼 인덱스로 직접 읽음
+function _parseHitSheetDirect(allRows){
+  const MAT_COL=4,NAME_COL=5,PLAN_START=6,PLAN_END=17,ACT_START=18,ACT_END=29;
+  // 월 헤더 행: PLAN_START~ACT_END 구간에서 월 패턴 6개 이상
+  let hdrRowIdx=-1;
+  for(let r=0;r<Math.min(8,allRows.length);r++){
+    let cnt=0;
+    const row=allRows[r]||[];
+    for(let i=PLAN_START;i<=ACT_END;i++) if(_isMonthHdrCell(row[i])) cnt++;
+    if(cnt>=2){hdrRowIdx=r;break;}
+  }
+  if(hdrRowIdx<0) return null;
+  const moRow=allRows[hdrRowIdx];
   const planColsByMo={},actualColsByMo={};
-  let lastTop='';
-  for(let i=0;i<maxCols;i++){
-    const top=String(row0[i]||'').trim();
-    const mo=String(row1[i]||'').trim();
-    if(top) lastTop=top;
-    const mm=mo.match(/^26\.(\d{1,2})$/);
-    if(mm){
-      const moKey=parseInt(mm[1])+'월';
-      if(lastTop.includes('계획')) planColsByMo[moKey]=i;
-      else if(lastTop.includes('실적')) actualColsByMo[moKey]=i;
-    }
+  for(let i=PLAN_START;i<=PLAN_END;i++){
+    const k=normalizeMonthKey(moRow[i]);
+    if(k&&/^\d{1,2}월$/.test(k)&&!(k in planColsByMo)) planColsByMo[k]=i;
+  }
+  for(let i=ACT_START;i<=ACT_END;i++){
+    const k=normalizeMonthKey(moRow[i]);
+    if(k&&/^\d{1,2}월$/.test(k)&&!(k in actualColsByMo)) actualColsByMo[k]=i;
   }
   const allMonths=Object.keys(planColsByMo);
-  if(!allMonths.length) return _parseHitSheetLegacy(allRows);
-
-  // 단위 자동 감지: 샘플 plan 값으로 원/천원/백만원 구분
-  const _sampleCol=planColsByMo[allMonths[0]];
-  const _sampleVals=allRows.slice(2,102).map(r=>parseNum(r[_sampleCol])).filter(v=>v>0);
-  const _maxSample=_sampleVals.length?Math.max(..._sampleVals):0;
-  const unitDiv=_maxSample>=1e6?1e6:_maxSample>=1000?1000:1;
-  console.log('[parseHitSheet] matCol:',matCol,'chCol:',chCol,'unitDiv:',unitDiv,'maxSample:',_maxSample);
-  console.log('[parseHitSheet] planCols:',JSON.stringify(planColsByMo),'actualCols:',JSON.stringify(actualColsByMo));
-  const firstDataRow=allRows[2];
-  if(firstDataRow) console.log('[parseHitSheet] 1st row sample:',firstDataRow.slice(0,Math.min(firstDataRow.length,20)).join(' | '));
-
+  if(!allMonths.length) return null;
+  // 오차율 분석 금액 원본은 원 단위. 화면/차트는 억원 단위로 통일.
+  const unitDiv=1e8;
+  // 자재코드 컬럼 자동 탐색: E(4) 우선, 비어있으면 D(3)~A(0) 순 탐색
+  let matCol=MAT_COL;
+  const _testRows=allRows.slice(hdrRowIdx+1,hdrRowIdx+20);
+  const _hasDataAtCol=c=>_testRows.some(r=>{const v=String(r[c]||'').trim();return v&&!/^(합계|총계|전체|소계|계)$/.test(v);});
+  if(!_hasDataAtCol(matCol)){
+    for(const c of [3,2,5,1,0]){if(_hasDataAtCol(c)){matCol=c;break;}}
+  }
+  const nameCol=matCol===MAT_COL?NAME_COL:(matCol+1);
   const byMonth={};
-  allRows.slice(2).forEach(row=>{
+  allRows.slice(hdrRowIdx+1,Math.min(allRows.length,959)).forEach(row=>{
     const matRaw=String(row[matCol]||'').trim();
-    const mat=matRaw.replace(/\.0+$/,'');  // "10001234.0" → "10001234"
-    if(!mat||mat.length<4||!/^\d+$/.test(mat)) return;
-    const n=String(row[nameCol]||'');
-    const ch=String(row[chCol]||'').trim();
-    if(!ch) return;
+    const mat=matRaw.replace(/\.0+$/,'');
+    if(!mat) return;
+    if(/^(합계|총계|전체|소계|합\s*계|총\s*계|계)$/.test(mat)) return;
+    const name=String(row[nameCol]||'').trim()||mat;
+    const ch=pickHitChannel(row);
     allMonths.forEach(moKey=>{
       if(!byMonth[moKey]) byMonth[moKey]=[];
       const plan=parseNum(row[planColsByMo[moKey]]);
       const actual=actualColsByMo[moKey]!=null?parseNum(row[actualColsByMo[moKey]]):0;
+      if(plan===0&&actual===0) return;
+      const diff=actual-plan;
+      const hitAcc=plan>0?Math.abs(diff)/plan*100:null;
+      byMonth[moKey].push({ch,n:name,plan:plan/unitDiv,actual:actual/unitDiv,hitAcc,mat,
+        pkg:classifyHitPkg(name,ch),type:diff>0?'over':diff<0?'under':'match',
+        over:Math.max(diff,0)/unitDiv,under:Math.min(diff,0)/unitDiv});
+    });
+  });
+  const populated=Object.keys(byMonth).filter(k=>byMonth[k].length>0);
+  if(!populated.length) return null;
+  const hitAccByMo={};
+  allMonths.forEach(moKey=>{
+    const rs=byMonth[moKey]||[];
+    const tP=rs.reduce((s,r)=>s+(r.plan||0),0);
+    const tO=rs.reduce((s,r)=>s+Math.max(r.over||0,0),0);
+    const tU=rs.reduce((s,r)=>s+Math.abs(Math.min(r.under||0,0)),0);
+    hitAccByMo[moKey]=tP>0?(tO+tU)/tP*100:null;
+  });
+  const moWithData=allMonths.filter(mo=>byMonth[mo]?.some(r=>r.actual>0));
+  const repMo=moWithData[moWithData.length-1]||allMonths[allMonths.length-1];
+  const repRows=byMonth[repMo]||[];
+  const over=repRows.filter(d=>(d.over||0)>0).sort((a,b)=>b.over-a.over).slice(0,10);
+  const under=repRows.filter(d=>(d.under||0)<0).sort((a,b)=>a.under-b.under).slice(0,10);
+  console.log('[_parseHitSheetDirect] 성공 · 월:',populated.join(','),'총행:',Object.values(byMonth).reduce((s,a)=>s+a.length,0));
+  return{over,under,rows:repRows,byMonth,hitAccByMo,
+    summary:{hitAcc:hitAccByMo[repMo],hitCount:repRows.filter(r=>r.hitAcc!=null).length,method:'WAPE',repMo}};
+}
+
+function parseHitSheet(ws){
+  // Keep worksheet arrays anchored at A1. The source sheet's !ref can start at B1,
+  // which shifts the fixed Excel columns G~R / S~AD by one column in arrays.
+  const hitRange=XLSX.utils.decode_range(ws['!ref']||'A1:AD1');
+  hitRange.s.r=0;
+  hitRange.s.c=0;
+  const allRows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',range:XLSX.utils.encode_range(hitRange)});
+  if(allRows.length<3) return null;
+
+  let hdrMoRowIdx=-1;
+  for(let r=0;r<Math.min(6,allRows.length);r++){
+    const cnt=allRows[r].filter(v=>_isMonthHdrCell(v)).length;
+    if(cnt>=2){hdrMoRowIdx=r;break;}
+  }
+  if(hdrMoRowIdx<0){
+    console.warn('[parseHitSheet] 월헤더 미탐지 → 고정파서 시도');
+    return _parseHitSheetDirect(allRows)||_parseHitSheetPositional(allRows)||_parseHitSheetLegacy(allRows);
+  }
+
+  const row0=allRows[hdrMoRowIdx>0?hdrMoRowIdx-1:0]; // 계획/실적 구분 행
+  const row1=allRows[hdrMoRowIdx];                    // 월 헤더 행
+  const dataStart=hdrMoRowIdx+1;                      // 월 헤더 바로 다음 행부터 데이터
+
+  // ─── 고정 컬럼 탐색 (자재코드·품목명·채널) ───────────────────
+  // 월 헤더 이전 모든 행을 전부 검색 (제목행·빈행 등 사이에 끼어있는 경우 대응)
+  let matCol=-1,nameCol=-1;
+  for(let r=0;r<=hdrMoRowIdx&&(matCol<0||nameCol<0);r++){
+    const hrow=allRows[r]||[];
+    for(let i=0;i<hrow.length;i++){
+      const h=String(hrow[i]||'').trim();
+      if(matCol<0&&(h.includes('자재코드')||h.includes('자재번호')||h.includes('품목코드')||
+                    h.includes('자재')||h==='코드'||h==='CODE'||h==='code')) matCol=i;
+      if(nameCol<0&&(h.includes('품목명')||h.includes('제품명')||h.includes('품명'))) nameCol=i;
+    }
+  }
+  const maxCols=Math.max(row0.length,row1.length);
+  // 자재코드 컬럼 없으면 고정파서 → 레거시 순으로 시도
+  if(matCol<0){
+    console.warn('[parseHitSheet] 자재코드 컬럼 미탐지 → 고정파서 시도');
+    return _parseHitSheetDirect(allRows)||_parseHitSheetPositional(allRows)||_parseHitSheetLegacy(allRows);
+  }
+  if(nameCol<0) nameCol=matCol+1;
+
+  // 판매계획/실적 컬럼 매핑: row0의 "계획"/"실적" 구분 + row1의 월 key
+  // 같은 월이 여러 컬럼 있으면 FIRST 우선 (금액 컬럼이 앞에 오는 경우가 일반적)
+  const planColsByMo={},actualColsByMo={};
+  let lastTop='';
+  for(let i=0;i<maxCols;i++){
+    const top=String(row0[i]||'').trim();
+    const moRaw=String(row1[i]||'').trim();
+    if(top) lastTop=top;
+    const moKey=normalizeMonthKey(moRaw);
+    if(moKey&&/^\d{1,2}월$/.test(moKey)){
+      if(lastTop.includes('계획')&&!(moKey in planColsByMo)) planColsByMo[moKey]=i;
+      else if(lastTop.includes('실적')&&!(moKey in actualColsByMo)) actualColsByMo[moKey]=i;
+    }
+  }
+  console.log('[parseHitSheet] planCols:',JSON.stringify(planColsByMo));
+  console.log('[parseHitSheet] actualCols:',JSON.stringify(actualColsByMo));
+
+  const allMonths=Object.keys(planColsByMo);
+  if(!allMonths.length){
+    console.warn('[parseHitSheet] 계획 컬럼 매핑 실패 → 고정파서 시도');
+    return _parseHitSheetDirect(allRows)||_parseHitSheetPositional(allRows)||_parseHitSheetLegacy(allRows);
+  }
+
+  // 오차율 분석 금액 원본은 원 단위. 화면/차트는 억원 단위로 통일.
+  const unitDiv=1e8;
+  console.log('[parseHitSheet] unitDiv:',unitDiv,'(원 → 억원)');
+
+  // 합계/총계 행 감지용 패턴 (집계에서 제외)
+  const _isSummaryRow=row=>{
+    const v=String(row[nameCol]||row[matCol]||row[chCol]||'').trim();
+    return /^(합계|총계|전체|소계|합\s*계|총\s*계|계)$/.test(v);
+  };
+
+  // ─── 검증용: 5월 컬럼 raw 합계 출력 (unitDiv 곱해서 원화 단위로) ───────────────────
+  if('5월' in planColsByMo){
+    const _rawPlanSum=allRows.slice(dataStart,Math.min(allRows.length,959))
+      .filter(r=>!_isSummaryRow(r))
+      .reduce((s,r)=>s+parseNum(r[planColsByMo['5월']]),0);
+    const _rawActSum=allRows.slice(dataStart,Math.min(allRows.length,959))
+      .filter(r=>!_isSummaryRow(r))
+      .reduce((s,r)=>s+parseNum(r[actualColsByMo['5월']??-1]||0),0);
+    console.log('[parseHitSheet] 5월 plan col:',planColsByMo['5월'],'raw합계(원):',Math.round(_rawPlanSum),'→ 기대값:7,811,256,396');
+    console.log('[parseHitSheet] 5월 actual col:',actualColsByMo['5월'],'raw합계(원):',Math.round(_rawActSum),'→ 기대값:6,946,616,015');
+  }
+
+  const byMonth={};
+  let includedRows=0, skippedSummary=0, skippedEmpty=0;
+  const DATA_END=959; // 사용자 지정 마지막 데이터 행 (Excel 기준 1-indexed)
+  const sliceEnd=Math.min(allRows.length, DATA_END);
+  allRows.slice(dataStart, sliceEnd).forEach(row=>{
+    // 합계/총계 행 제외
+    if(_isSummaryRow(row)){skippedSummary++;return;}
+    const matRaw=String(row[matCol]||'').trim();
+    const mat=matRaw.replace(/\.0+$/,'');
+    const n=String(row[nameCol]||'').trim();
+    const ch=pickHitChannel(row);
+    let rowHasValue=false;
+    allMonths.forEach(moKey=>{
+      if(!byMonth[moKey]) byMonth[moKey]=[];
+      const plan=parseNum(row[planColsByMo[moKey]]);
+      const actual=actualColsByMo[moKey]!=null?parseNum(row[actualColsByMo[moKey]]):0;
+      if(plan===0&&actual===0) return;
+      rowHasValue=true;
       const diff=actual-plan;
       const hitAcc=plan>0?Math.abs(diff)/plan*100:null;
       byMonth[moKey].push({ch,n,plan:plan/unitDiv,actual:actual/unitDiv,hitAcc,mat,
         pkg:classifyHitPkg(n,ch),type:diff>0?'over':diff<0?'under':'match',
         over:Math.max(diff,0)/unitDiv,under:Math.min(diff,0)/unitDiv});
     });
+    if(rowHasValue) includedRows++; else skippedEmpty++;
   });
+
+  console.log('[parseHitSheet] byMonth keys:',Object.keys(byMonth));
+  console.log('[parseHitSheet] 포함행:',includedRows,'합계행제외:',skippedSummary,'빈행제외:',skippedEmpty);
+  // 5월 집계 후 검증
+  if(byMonth['5월']){
+    const _p5=byMonth['5월'].reduce((s,r)=>s+r.plan,0);
+    const _a5=byMonth['5월'].reduce((s,r)=>s+r.actual,0);
+    console.log('[parseHitSheet] 5월 저장합계 plan:',Math.round(_p5*unitDiv),'원 actual:',Math.round(_a5*unitDiv),'원');}
+
 
   const hitAccByMo={};
   allMonths.forEach(moKey=>{
     const moRows=byMonth[moKey]||[];
     const tPlan=moRows.reduce((s,r)=>s+(Number(r.plan)||0),0);
-    const tAct=moRows.reduce((s,r)=>s+(Number(r.actual)||0),0);
-    hitAccByMo[moKey]=tPlan>0?Math.abs(tAct-tPlan)/tPlan*100:null;
+    const tOver=moRows.reduce((s,r)=>s+Math.max(Number(r.over)||0,0),0);
+    const tUnder=moRows.reduce((s,r)=>s+Math.abs(Math.min(Number(r.under)||0,0)),0);
+    hitAccByMo[moKey]=tPlan>0?(tOver+tUnder)/tPlan*100:null;
   });
 
-  allMonths.forEach(mo=>{const rs=byMonth[mo]||[];const wa=rs.filter(r=>r.actual>0).length;console.log(`[parseHitSheet] ${mo}: ${rs.length}행 actual>0:${wa} MAPE:${hitAccByMo[mo]?.toFixed(1)||'null'}%`);});
+  allMonths.forEach(mo=>{const rs=byMonth[mo]||[];const wa=rs.filter(r=>r.actual>0).length;console.log(`[parseHitSheet] ${mo}: ${rs.length}행 actual>0:${wa} WAPE:${hitAccByMo[mo]?.toFixed(1)||'null'}%`);});
 
   // 대표 월: 실적 있는 가장 최근 월
   const moWithData=allMonths.filter(mo=>byMonth[mo]?.some(r=>r.actual>0));
@@ -2080,16 +2340,99 @@ function parseHitSheet(ws){
   const repCount=repRows.filter(d=>d.hitAcc!=null).length;
   const over=repRows.filter(d=>(d.over||0)>0).sort((a,b)=>b.over-a.over).slice(0,10);
   const under=repRows.filter(d=>(d.under||0)<0).sort((a,b)=>a.under-b.under).slice(0,10);
-  return{over,under,rows:repRows,byMonth,hitAccByMo,summary:{hitAcc:repHitAcc,hitCount:repCount,method:'MAPE',repMo}};
+  return{over,under,rows:repRows,byMonth,hitAccByMo,summary:{hitAcc:repHitAcc,hitCount:repCount,method:'WAPE',repMo}};
 }
+// ══ 위치 고정 파서 ══════════════════════════════════════════════════════
+// 월 헤더 형식을 전혀 인식하지 않음. G(6)~R(17)=1~12월 계획, S(18)~AD(29)=1~12월 실적 고정.
+// E열(4)=자재코드 우선; 비어있으면 인접 열 자동 탐색.
+function _parseHitSheetPositional(allRows){
+  const MONTHS=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const planCols=MONTHS.reduce((o,m,i)=>(o[m]=6+i,o),{});
+  const actCols =MONTHS.reduce((o,m,i)=>(o[m]=18+i,o),{});
+
+  // matCol 탐색: 처음 15행 중 E(4)가 유효하면 4, 아니면 D(3) F(5) D(2) 순 시도
+  const _hasData=c=>allRows.slice(2,20).some(r=>{
+    const v=String(r[c]||'').trim().replace(/\.0+$/,'');
+    return v&&v.length>=3&&!/^(합계|총계|전체|소계|계|자재코드|품목명|코드|구분|순번|No)$/i.test(v)
+      &&!/^(?:20)?2\d[-./년]/.test(v); // year.month 형식 제외
+  });
+  let matCol=4;
+  if(!_hasData(4)){
+    for(const c of [3,5,2,1,0]){ if(_hasData(c)){matCol=c;break;} }
+  }
+  const nameCol=matCol+1===6?5:matCol+1; // F=5 우선, G 이상이면 matCol+1
+
+  // 데이터 시작 행: matCol 비지 않고 계획/실적 합계 > 0인 첫 번째 행
+  let dataStart=-1;
+  for(let r=1;r<Math.min(12,allRows.length);r++){
+    const row=allRows[r]||[];
+    const mat=String(row[matCol]||'').trim().replace(/\.0+$/,'');
+    if(!mat||/^(합계|총계|전체|소계|합\s*계|총\s*계|계)$/i.test(mat)) continue;
+    if(/^(?:20)?2\d[-./년]/.test(mat)) continue; // 연월 형식 → 헤더 행
+    const planSum=[6,7,8,9,10,11,12,13,14,15,16,17].reduce((s,i)=>s+parseNum(row[i]),0);
+    const actSum =[18,19,20,21,22,23,24,25,26,27,28,29].reduce((s,i)=>s+parseNum(row[i]),0);
+    if(planSum>0||actSum>0){dataStart=r;break;}
+  }
+  if(dataStart<0) return null;
+
+  // 오차율 분석 금액 원본은 원 단위. 화면/차트는 억원 단위로 통일.
+  const unitDiv=1e8;
+
+  const byMonth={};
+  allRows.slice(dataStart,Math.min(allRows.length,959)).forEach(row=>{
+    const matRaw=String(row[matCol]||'').trim();
+    const mat=matRaw.replace(/\.0+$/,'');
+    if(!mat||/^(합계|총계|전체|소계|합\s*계|총\s*계|계)$/i.test(mat)) return;
+    if(/^(?:20)?2\d[-./년]/.test(mat)) return;
+    const name=String(row[nameCol]||'').trim()||mat;
+    const ch=pickHitChannel(row);
+    MONTHS.forEach(moKey=>{
+      if(!byMonth[moKey]) byMonth[moKey]=[];
+      const plan=parseNum(row[planCols[moKey]]);
+      const actual=parseNum(row[actCols[moKey]]);
+      if(plan===0&&actual===0) return;
+      const diff=actual-plan;
+      byMonth[moKey].push({ch,n:name,plan:plan/unitDiv,actual:actual/unitDiv,
+        hitAcc:plan>0?Math.abs(diff)/plan*100:null,mat,
+        pkg:classifyHitPkg(name,ch),type:diff>0?'over':diff<0?'under':'match',
+        over:Math.max(diff,0)/unitDiv,under:Math.min(diff,0)/unitDiv});
+    });
+  });
+  const populated=Object.keys(byMonth).filter(k=>byMonth[k].length>0);
+  if(!populated.length) return null;
+  console.log('[_parseHitSheetPositional] 성공 월:',populated.join(','),'matCol:',matCol,'dataStart:',dataStart,'unitDiv:',unitDiv);
+
+  const hitAccByMo={};
+  MONTHS.forEach(moKey=>{
+    const rs=byMonth[moKey]||[];
+    const tP=rs.reduce((s,r)=>s+(r.plan||0),0);
+    const tO=rs.reduce((s,r)=>s+Math.max(r.over||0,0),0);
+    const tU=rs.reduce((s,r)=>s+Math.abs(Math.min(r.under||0,0)),0);
+    hitAccByMo[moKey]=tP>0?(tO+tU)/tP*100:null;
+  });
+  const moWithData=MONTHS.filter(mo=>byMonth[mo]?.some(r=>r.actual>0));
+  const repMo=moWithData[moWithData.length-1]||populated[populated.length-1];
+  const repRows=byMonth[repMo]||[];
+  const over=repRows.filter(d=>(d.over||0)>0).sort((a,b)=>b.over-a.over).slice(0,10);
+  const under=repRows.filter(d=>(d.under||0)<0).sort((a,b)=>a.under-b.under).slice(0,10);
+  return{over,under,rows:repRows,byMonth,hitAccByMo,
+    summary:{hitAcc:hitAccByMo[repMo],hitCount:repRows.filter(r=>r.hitAcc!=null).length,method:'WAPE',repMo}};
+}
+
 function _parseHitSheetLegacy(rows){
-  const data=rows.slice(4);
+  console.warn('[parseHitSheet] 레거시 파서 사용됨 — 월 헤더 탐지 실패. 컬럼 구조를 확인하세요.');
+  const data=rows.slice(4, 959);
   const ch_acc={};const over=[];const under=[];const hitVals=[];const detail=[];
   data.forEach(row=>{
-    const ch=row[2]; const mat=row[3]; if(!ch||!mat) return;
+    // 합계/총계 행 제외
+    const _chk=String(row[2]||row[3]||row[4]||'').trim();
+    if(/^(합계|총계|전체|소계|합\s*계|총\s*계|계)$/.test(_chk)) return;
+    const ch=String(row[2]||'').trim()||'미분류';
+    const mat=String(row[3]||'').trim();
     const n=String(row[4]||'');
     const plan=parseNum(row[5]);
     const actual=parseNum(row[6]);
+    if(!plan&&!actual) return;  // 계획·실적 모두 0인 완전 빈 행만 skip
     const diff=actual-plan;
     const hitAcc=plan>0?Math.abs(diff)/plan*100:null;
     if(hitAcc!=null) hitVals.push(hitAcc);
@@ -2101,9 +2444,10 @@ function _parseHitSheetLegacy(rows){
     if(diff<0&&under.length<10) under.push({ch,n,mat,plan:plan/1e6,actual:actual/1e6,under:diff/1e6,acc:plan>0?actual/plan*100:0});
   });
   const tPlanL=detail.reduce((s,r)=>s+(Number(r.plan)||0),0);
-  const tActL=detail.reduce((s,r)=>s+(Number(r.actual)||0),0);
-  const hitAcc=tPlanL>0?Math.abs(tActL-tPlanL)/tPlanL*100:null;
-  return{over,under,rows:detail,byMonth:{},hitAccByMo:{},summary:{hitAcc,hitCount:detail.filter(r=>r.plan>0).length,method:'MAPE'}};
+  const tOverL=detail.reduce((s,r)=>s+Math.max(Number(r.over)||0,0),0);
+  const tUnderL=detail.reduce((s,r)=>s+Math.abs(Math.min(Number(r.under)||0,0)),0);
+  const hitAcc=tPlanL>0?(tOverL+tUnderL)/tPlanL*100:null;
+  return{over,under,rows:detail,byMonth:{},hitAccByMo:{},summary:{hitAcc,hitCount:detail.filter(r=>r.plan>0).length,method:'WAPE'}};
 }
 function parseActualQtySheet(ws){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:0});
@@ -4127,16 +4471,277 @@ function renderChProg(){
 
 let hitTrendChart=null;
 function currentHitSummary(){
-  const uploaded=getHitData();
-  const selectedMo=document.getElementById('chAchieveMonth')?.value||'4월';
-  const moAcc=uploaded?.hitAccByMo?.[selectedMo];
-  const hitAcc=moAcc!=null?moAcc:uploaded?.summary?.hitAcc;
-  const acc=hitAcc!=null&&!isNaN(hitAcc)?hitAcc:HIT_TREND_DEFAULT[HIT_TREND_DEFAULT.length-1].acc;
-  return {acc,count:uploaded?.summary?.hitCount||312,method:'MAPE'};
+  const rows=getVisibleAdjustmentRows();
+  const tPlan=rows.reduce((s,r)=>s+(Number(r.plan)||0),0);
+  const wape=tPlan>0?rows.reduce((s,r)=>s+Math.abs(Number(r.diff)||0),0)/tPlan*100:HIT_TREND_DEFAULT[HIT_TREND_DEFAULT.length-1].acc;
+  return {acc:wape,count:rows.length||312,method:'WAPE'};
+}
+
+const HIT_MONTHS=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+function monthNoFromKey(mo){
+  const m=normalizeMonthKey(mo);
+  const n=parseInt(String(m||'').replace(/[^\d]/g,''),10);
+  return isNaN(n)?null:n;
+}
+function amountFmtEok(v){
+  const n=Number(v)||0;
+  const sign=n>0?'+':n<0?'-':'';
+  const abs=Math.abs(n);
+  return `${sign}${abs.toFixed(1)}억`;
+}
+function amountFmtEokPlain(v){
+  const n=Number(v)||0;
+  return `${n.toFixed(1)}억`;
+}
+function diffText(v){
+  const n=Number(v)||0;
+  if(n>0) return `+${Math.abs(n).toFixed(1)}억 초과`;
+  if(n<0) return `-${Math.abs(n).toFixed(1)}억 미달`;
+  return '0.0억 일치';
+}
+function hitRowKey(row){return `${row.ch||'미분류'}|${String(row.mat||'').trim()||row.n||''}`;}
+function aggregateHitRows(rows){
+  const grouped=new Map();
+  (rows||[]).forEach((row,index)=>{
+    const mat=String(row.mat||'').trim();
+    const key=`${row.ch||'미분류'}|${mat||`NO_CODE_${row.n||''}_${index}`}`;
+    if(!grouped.has(key)) grouped.set(key,{...row,ch:row.ch||'미분류',mat,n:row.n||row.name||mat,plan:0,actual:0});
+    const target=grouped.get(key);
+    target.plan+=Number(row.plan)||0;
+    target.actual+=Number(row.actual)||0;
+  });
+  return [...grouped.values()].map(row=>{
+    const diff=row.actual-row.plan;
+    const hitAcc=row.plan>0?Math.abs(diff)/row.plan*100:null;
+    return {...row,diff,hitAcc,type:diff>0?'over':diff<0?'under':'match',over:Math.max(diff,0),under:Math.min(diff,0)};
+  }).filter(row=>row.plan>0||row.actual>0);
+}
+function getHitMonthRows(month){
+  const hit=getHitData();
+  const mo=normalizeMonthKey(month);
+  const monthRows=hit?.byMonth?.[mo]||[];
+  const fallbackRows=(hit?.rows&&hit.rows.length)?hit.rows:ALL_SKU;
+  return aggregateHitRows(monthRows.length?monthRows:fallbackRows);
+}
+function buildMonthAggMap(month){
+  const map=new Map();
+  getHitMonthRows(month).forEach(row=>map.set(hitRowKey(row),row));
+  return map;
+}
+function getNextPlan(row,nextMonth,matCurrentTotals){
+  const mat=String(row.mat||'').trim();
+  const sp=getSalesPlanData()?.[mat];
+  if(!sp||!nextMonth||nextMonth<6||nextMonth>10) return {amt:0,qty:0,source:'차월계획 없음'};
+  const idx=nextMonth-6;
+  const chPlan=sp.byChannel?.[row.ch];
+  if(chPlan){
+    return {
+      amt:(Number(chPlan.planAmt?.[idx]?.amt)||0)/1e8,
+      qty:Number(chPlan.planQty?.[idx]?.qty)||0,
+      source:'채널+자재코드'
+    };
+  }
+  const totalAmt=(Number(sp.planAmt?.[idx]?.amt)||0)/1e8;
+  const totalQty=Number(sp.planQty?.[idx]?.qty)||0;
+  const mt=matCurrentTotals.get(mat);
+  const denom=(mt?.plan||0)>0?mt.plan:(mt?.actual||0);
+  const numer=(mt?.plan||0)>0?row.plan:row.actual;
+  const share=denom>0?numer/denom:0;
+  return {amt:totalAmt*share,qty:Math.round(totalQty*share),source:share>0?'자재코드 계획 배분':'자재코드 계획'};
+}
+function classifyChannelAllocation(row,currentRows){
+  const mat=String(row.mat||'').trim();
+  if(!mat) return false;
+  const same=currentRows.filter(r=>String(r.mat||'').trim()===mat);
+  if(same.length<2) return false;
+  const totalPlan=same.reduce((s,r)=>s+(Number(r.plan)||0),0);
+  const totalActual=same.reduce((s,r)=>s+(Number(r.actual)||0),0);
+  if(totalPlan<=0) return false;
+  const itemWape=Math.abs(totalActual-totalPlan)/totalPlan*100;
+  const rowWape=row.plan>0?Math.abs(row.actual-row.plan)/row.plan*100:null;
+  return itemWape<=20 && rowWape!=null && (rowWape>=50 || Math.abs(row.diff)>=1);
+}
+function summarizeRecentDirection(history){
+  const dirs=(history||[]).map(h=>h.direction).filter(d=>d&&d!=='동일');
+  if(dirs.length>=3&&dirs.slice(-3).every(d=>d==='초과')) return '연속 초과';
+  if(dirs.length>=3&&dirs.slice(-3).every(d=>d==='미달')) return '연속 미달';
+  const hasOver=dirs.includes('초과');
+  const hasUnder=dirs.includes('미달');
+  if(hasOver&&hasUnder) return '변동 큼';
+  if(!dirs.length) return '안정';
+  return dirs[dirs.length-1]==='초과'?'초과 우위':'미달 우위';
+}
+function inferCorrectionType(row, history, channelAlloc){
+  const recent=summarizeRecentDirection(history);
+  const diff=Number(row.diff)||0;
+  const absDiff=Math.abs(diff);
+  const err=row.errorRate;
+  if(channelAlloc) return '채널 계획 재점검';
+  if(recent==='연속 초과') return '계획 상향 검토';
+  if(recent==='연속 미달') return '계획 하향 검토';
+  if(err!=null&&err<=20&&absDiff>=1) return '금액 영향 확인';
+  if(err!=null&&err>=50&&absDiff<1) return '모니터링';
+  if(diff!==0) return '일시성 확인';
+  return '모니터링';
+}
+function inferCause(row){
+  if(row.correctionType==='채널 계획 재점검') return '채널 편중';
+  if(row.verdict==='무계획 실적') return '계획 과소';
+  if(row.verdict==='계획 미실현') return '판매 부진';
+  if(row.correctionType==='계획 상향 검토') return '계획 과소';
+  if(row.correctionType==='계획 하향 검토') return '계획 과대';
+  if(row.correctionType==='일시성 확인') return row.diff>=0?'일시성 출고':'판매 부진';
+  if(row.correctionType==='금액 영향 확인') return '행사성 물량';
+  return '추이 모니터링';
+}
+function recommendedActionByType(type){
+  return {
+    '계획 상향 검토':'계획 상향 검토',
+    '계획 하향 검토':'계획 하향 검토',
+    '일시성 확인':'일시성 확인 후 유지',
+    '채널 계획 재점검':'채널별 계획 재점검',
+    '금액 영향 확인':'금액 영향 확인',
+    '모니터링':'모니터링'
+  }[type]||'모니터링';
+}
+function subjectParticle(text){
+  const ch=String(text||'').trim().slice(-1);
+  if(!ch) return '이';
+  const code=ch.charCodeAt(0);
+  if(code<0xAC00||code>0xD7A3) return '이';
+  return ((code-0xAC00)%28)===0?'가':'이';
+}
+function buildAdjustmentRows(){
+  const selectedMo=normalizeMonthKey(document.getElementById('chAchieveMonth')?.value||'5월');
+  const selectedNo=monthNoFromKey(selectedMo)||5;
+  const nextMonth=selectedNo+1;
+  const currentRows=getHitMonthRows(selectedMo);
+  const histMonths=HIT_MONTHS.slice(Math.max(0,selectedNo-3),selectedNo);
+  const histMaps=histMonths.map(m=>buildMonthAggMap(m));
+  const matCurrentTotals=new Map();
+  currentRows.forEach(row=>{
+    const mat=String(row.mat||'').trim();
+    if(!mat) return;
+    if(!matCurrentTotals.has(mat)) matCurrentTotals.set(mat,{plan:0,actual:0});
+    const t=matCurrentTotals.get(mat);
+    t.plan+=Number(row.plan)||0;
+    t.actual+=Number(row.actual)||0;
+  });
+  return currentRows.map(row=>{
+    const key=hitRowKey(row);
+    const diff=row.actual-row.plan;
+    const achievement=row.plan>0?row.actual/row.plan*100:null;
+    const direction=row.plan<=0&&row.actual>0?'무계획':diff>0?'초과':diff<0?'미달':'동일';
+    const history=histMaps.map((map,i)=>{
+      const h=map.get(key)||{plan:0,actual:0,diff:0};
+      const hDiff=(Number(h.actual)||0)-(Number(h.plan)||0);
+      return {
+        month:histMonths[i],
+        plan:Number(h.plan)||0,
+        actual:Number(h.actual)||0,
+        diff:hDiff,
+        rate:(Number(h.plan)||0)>0?(Number(h.actual)||0)/(Number(h.plan)||0)*100:null,
+        direction:(Number(h.plan)||0)<=0&&(Number(h.actual)||0)>0?'초과':hDiff>0?'초과':hDiff<0?'미달':'동일'
+      };
+    });
+    const validRates=history.filter(h=>h.rate!=null).map(h=>h.rate);
+    const avg3Ach=validRates.length?validRates.reduce((s,v)=>s+v,0)/validRates.length:null;
+    const overMonths=history.filter(h=>h.direction==='초과').length;
+    const underMonths=history.filter(h=>h.direction==='미달').length;
+    const repeatOver=overMonths>=2;
+    const repeatUnder=underMonths>=2;
+    const channelAlloc=classifyChannelAllocation({...row,diff},currentRows);
+    const baseForClass={...row,diff,errorRate:row.plan>0?Math.abs(diff)/row.plan*100:null};
+    const recentDirection=summarizeRecentDirection(history);
+    let verdict='정상';
+    if(row.plan<=0&&row.actual>0) verdict='무계획 실적';
+    else if(row.plan>0&&(row.actual<=0||row.actual/row.plan<0.1)) verdict='계획 미실현';
+    else if(channelAlloc) verdict='채널 배분 오류';
+    else if(repeatOver) verdict='반복 초과';
+    else if(repeatUnder) verdict='반복 미달';
+    else if(row.plan>0&&row.actual>=row.plan*1.3) verdict='과소계획';
+    else if(row.plan>0&&row.actual<=row.plan*0.7) verdict='과대계획';
+    else if(row.plan>0&&Math.abs(diff)/row.plan<=0.2) verdict='정상';
+    else verdict=diff>0?'과소계획':'과대계획';
+
+    const nextPlan=getNextPlan(row,nextMonth,matCurrentTotals);
+    let factor=1;
+    let action='기존 차월 계획 유지, 실적 추이 모니터링';
+    if(avg3Ach!=null&&avg3Ach>=130&&repeatOver){factor=1.15;action='반복 초과. 차월 계획 15% 상향 검토';}
+    else if(avg3Ach!=null&&avg3Ach>=110&&avg3Ach<130){factor=1.10;action='달성율 우위. 차월 계획 10% 상향 검토';}
+    else if(avg3Ach!=null&&avg3Ach<=70&&repeatUnder){factor=0.85;action='반복 미달. 차월 계획 15% 하향 검토';}
+    else if(avg3Ach!=null&&avg3Ach>=70&&avg3Ach<=90){factor=0.90;action='달성율 부진. 차월 계획 10% 하향 검토';}
+    else if(verdict!=='정상'){action='당월 변동성 확인 후 BM/TM 협의 필요';}
+    if(verdict==='채널 배분 오류') action='품목 전체 수요보다 채널 배분 재조정 필요';
+    if(verdict==='무계획 실적') action='차월 계획 신규 반영 여부 확인';
+    if(verdict==='계획 미실현') action='계획 원인 및 실행 가능성 재점검';
+    const recommended=nextPlan.amt*factor;
+    const recDelta=recommended-nextPlan.amt;
+    const recRate=nextPlan.amt>0?recDelta/nextPlan.amt*100:0;
+    const sameDir=Math.max(overMonths,underMonths);
+    const confidence=history.length<3||sameDir<=1?'낮음':sameDir===3?'높음':'중간';
+    let owner='SCM 모니터링';
+    if(channelAlloc) owner='TM';
+    else if(['무계획 실적','계획 미실현'].includes(verdict)) owner='BM/TM';
+    else if(['과소계획','과대계획','반복 초과','반복 미달'].includes(verdict)) owner='BM';
+    const needCorrection=verdict!=='정상'||Math.abs(recDelta)>0.0001;
+    const correctionType=inferCorrectionType(baseForClass,history,channelAlloc);
+    const recommendedAction=recommendedActionByType(correctionType);
+    const cause=inferCause({verdict,correctionType,diff});
+    return {
+      ...row,
+      selectedMo,
+      nextMonth,
+      diff,
+      achievement,
+      errorRate:row.plan>0?Math.abs(diff)/row.plan*100:null,
+      direction,
+      verdict,
+      nextPlanAmt:nextPlan.amt,
+      nextPlanQty:nextPlan.qty,
+      nextPlanSource:nextPlan.source,
+      factor,
+      recommendedAmt:recommended,
+      recommendedQty:nextPlan.qty?Math.round(nextPlan.qty*factor):null,
+      recDelta,
+      recRate,
+      confidence,
+      owner,
+      action,
+      recentDirection,
+      correctionType,
+      recommendedAction,
+      cause,
+      avg3Ach,
+      history,
+      needCorrection
+    };
+  });
+}
+function getVisibleAdjustmentRows(){
+  const fhc=document.getElementById('fhc')?.value||'';
+  return buildAdjustmentRows().filter(r=>!fhc||r.ch===fhc);
 }
 function renderHitKpis(){
-  const s=currentHitSummary();
-  const accText=s.acc.toFixed(1)+'%';
+  const _selMo=document.getElementById('chAchieveMonth')?.value||'5월';
+  const selNo=monthNoFromKey(_selMo)||5;
+  const rows=getVisibleAdjustmentRows();
+  const tPlan=rows.reduce((s,r)=>s+(Number(r.plan)||0),0);
+  const tAct=rows.reduce((s,r)=>s+(Number(r.actual)||0),0);
+  const tOver=rows.reduce((s,r)=>s+Math.max(Number(r.diff)||0,0),0);
+  const tUnder=rows.reduce((s,r)=>s+Math.min(Number(r.diff)||0,0),0);
+  const ach=tPlan>0?tAct/tPlan*100:0;
+  const wape=tPlan>0?rows.reduce((s,r)=>s+Math.abs(Number(r.diff)||0),0)/tPlan*100:0;
+  const bias=tAct-tPlan;
+  const needCount=rows.filter(r=>r.needCorrection).length;
+  const prevRows=selNo>1?getHitMonthRows(`${selNo-1}월`):[];
+  const pPlan=prevRows.reduce((s,r)=>s+(Number(r.plan)||0),0);
+  const pAct=prevRows.reduce((s,r)=>s+(Number(r.actual)||0),0);
+  const pWape=pPlan>0?prevRows.reduce((s,r)=>s+Math.abs((Number(r.actual)||0)-(Number(r.plan)||0)),0)/pPlan*100:null;
+  const pAch=pPlan>0?pAct/pPlan*100:null;
+  const pBias=pAct-pPlan;
+  const deltaPhrase=(cur,prev,unit='')=>prev==null?'기준월 데이터 기준':`${cur-prev>=0?'+':''}${(cur-prev).toFixed(1)}${unit} 전월 대비`;
+  const accText=wape.toFixed(1)+'%';
   const target=50;
   const hit=document.getElementById('hitAccKpi');
   const sub=document.getElementById('hitAccSub');
@@ -4144,15 +4749,15 @@ function renderHitKpis(){
   const delta=document.getElementById('strategyHitDelta');
   if(hit){
     hit.textContent=accText;
-    hit.classList.toggle('green',s.acc<target);
-    hit.classList.toggle('red',s.acc>=target);
-    hit.classList.toggle('kv-green',s.acc<target);
-    hit.classList.toggle('kv-red',s.acc>=target);
+    hit.classList.toggle('green',wape<target);
+    hit.classList.toggle('red',wape>=target);
+    hit.classList.toggle('kv-green',wape<target);
+    hit.classList.toggle('kv-red',wape>=target);
   }
-  if(sub) sub.textContent=`${s.count.toLocaleString()}개 조합 · ${s.method} 평균`;
+  if(sub) sub.textContent=pWape==null?`${_selMo} Σ|차이| / Σ계획`:`전월 대비 ${wape-pWape>=0?'+':''}${(wape-pWape).toFixed(1)}%p`;
   if(st) st.textContent=accText;
   if(delta){
-    const diff=s.acc-target;
+    const diff=wape-target;
     if(diff<0){
       delta.textContent=`▼ 목표 대비 ${Math.abs(diff).toFixed(1)}%p 낮음`;
       delta.className='kpi-delta good';
@@ -4161,31 +4766,24 @@ function renderHitKpis(){
       delta.className='kpi-delta bad';
     }
   }
-  // 달성율 / 초과 / 미달 KPI 타일 업데이트
-  const _selMo=document.getElementById('chAchieveMonth')?.value||'5월';
-  const _rows=getHitAccuracyRows();
-  if(_rows.length){
-    const _tPlan=_rows.reduce((s,r)=>s+(Number(r.plan)||0),0);
-    const _tAct=_rows.reduce((s,r)=>s+(Number(r.actual)||0),0);
-    const _tOver=_rows.reduce((s,r)=>s+Math.max(Number(r.over)||0,0),0);
-    const _tUnder=_rows.reduce((s,r)=>s+Math.min(Number(r.under)||0,0),0);
-    const _ach=_tPlan>0?_tAct/_tPlan*100:0;
-    const _fmt=v=>Math.abs(v)>=100?`${(Math.abs(v)/100).toFixed(1)}억`:`${Math.round(Math.abs(v))}백만`;
-    const _label1=document.getElementById('hitKpiLabel1');
-    const _val1=document.getElementById('hitKpiVal1');
-    const _sub1=document.getElementById('hitKpiSub1');
-    if(_label1) _label1.textContent=`총 매출 달성율 (${_selMo})`;
-    if(_val1){_val1.textContent=`${_ach.toFixed(1)}%`;_val1.className=`tile-val ${_ach>=100?'green':_ach>=80?'terra':'red'}`;}
-    if(_sub1) _sub1.textContent=`계획 ${_fmt(_tPlan)} → 실적 ${_fmt(_tAct)}`;
-    const _topO=_rows.filter(r=>(r.over||0)>0).sort((a,b)=>b.over-a.over)[0];
-    const _topU=_rows.filter(r=>(r.under||0)<0).sort((a,b)=>a.under-b.under)[0];
-    const _v3=document.getElementById('hitKpiVal3'),_s3=document.getElementById('hitKpiSub3');
-    if(_v3) _v3.textContent=_tOver>0?`+${_fmt(_tOver)}`:'—';
-    if(_s3) _s3.textContent=_topO?_topO.n.slice(0,16):'—';
-    const _v4=document.getElementById('hitKpiVal4'),_s4=document.getElementById('hitKpiSub4');
-    if(_v4) _v4.textContent=_tUnder<0?`-${_fmt(_tUnder)}`:'—';
-    if(_s4) _s4.textContent=_topU?_topU.n.slice(0,16):'—';
-  }
+  const label1=document.getElementById('hitKpiLabel1');
+  const val1=document.getElementById('hitKpiVal1');
+  const sub1=document.getElementById('hitKpiSub1');
+  if(label1) label1.textContent=`총 판매 달성률 (${_selMo})`;
+  if(val1){val1.textContent=`${ach.toFixed(1)}%`;val1.className=`tile-val ${ach>=100?'green':ach>=80?'terra':'red'}`;}
+  if(sub1) sub1.textContent=pAch==null?`계획 ${amountFmtEokPlain(tPlan)} → 실적 ${amountFmtEokPlain(tAct)}`:`전월 대비 ${ach-pAch>=0?'+':''}${(ach-pAch).toFixed(1)}%p`;
+  const biasVal=document.getElementById('hitBiasKpi'), biasSub=document.getElementById('hitBiasSub');
+  if(biasVal){biasVal.textContent=amountFmtEok(bias);biasVal.className=`tile-val ${bias>=0?'green':'red'}`;}
+  if(biasSub) biasSub.textContent=prevRows.length?`${amountFmtEok(bias-pBias)} 전월 대비`:(bias>=0?'계획 대비 초과':'계획 대비 미달');
+  const v3=document.getElementById('hitKpiVal3'),s3=document.getElementById('hitKpiSub3');
+  if(v3) v3.textContent=tOver>0?amountFmtEok(tOver):'—';
+  if(s3) s3.textContent=`전체 오차 중 ${tOver+Math.abs(tUnder)>0?(tOver/(tOver+Math.abs(tUnder))*100).toFixed(1):'0.0'}%`;
+  const v4=document.getElementById('hitKpiVal4'),s4=document.getElementById('hitKpiSub4');
+  if(v4) v4.textContent=tUnder<0?amountFmtEok(tUnder):'—';
+  if(s4) s4.textContent=`전체 오차 중 ${tOver+Math.abs(tUnder)>0?(Math.abs(tUnder)/(tOver+Math.abs(tUnder))*100).toFixed(1):'0.0'}%`;
+  const corr=document.getElementById('hitCorrectionKpi'),corrSub=document.getElementById('hitCorrectionSub');
+  if(corr) corr.textContent=`${needCount.toLocaleString()}개`;
+  if(corrSub) corrSub.textContent=`전체 ${rows.length.toLocaleString()}개 중 ${rows.length?((needCount/rows.length)*100).toFixed(1):'0.0'}%`;
 }
 function renderHitTrend(){
   renderHitKpis();
@@ -4252,11 +4850,39 @@ function renderAlarms(){
 }
 
 let htUnit='amt';
+let planAdjustRowsCache=[];
 function setHTUnit(unit,btn){
   htUnit=unit;
   document.querySelectorAll('#htAmtBtn,#htQtyBtn').forEach(b=>b.classList.remove('on'));
   if(btn) btn.classList.add('on');
   renderHT();
+  renderInsightTables();
+}
+function fmtAdjustAmount(row,key){
+  return fmtAdjustAmountByUnit(row,key,htUnit);
+}
+function fmtAdjustAmountByUnit(row,key,unit){
+  if(unit==='qty'){
+    const qty={
+      plan:qtyFromAmountM(row,row.plan),
+      actual:qtyFromAmountM(row,row.actual),
+      diff:qtyFromAmountM(row,row.diff),
+      nextPlanAmt:row.nextPlanQty,
+      recommendedAmt:row.recommendedQty,
+      recDelta:row.recommendedQty!=null&&row.nextPlanQty!=null?row.recommendedQty-row.nextPlanQty:null
+    }[key];
+    if(qty==null||!isFinite(qty)) return '<span style="color:var(--muted);font-size:10px;">매칭 없음</span>';
+    return (qty>0&&['diff','recDelta'].includes(key)?'+':'')+Math.round(qty).toLocaleString();
+  }
+  return amountFmtEok(row[key]);
+}
+function fmtPlanActualByUnit(row,key,unit){
+  if(unit==='qty'){
+    const q=qtyFromAmountM(row,row[key]);
+    if(q==null||!isFinite(q)) return '<span style="color:var(--muted);font-size:10px;">매칭 없음</span>';
+    return Math.round(q).toLocaleString();
+  }
+  return amountFmtEokPlain(row[key]);
 }
 function fmtHTValue(row, key){
   const val=Number(row[key])||0;
@@ -4266,10 +4892,10 @@ function fmtHTValue(row, key){
     const prefix=(key==='over'&&q>0)?'+':'';
     return prefix+q.toLocaleString();
   }
-  const rounded=Math.round(val);
-  if(key==='over') return val>0?'+'+rounded.toLocaleString():'—';
-  if(key==='under') return val<0?rounded.toLocaleString():'—';
-  return rounded.toLocaleString();
+  const formatted=Math.abs(val)>=10?val.toFixed(1):val.toFixed(2);
+  if(key==='over') return val>0?'+'+formatted:'—';
+  if(key==='under') return val<0?formatted:'—';
+  return formatted;
 }
 function aggregateHTRows(rows){
   const grouped=new Map();
@@ -4299,13 +4925,17 @@ function getHTTotals(rows){
   const totals=rows.reduce((sum,row)=>{
     sum.plan+=Number(row.plan)||0;
     sum.actual+=Number(row.actual)||0;
-    sum.over+=Math.max(Number(row.over)||0,0);
-    sum.under+=Math.min(Number(row.under)||0,0);
+    sum.over+=Math.max(Number(row.over)||0,0);       // Σ max(actual_i-plan_i, 0)
+    sum.under+=Math.min(Number(row.under)||0,0);     // Σ min(actual_i-plan_i, 0) ← 음수
     return sum;
   },{plan:0,actual:0,over:0,under:0});
-  // 전체 오차율: |실적합계 - 계획합계| / 계획합계
-  totals.hitAcc=totals.plan>0?Math.abs(totals.actual-totals.plan)/totals.plan*100:0;
-  // SKU 수: plan>0인 unique 자재코드 수
+  const tPlan=totals.plan;
+  const sumOver=totals.over;
+  const sumUnder=Math.abs(totals.under);             // 미달 절대값 합계
+  // 전체 WAPE = (초과합계 + 미달합계) / 계획합계 = Σ|diff_i| / Σplan_i
+  totals.hitAcc     = tPlan>0 ? (sumOver+sumUnder)/tPlan*100 : 0;
+  totals.overRate   = tPlan>0 ? sumOver/tPlan*100             : 0; // 초과 오차율
+  totals.underRate  = tPlan>0 ? sumUnder/tPlan*100            : 0; // 미달 오차율
   const skuSet=new Set(rows.filter(r=>r.plan>0).map(r=>String(r.mat||'').trim()||r.n));
   totals.skuCount=skuSet.size;
   return totals;
@@ -4317,10 +4947,10 @@ function fmtHTTotal(rows,key){
       if(key==='under') return sum+Math.min(Number(row.under)||0,0);
       return sum+(Number(row[key])||0);
     },0);
-    const rounded=Math.round(value);
-    if(key==='over') return value>0?'+'+rounded.toLocaleString():'—';
-    if(key==='under') return value<0?rounded.toLocaleString():'—';
-    return rounded.toLocaleString();
+    const formatted=Math.abs(value)>=10?value.toFixed(1):value.toFixed(2);
+    if(key==='over') return value>0?'+'+formatted:'—';
+    if(key==='under') return value<0?formatted:'—';
+    return formatted;
   }
   let matched=0;
   const quantity=rows.reduce((sum,row)=>{
@@ -4339,38 +4969,53 @@ function fmtHTTotal(rows,key){
 function renderHT(){
   const fhc=document.getElementById('fhc')?.value||'';
   const fht=document.getElementById('fht')?.value||'';
-  const channelRows=getHitAccuracyRows().filter(d=>!fhc||d.ch===fhc);
-  const data=aggregateHTRows(channelRows).filter(d=>!fht||d.type===fht);
+  const allRows=getVisibleAdjustmentRows();
+  const data=(fht?allRows.filter(d=>d.correctionType===fht):allRows)
+    .sort((a,b)=>(b.needCorrection-a.needCorrection)||Math.abs(Number(b.diff)||0)-Math.abs(Number(a.diff)||0));
+  planAdjustRowsCache=data;
   const totals=getHTTotals(data);
-  const unitLabel=htUnit==='qty'?'수량':'백만원';
-  let h=`<table class="tbl ht-table"><colgroup>
-    <col style="width:9%"><col style="width:10%"><col style="width:29%"><col style="width:10%"><col style="width:10%">
-    <col style="width:14%"><col style="width:9%"><col style="width:9%">
-  </colgroup><thead><tr><th class="l">채널</th><th class="l">자재코드</th><th class="l">품목</th><th class="r">판매계획(${unitLabel})</th><th class="r">실적(${unitLabel})</th><th class="hit-rate-col">오차율(MAPE)</th><th class="r">초과(${unitLabel})</th><th class="r">미달(${unitLabel})</th></tr></thead><tbody>`;
+  // 필터 적용 시: 전체 계획 대비 기여 오차율 (분모를 전체 계획으로 고정)
+  const refTotals=fht?getHTTotals(allRows):null;
+  const displayWape=refTotals&&refTotals.plan>0
+    ?(totals.over+Math.abs(totals.under))/refTotals.plan*100
+    :totals.hitAcc;
+  const displaySubText=refTotals
+    ?`전체 WAPE ${refTotals.hitAcc.toFixed(1)}% · 선택유형 기여 ${displayWape.toFixed(1)}%`
+    :`초과 ${totals.overRate.toFixed(1)}% + 미달 ${totals.underRate.toFixed(1)}%`;
+  const unitLabel=htUnit==='qty'?'수량':'억원';
+  let h=`<table class="tbl ht-table" style="min-width:1480px;"><colgroup>
+    <col style="width:7%"><col style="width:9%"><col style="width:20%"><col style="width:9%"><col style="width:9%"><col style="width:9%">
+    <col style="width:7%"><col style="width:9%"><col style="width:10%"><col style="width:12%"><col style="width:13%">
+  </colgroup><thead><tr><th class="l">채널</th><th class="l">자재코드</th><th class="l">품목</th><th class="r">당월 계획(${unitLabel})</th><th class="r">당월 실적(${unitLabel})</th><th class="r">차이금액</th><th class="r">오차율</th><th class="c">최근 3개월 방향</th><th class="c">보정유형</th><th class="l">권장조치</th><th class="l">조치의견</th></tr></thead><tbody>`;
   if(data.length){
-    const totalClass=totals.hitAcc<30?'g':totals.hitAcc<50?'y':'r';
+    const totalClass=displayWape<30?'g':displayWape<50?'y':'r';
     h+=`<tr class="ht-total-row" style="font-weight:900;">
       <td class="l">${fhc||'전체 채널'}</td>
       <td class="l" colspan="2">총계 · ${totals.skuCount.toLocaleString()}개 SKU</td>
       <td class="r">${fmtHTTotal(data,'plan')}</td>
       <td class="r">${fmtHTTotal(data,'actual')}</td>
-      <td class="hit-rate-col"><div class="hit-rate-wrap"><span class="tag ${totalClass}" style="font-size:15px;font-weight:900;padding:3px 9px;">${totals.hitAcc.toFixed(1)}%</span></div><div style="font-size:9px;color:var(--muted);margin-top:2px;">|차이합|/계획합계</div></td>
-      <td class="r" style="color:var(--green);">${fmtHTTotal(data,'over')}</td>
-      <td class="r" style="color:var(--red);">${fmtHTTotal(data,'under')}</td>
+      <td class="r">${amountFmtEok(totals.actual-totals.plan)}</td>
+      <td class="hit-rate-col">
+        <div class="hit-rate-wrap"><span class="tag ${totalClass}" style="font-size:15px;font-weight:900;padding:3px 9px;">${displayWape.toFixed(1)}%</span></div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px;">${displaySubText}</div>
+      </td>
+      <td class="c" colspan="4">보정 필요 ${data.filter(r=>r.needCorrection).length.toLocaleString()}건</td>
     </tr>`;
   }
-  data.forEach(d=>{
-    const hit=d.hitAcc||0;
-    const ac=hit<30?'g':hit<50?'y':'r';
-    h+=`<tr><td class="l">${d.ch}</td><td class="l" style="color:var(--muted);font-weight:700;">${d.mat||'—'}</td><td class="l">${d.n}</td>
-      <td class="r">${fmtHTValue(d,'plan')}</td><td class="r">${fmtHTValue(d,'actual')}</td>
-      <td class="hit-rate-col"><div class="hit-rate-wrap"><span class="tag ${ac}" style="font-size:15px;font-weight:900;padding:3px 9px;">${hit.toFixed(1)}%</span></div></td>
-      <td class="r" style="color:${(d.over||0)>0?'var(--green)':'var(--muted)'};">${(d.over||0)>0?fmtHTValue(d,'over'):'—'}</td>
-      <td class="r" style="color:${(d.under||0)<0?'var(--red)':'var(--muted)'};">${(d.under||0)<0?fmtHTValue(d,'under'):'—'}</td>
+  data.forEach((d,idx)=>{
+    const ac=d.correctionType==='모니터링'?'g':(['계획 상향 검토','일시성 확인','금액 영향 확인'].includes(d.correctionType)?'y':'r');
+    const err=d.errorRate==null?'계획없음':d.errorRate.toFixed(1)+'%';
+    const name=String(d.n||'');
+    const memoKey=`hitAdjustMemo|${hitRowKey(d)}`;
+    const memo=(localStorage.getItem(memoKey)||'').replace(/"/g,'&quot;');
+    h+=`<tr${d.needCorrection?'':' style="opacity:0.72;"'}><td class="l">${d.ch}</td><td class="l" style="color:var(--muted);font-weight:700;">${d.mat||'—'}</td><td class="l"><button class="link-btn item-ellipsis" title="${name}" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;" onclick="openPlanAdjustModalByIndex(${idx})">${name}</button></td>
+      <td class="r">${fmtPlanActualByUnit(d,'plan',htUnit)}</td><td class="r">${fmtPlanActualByUnit(d,'actual',htUnit)}</td><td class="r ${d.diff>=0?'diff-pos':'diff-neg'}">${fmtAdjustAmount(d,'diff')}</td>
+      <td class="r"><span class="tag ${ac}">${err}</span></td><td class="c">${d.recentDirection}</td><td class="c"><span class="tag ${ac}">${d.correctionType}</span></td>
+      <td class="l">${d.recommendedAction}</td><td class="l"><textarea class="action-memo" data-memo-key="${memoKey}" oninput="localStorage.setItem(this.dataset.memoKey,this.value)" placeholder="조치의견 입력">${memo}</textarea></td>
     </tr>`;
   });
   if(!data.length){
-    h+=`<tr><td colspan="8" style="text-align:center;padding:16px;color:var(--muted);">해당 없음</td></tr>`;
+    h+=`<tr><td colspan="11" style="text-align:center;padding:16px;color:var(--muted);">해당 없음</td></tr>`;
   }
   document.getElementById('htWrap').innerHTML=h+`</tbody></table>`;
 }
@@ -4697,51 +5342,36 @@ function renderRiskDonuts(){
 }
 
 // ═══════════ 채널별 판매달성율 차트 ════════════════════════════════
-const CH_ACHIEVE_MONTHS={
-  '1월':[
-    {ch:'직영몰',plan:38.0,actual:35.1},{ch:'다이소',plan:22.5,actual:20.2},{ch:'쿠팡',plan:5.8,actual:7.5},
-    {ch:'스/스',plan:4.8,actual:5.2},{ch:'카카오',plan:1.0,actual:0.4},{ch:'올리브영',plan:0.8,actual:0.3},{ch:'제로샵',plan:0.5,actual:0.1}
-  ],
-  '2월':[
-    {ch:'직영몰',plan:39.5,actual:34.8},{ch:'다이소',plan:23.8,actual:20.8},{ch:'쿠팡',plan:5.5,actual:6.8},
-    {ch:'스/스',plan:5.0,actual:5.0},{ch:'카카오',plan:1.0,actual:0.5},{ch:'올리브영',plan:0.8,actual:0.3},{ch:'제로샵',plan:0.5,actual:0.2}
-  ],
-  '3월':[
-    {ch:'직영몰',plan:44.0,actual:41.2},{ch:'다이소',plan:25.2,actual:24.5},{ch:'쿠팡',plan:6.4,actual:10.2},
-    {ch:'스/스',plan:5.4,actual:7.5},{ch:'카카오',plan:1.1,actual:0.6},{ch:'올리브영',plan:0.9,actual:0.4},{ch:'제로샵',plan:0.5,actual:0.2}
-  ],
-  '4월':[
-    {ch:'직영몰',plan:42.5,actual:37.0},{ch:'다이소',plan:26.0,actual:21.0},{ch:'쿠팡',plan:5.8,actual:8.3},
-    {ch:'스/스',plan:5.0,actual:6.2},{ch:'카카오',plan:1.2,actual:0.2},{ch:'올리브영',plan:1.0,actual:0.4},{ch:'제로샵',plan:0.5,actual:0.1}
-  ]
-};
+// 하드코딩 데이터 제거 — 업로드 데이터만 사용
+const CH_ACHIEVE_MONTHS={};
 let chAchieveChart=null;
 function _getUploadedChRows(month){
-  // 업로드된 hit 데이터에서 채널별 집계 반환 (없으면 null)
-  const hitData=getHitData()?.byMonth?.[month];
+  const _hit=getHitData();
+  const _byMo=_hit?.byMonth;
+  const normMonth=normalizeMonthKey(month);
+  console.log('[chRows] month:',month,'→ normalized:',normMonth,'byMonth keys:',_byMo?Object.keys(_byMo):'(no data)');
+  const hitData=_byMo?.[normMonth];
+  console.log('[chRows] hitData rows:',hitData?.length||0);
   if(!hitData||!hitData.length) return null;
   const agg={};
   hitData.forEach(r=>{
     if(!r.ch) return;
     if(!agg[r.ch]) agg[r.ch]={ch:r.ch,plan:0,actual:0};
-    agg[r.ch].plan+=(Number(r.plan)||0)/100;   // 백만원 → 억원
-    agg[r.ch].actual+=(Number(r.actual)||0)/100; // 백만원 → 억원
+    agg[r.ch].plan+=Number(r.plan)||0;
+    agg[r.ch].actual+=Number(r.actual)||0;
   });
   const rows=Object.values(agg).map(d=>({...d,acc:d.plan>0?d.actual/d.plan*100:0}));
   return rows.length?rows:null;
 }
 function getChAchieveRows(month,mode){
-  const months=Object.keys(CH_ACHIEVE_MONTHS);
-  if(mode!=='cum'){
-    const uploaded=_getUploadedChRows(month);
-    if(uploaded) return uploaded;
-    return month==='4월'?CH_ACC:(CH_ACHIEVE_MONTHS[month]||[]);
-  }
-  const upto=months.slice(0,months.indexOf(month)+1).filter(m=>m==='4월'||CH_ACHIEVE_MONTHS[m]);
+  if(mode!=='cum') return _getUploadedChRows(month)||[];
+  // 누적: 업로드된 월 데이터를 1월부터 해당 월까지 합산
+  const ALL_MOS=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const normMo=normalizeMonthKey(month);
+  const upto=ALL_MOS.slice(0,ALL_MOS.indexOf(normMo)+1);
   const acc={};
   upto.forEach(m=>{
-    const rows=m==='4월'?CH_ACC:(CH_ACHIEVE_MONTHS[m]||[]);
-    rows.forEach(d=>{
+    (_getUploadedChRows(m)||[]).forEach(d=>{
       if(!acc[d.ch]) acc[d.ch]={ch:d.ch,plan:0,actual:0};
       acc[d.ch].plan+=Number(d.plan)||0;
       acc[d.ch].actual+=Number(d.actual)||0;
@@ -4751,7 +5381,7 @@ function getChAchieveRows(month,mode){
 }
 function getHitAccuracyRows(){
   const hit=getHitData();
-  const selectedMo=document.getElementById('chAchieveMonth')?.value||'4월';
+  const selectedMo=normalizeMonthKey(document.getElementById('chAchieveMonth')?.value||'4월');
   const monthRows=hit?.byMonth?.[selectedMo];
   const uploaded=(monthRows&&monthRows.length)?monthRows:hit?.rows;
   const src=(uploaded&&uploaded.length)?uploaded:ALL_SKU;
@@ -4761,59 +5391,84 @@ function getHitAccuracyRows(){
     const hitAcc=d.hitAcc!=null?Number(d.hitAcc):(plan>0?Math.abs(actual-plan)/plan*100:null);
     const diff=actual-plan;
     return {...d,hitAcc,pkg:d.pkg||classifyHitPkg(d.n,d.ch),type:d.type||(diff>0?'over':diff<0?'under':'match'),over:d.over??Math.max(diff,0),under:d.under??Math.min(diff,0)};
-  }).filter(d=>d.hitAcc!=null);
+  // 계획=0이어도 실적이 있으면 포함 (초과로 집계, 오차율만 표시 불가)
+  }).filter(d=>d.hitAcc!=null||(Number(d.actual)>0));
 }
 function renderChAchieve(){
+  // markChartOffline이 canvas를 숨겼을 수 있으므로 매번 복구
+  const _cvs=document.getElementById('chAcc');
+  if(_cvs){
+    _cvs.style.display='';
+    const _od=_cvs.parentElement?.querySelector('.chart-offline');
+    if(_od) _od.remove();
+  }
   safeDestroyChart('chAcc'); chAchieveChart=null;
   if(!hasChart()){ markChartOffline('chAcc','Chart.js가 차단되어 채널별 판매달성율 차트를 표시할 수 없습니다.'); return; }
-  const month=document.getElementById('chAchieveMonth')?.value||'4월';
-  const mode=document.getElementById('chAchieveMode')?.value||'month';
-  const rows=getChAchieveRows(month,mode);
+  const monthRaw=document.getElementById('chAchieveMonth')?.value||'4월';
+  const month=normalizeMonthKey(monthRaw);
+  const selectedNo=monthNoFromKey(month)||5;
+  const months=HIT_MONTHS.slice(0,selectedNo);
+  const rows=months.map(m=>{
+    const monthRows=getHitMonthRows(m);
+    const plan=monthRows.reduce((s,d)=>s+(Number(d.plan)||0),0);
+    const actual=monthRows.reduce((s,d)=>s+(Number(d.actual)||0),0);
+    const diff=actual-plan;
+    return {month:m,plan,actual,diff,acc:plan>0?actual/plan*100:0};
+  }).filter(r=>r.plan>0||r.actual>0);
+  if(!rows.length){
+    const hit=getHitData();
+    const availMonths=hit?.byMonth?Object.keys(hit.byMonth).join(', '):'(업로드 없음)';
+    markChartOffline('chAcc',`${month} 데이터 없음 · 업로드된 월: ${availMonths}`);
+    return;
+  }
   const title=document.getElementById('chAchieveTitle');
-  if(title) title.textContent=`채널별 판매달성율 (${month} ${mode==='cum'?'누계':'실적'})`;
-  const totalPlan=rows.reduce((s,d)=>s+(Number(d.plan)||0),0);
-  const totalActual=rows.reduce((s,d)=>s+(Number(d.actual)||0),0);
-  const totalRate=totalPlan>0?totalActual/totalPlan*100:0;
-  const chTotalLabelPlugin={
-    id:'chAchieveTotalLabel',
+  if(title) title.textContent='월별 판매계획 대비 실적';
+  const selected=rows.find(r=>r.month===month)||rows[rows.length-1];
+  const summary=document.getElementById('hitMonthSummary');
+  if(summary) summary.textContent=`${selected.month} 실적은 계획 대비 ${diffText(selected.diff)}, 달성률 ${selected.acc.toFixed(1)}%`;
+  const monthDiffLabelPlugin={
+    id:'monthDiffLabel',
     afterDraw(chart){
-      const {ctx,chartArea}=chart;
+      const {ctx,chartArea,scales}=chart;
       if(!chartArea) return;
       ctx.save();
-      ctx.textAlign='right';
-      ctx.textBaseline='top';
-      ctx.font='800 11px Arial';
-      ctx.fillStyle='#333';
-      ctx.fillText(`계획 총계 ${totalPlan.toFixed(1)}억`, chartArea.right+70, chartArea.top+24);
-      ctx.fillStyle='#C46B4D';
-      ctx.fillText(`실적 총계 ${totalActual.toFixed(1)}억`, chartArea.right+70, chartArea.top+40);
-      ctx.fillStyle='#1D2783';
-      ctx.fillText(`달성율 ${totalRate.toFixed(1)}%`, chartArea.right+70, chartArea.top+56);
+      ctx.textAlign='center';
+      ctx.textBaseline='bottom';
+      ctx.font='900 11px Arial';
+      rows.forEach((d,i)=>{
+        const meta0=chart.getDatasetMeta(0).data[i];
+        const meta1=chart.getDatasetMeta(1).data[i];
+        if(!meta0||!meta1) return;
+        const x=(meta0.x+meta1.x)/2;
+        const y=Math.min(meta0.y,meta1.y)-18;
+        ctx.fillStyle=d.diff>=0?'#33512E':'#D64545';
+        ctx.fillText(`${d.diff>=0?'+':'-'}${Math.abs(d.diff).toFixed(1)}억`,x,y);
+      });
       ctx.restore();
     }
   };
   chAchieveChart=new Chart(document.getElementById('chAcc'),{
     type:'bar',
-    plugins:[ChartDataLabels,chTotalLabelPlugin],
+    plugins:[ChartDataLabels,monthDiffLabelPlugin],
     data:{
-      labels:rows.map(d=>d.ch),
+      labels:rows.map(d=>d.month),
       datasets:[
         {label:'계획(억)', data:rows.map(d=>d.plan),
-         backgroundColor:'#C9C9C9',borderRadius:5,borderSkipped:false,
+         backgroundColor:'#AEB4C6',borderRadius:5,borderSkipped:false,barPercentage:.62,categoryPercentage:.72,
          datalabels:{
            display:ctx=>(ctx.dataset.data[ctx.dataIndex]||0)>=0.1,
-           anchor:'end',align:'top',offset:2,clamp:true,clip:false,
+           anchor:'end',align:'top',offset:3,clamp:true,clip:false,
            color:'#555',font:{size:10,weight:'800'},
-           formatter:v=>v>=1?v.toFixed(1)+'억':v.toFixed(2)+'억'
+           formatter:v=>v.toFixed(1)+'억'
          }},
         {label:'실적(억)', data:rows.map(d=>d.actual),
-         backgroundColor:rows.map(d=>d.actual>=d.plan?'#33512E':'#C46B4D'),
-         borderRadius:5,borderSkipped:false,
+         backgroundColor:rows.map(d=>d.actual>=d.plan?'#33512E':'#D64545'),
+         borderRadius:5,borderSkipped:false,barPercentage:.62,categoryPercentage:.72,
          datalabels:{
            display:ctx=>(ctx.dataset.data[ctx.dataIndex]||0)>=0.1,
-           anchor:'end',align:'top',offset:2,clamp:true,clip:false,
+           anchor:'end',align:'top',offset:3,clamp:true,clip:false,
            color:'#8F3F2D',font:{size:10,weight:'900'},
-           formatter:v=>v>=1?v.toFixed(1)+'억':v.toFixed(2)+'억'
+           formatter:v=>v.toFixed(1)+'억'
          }},
       ]
     },
@@ -4822,14 +5477,17 @@ function renderChAchieve(){
       plugins:{
         legend:{position:'top',labels:{font:{size:11},boxWidth:20}},
         tooltip:{callbacks:{
-          label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)}억`,
-          afterBody:()=>`달성율: ${totalRate.toFixed(1)}%`
+          label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}억`,
+          afterBody:(items)=>{
+            const d=rows[items?.[0]?.dataIndex||0];
+            return `차이: ${diffText(d.diff)} · 달성률 ${d.acc.toFixed(1)}%`;
+          }
         }},
         datalabels:{}
       },
-      layout:{padding:{top:18,right:78}},
+      layout:{padding:{top:24,right:14}},
       scales:{
-        x:{grid:{display:false},ticks:{font:{size:10}}},
+        x:{grid:{display:false},ticks:{font:{size:11,weight:'800'}}},
         y:{grid:{color:'#f0f1f5'},ticks:{callback:v=>v+'억',font:{size:10}},border:{display:false}}
       }
     }
@@ -4856,13 +5514,13 @@ function setInsightUnit(unit,btn){
   renderInsightTables();
 }
 function fmtInsightAmt(vM){
-  const eok=(Number(vM)||0)/100;
+  const eok=Number(vM)||0;
   return (eok===0?'0':eok.toFixed(1))+'억';
 }
 function qtyFromAmountM(row, vM){
   const unit=getActualUnitMap()[String(row.mat||'').trim()]?.unit||0;
   if(!unit) return null;
-  return Math.round((Number(vM)||0)*1e6/unit);
+  return Math.round((Number(vM)||0)*1e8/unit);
 }
 function fmtInsightQty(row, vM, signed=false){
   const q=qtyFromAmountM(row,vM);
@@ -4871,51 +5529,170 @@ function fmtInsightQty(row, vM, signed=false){
   return prefix+q.toLocaleString();
 }
 function insightRows(type){
-  if(!getHitData()?.rows?.length) return [];
-  const uploaded=getHitAccuracyRows().filter(d=>type==='over'?(Number(d.over)||0)>0:(Number(d.under)||0)<0);
-  if(uploaded.length){
-    return uploaded.sort((a,b)=>type==='over'
-      ? (Number(b.over)||0)-(Number(a.over)||0)
-      : (Number(a.under)||0)-(Number(b.under)||0)
-    ).slice(0,3);
-  }
-  return [];
+  const rows=getVisibleAdjustmentRows();
+  const score=r=>Math.abs(Number(r.diff)||0);
+  const filters={
+    impact:r=>Math.abs(Number(r.diff)||0)>0,
+    over:r=>(Number(r.diff)||0)>0,
+    under:r=>(Number(r.diff)||0)<0
+  };
+  return rows.filter(filters[type]||(()=>false)).sort((a,b)=>score(b)-score(a)).slice(0,type==='impact'?10:5);
+}
+function renderInsightBody(id,rows,mode){
+  const body=document.getElementById(id);
+  if(!body) return;
+  body.innerHTML=(rows.length?rows.map(d=>{
+    const plan=fmtPlanActualByUnit(d,'plan',insightUnit);
+    const actual=fmtPlanActualByUnit(d,'actual',insightUnit);
+    const diff=fmtAdjustAmountByUnit(d,'diff',insightUnit);
+    const err=d.errorRate==null?'계획없음':d.errorRate.toFixed(1)+'%';
+    const diffCls=d.diff>=0?'diff-pos':'diff-neg';
+    const name=String(d.n||d.name||'');
+    if(mode==='impact'){
+      return `<tr>
+        <td class="insight-text" title="${d.ch}">${d.ch}</td>
+        <td class="insight-text" title="${d.mat||'—'}">${d.mat||'—'}</td>
+        <td class="insight-text"><button class="link-btn item-ellipsis" title="${name}" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;" onclick="openPlanAdjustModalByKey('${hitRowKey(d).replace(/'/g,'&#39;')}')">${name}</button></td>
+        <td class="insight-num">${plan}</td>
+        <td class="insight-num">${actual}</td>
+        <td class="insight-num ${diffCls}">${diff}</td>
+        <td class="insight-num">${err}</td>
+        <td class="c"><span class="tag ${d.diff>=0?'y':'r'}">${d.correctionType}</span></td>
+      </tr>`;
+    }
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td class="insight-text" title="${d.ch}">${d.ch}</td>
+      <td class="insight-text" title="${d.mat||'—'}">${d.mat||'—'}</td>
+      <td class="insight-text"><button class="link-btn item-ellipsis" title="${name}" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;" onclick="openPlanAdjustModalByKey('${hitRowKey(d).replace(/'/g,'&#39;')}')">${name}</button></td>
+      <td class="insight-num">${plan}</td>
+      <td class="insight-num">${actual}</td>
+      <td class="insight-num ${diffCls}">${diff}</td>
+      <td class="insight-num">${err}</td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="${mode==='impact'?8:7}" style="text-align:center;padding:10px;color:var(--muted);">해당 없음</td></tr>`);
 }
 function renderInsightTables(){
-  const ob=document.getElementById('overBody3');
-  const overRows=insightRows('over');
-  if(ob) ob.innerHTML=(overRows.length?overRows.map(d=>`<tr style="border-bottom:1px solid var(--border);">
-    <td class="insight-text">${d.ch}</td>
-    <td class="insight-text">${d.mat||'—'}</td>
-    <td class="insight-text" title="${d.n||d.name}">${d.n||d.name}</td>
-    <td class="insight-num">${insightUnit==='qty'?fmtInsightQty(d,d.plan):fmtInsightAmt(d.plan)}</td>
-    <td class="insight-num">${insightUnit==='qty'?fmtInsightQty(d,d.actual):fmtInsightAmt(d.actual)}</td>
-    <td class="insight-num" style="color:var(--green);font-weight:700;">${insightUnit==='qty'?fmtInsightQty(d,d.over,true):'+'+fmtInsightAmt(d.over)}</td>
-  </tr>`):OVER3.map(d=>`<tr style="border-bottom:1px solid var(--border);">
-    <td class="insight-text">${d.ch}</td>
-    <td class="insight-text">${d.mat||'—'}</td>
-    <td class="insight-text" title="${d.name}">${d.name}</td>
-    <td class="insight-num">${d.plan}</td>
-    <td class="insight-num">${d.actual}</td>
-    <td class="insight-num" style="color:var(--green);font-weight:700;">${insightUnit==='qty'?'<span style="color:var(--muted);font-size:10px;">업로드 후 사용</span>':d.over}</td>
-  </tr>`)).join('');
-  const ub=document.getElementById('underBody3');
-  const underRows=insightRows('under');
-  if(ub) ub.innerHTML=(underRows.length?underRows.map(d=>`<tr style="border-bottom:1px solid var(--border);">
-    <td class="insight-text">${d.ch}</td>
-    <td class="insight-text">${d.mat||'—'}</td>
-    <td class="insight-text" title="${d.n||d.name}">${d.n||d.name}</td>
-    <td class="insight-num">${insightUnit==='qty'?fmtInsightQty(d,d.plan):fmtInsightAmt(d.plan)}</td>
-    <td class="insight-num">${insightUnit==='qty'?fmtInsightQty(d,d.actual):fmtInsightAmt(d.actual)}</td>
-    <td class="insight-num" style="color:var(--red);font-weight:700;">${insightUnit==='qty'?fmtInsightQty(d,d.under,false):fmtInsightAmt(d.under)}</td>
-  </tr>`):UNDER3.map(d=>`<tr style="border-bottom:1px solid var(--border);">
-    <td class="insight-text">${d.ch}</td>
-    <td class="insight-text">${d.mat||'—'}</td>
-    <td class="insight-text" title="${d.name}">${d.name}</td>
-    <td class="insight-num">${d.plan}</td>
-    <td class="insight-num">${d.actual}</td>
-    <td class="insight-num" style="color:var(--red);font-weight:700;">${insightUnit==='qty'?'<span style="color:var(--muted);font-size:10px;">업로드 후 사용</span>':d.under}</td>
-  </tr>`)).join('');
+  renderInsightBody('impactBody10',insightRows('impact'),'impact');
+  renderInsightBody('overBody3',insightRows('over'),'over');
+  renderInsightBody('underBody3',insightRows('under'),'under');
+}
+
+let planAdjustModalChart=null;
+function openPlanAdjustModalByIndex(idx){
+  const row=planAdjustRowsCache[idx];
+  if(row) openPlanAdjustModal(row);
+}
+function openPlanAdjustModalByKey(key){
+  const row=buildAdjustmentRows().find(r=>hitRowKey(r)===key);
+  if(row) openPlanAdjustModal(row);
+}
+function closePlanAdjustModal(){
+  const modal=document.getElementById('planAdjustModal');
+  if(modal) modal.style.display='none';
+  safeDestroyChart('planAdjustTrendChart');
+  planAdjustModalChart=null;
+}
+function openPlanAdjustModal(row){
+  const modal=document.getElementById('planAdjustModal');
+  if(!modal) return;
+  const selectedNo=monthNoFromKey(row.selectedMo)||5;
+  const start=Math.max(1,selectedNo-5);
+  const trendMonths=HIT_MONTHS.slice(start-1,selectedNo);
+  const trend=trendMonths.map(m=>{
+    const data=buildMonthAggMap(m).get(hitRowKey(row))||{plan:0,actual:0,diff:0};
+    return {month:m,plan:Number(data.plan)||0,actual:Number(data.actual)||0,diff:(Number(data.actual)||0)-(Number(data.plan)||0)};
+  });
+  const mat=String(row.mat||'').trim();
+  const channels=getHitMonthRows(row.selectedMo).filter(r=>String(r.mat||'').trim()===mat)
+    .sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff));
+  const reason=[
+    `오차 원인 추정: ${row.cause}`,
+    row.avg3Ach!=null?`최근 3개월 평균 달성율 ${row.avg3Ach.toFixed(1)}%`:'최근 3개월 데이터 부족',
+    `다음 계획 보정 제안: ${row.recommendedAction}`
+  ].join(' · ');
+  const statement=`최근 3개월 기준, 해당 품목은 ${row.recentDirection} 흐름이며, 다음 판매계획은 ${row.recommendedAction}${subjectParticle(row.recommendedAction)} 필요합니다.`;
+  const memoKey=`hitAdjustMemo|${hitRowKey(row)}`;
+  const memo=(localStorage.getItem(memoKey)||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  document.getElementById('planAdjustModalHeader').innerHTML=`
+    <div><div style="font-size:15px;font-weight:900;color:var(--navy);">${row.n}</div><div style="font-size:12px;color:var(--muted);">${row.ch} · ${row.mat||'자재코드 없음'} · ${row.selectedMo} 판매계획 보정 판단</div></div>
+    <button class="dd-close" onclick="closePlanAdjustModal()">✕</button>`;
+  document.getElementById('planAdjustModalBody').innerHTML=`
+    <div class="sku-info-grid">
+      <div class="sku-info-item"><div class="sku-info-lbl">당월 계획</div><div class="sku-info-val">${amountFmtEokPlain(row.plan)}</div></div>
+      <div class="sku-info-item"><div class="sku-info-lbl">당월 실적</div><div class="sku-info-val">${amountFmtEokPlain(row.actual)}</div></div>
+      <div class="sku-info-item"><div class="sku-info-lbl">차이금액</div><div class="sku-info-val ${row.diff<0?'red':''}">${amountFmtEok(row.diff)}</div></div>
+      <div class="sku-info-item"><div class="sku-info-lbl">오차율</div><div class="sku-info-val">${row.errorRate==null?'계획없음':row.errorRate.toFixed(1)+'%'}</div></div>
+      <div class="sku-info-item"><div class="sku-info-lbl">최근 3개월 평균 달성률</div><div class="sku-info-val">${row.avg3Ach==null?'—':row.avg3Ach.toFixed(1)+'%'}</div></div>
+      <div class="sku-info-item"><div class="sku-info-lbl">보정 필요 여부</div><div class="sku-info-val ${row.needCorrection?'red':''}">${row.needCorrection?'필요':'모니터링'}</div></div>
+      <div class="sku-info-item"><div class="sku-info-lbl">보정유형</div><div class="sku-info-val">${row.correctionType}</div></div>
+      <div class="sku-info-item"><div class="sku-info-lbl">권장조치</div><div class="sku-info-val">${row.recommendedAction}</div></div>
+    </div>
+    <div class="analysis-box" style="margin-bottom:14px;">
+      <div class="analysis-title">최근 5개월 계획 vs 실적 추이</div>
+      <div class="cw" style="height:250px;"><canvas id="planAdjustTrendChart"></canvas></div>
+    </div>
+    <div class="sku-insight">${reason}</div>
+    <div class="analysis-grid">
+      <div class="analysis-box">
+        <div class="analysis-title">최근 3개월 오차 방향</div>
+        <table class="tbl"><thead><tr><th>월</th><th class="r">계획</th><th class="r">실적</th><th class="c">방향</th></tr></thead><tbody>
+          ${row.history.map(h=>`<tr><td>${h.month}</td><td class="r">${amountFmtEokPlain(h.plan)}</td><td class="r">${amountFmtEokPlain(h.actual)}</td><td class="c">${h.direction}</td></tr>`).join('')}
+        </tbody></table>
+      </div>
+      <div class="analysis-box">
+        <div class="analysis-title">채널별 계획·실적·차이</div>
+        <table class="tbl"><thead><tr><th class="l">채널</th><th class="r">계획</th><th class="r">실적</th><th class="r">차이</th></tr></thead><tbody>
+          ${channels.map(c=>`<tr><td class="l">${c.ch}</td><td class="r">${amountFmtEokPlain(c.plan)}</td><td class="r">${amountFmtEokPlain(c.actual)}</td><td class="r ${c.diff>=0?'diff-pos':'diff-neg'}">${amountFmtEok(c.diff)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--muted);">채널 데이터 없음</td></tr>'}
+        </tbody></table>
+      </div>
+      <div class="analysis-box">
+        <div class="analysis-title">오차 원인 추정</div>
+        <div>${row.cause}</div>
+      </div>
+      <div class="analysis-box">
+        <div class="analysis-title">다음 계획 보정 제안</div>
+        <div>${row.recommendedAction}</div>
+      </div>
+    </div>
+    <div class="analysis-box" style="margin-top:14px;">
+      <div class="analysis-title">조치의견</div>
+      <textarea class="action-memo" style="min-height:92px;" data-memo-key="${memoKey}" oninput="localStorage.setItem(this.dataset.memoKey,this.value)" placeholder="조치의견 입력">${memo}</textarea>
+    </div>
+    <div class="sku-insight good" style="font-weight:900;">${statement}</div>`;
+  modal.style.display='flex';
+  safeDestroyChart('planAdjustTrendChart');
+  planAdjustModalChart=null;
+  if(hasChart()){
+    const modalDiffLabelPlugin={
+      id:'modalDiffLabel',
+      afterDraw(chart){
+        const {ctx}=chart;
+        ctx.save();
+        ctx.textAlign='center';
+        ctx.textBaseline='bottom';
+        ctx.font='900 10px Arial';
+        trend.forEach((d,i)=>{
+          const m0=chart.getDatasetMeta(0).data[i];
+          const m1=chart.getDatasetMeta(1).data[i];
+          if(!m0||!m1) return;
+          ctx.fillStyle=d.diff>=0?'#33512E':'#D64545';
+          ctx.fillText(`${d.diff>=0?'+':'-'}${Math.abs(d.diff).toFixed(1)}억`,(m0.x+m1.x)/2,Math.min(m0.y,m1.y)-12);
+        });
+        ctx.restore();
+      }
+    };
+    planAdjustModalChart=new Chart(document.getElementById('planAdjustTrendChart'),{
+      type:'bar',
+      plugins:[ChartDataLabels,modalDiffLabelPlugin],
+      data:{labels:trend.map(t=>t.month),datasets:[
+        {label:'계획',data:trend.map(t=>t.plan),backgroundColor:'#AEB4C6',borderRadius:5,borderSkipped:false,barPercentage:.62,categoryPercentage:.72,
+          datalabels:{display:false}},
+        {label:'실적',data:trend.map(t=>t.actual),backgroundColor:trend.map(t=>t.diff>=0?'#33512E':'#D64545'),borderRadius:5,borderSkipped:false,barPercentage:.62,categoryPercentage:.72,
+          datalabels:{display:false}}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:24}},plugins:{legend:{position:'bottom'},datalabels:{},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}억`,afterBody:(items)=>{const d=trend[items?.[0]?.dataIndex||0];return `차이: ${diffText(d.diff)}`;}}}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>v+'억'}}}}
+    });
+  }
 }
 
 // ═══════════ INIT ══════════════════════════════════════════
@@ -4940,6 +5717,14 @@ window.addEventListener('DOMContentLoaded',()=>{
   runStep('loadMeetingMemo', loadMeetingMemo);
 });
 </script>
+<!-- 판매계획 보정 상세 모달 -->
+<div id="planAdjustModal" class="sku-modal-overlay" style="display:none;" onclick="if(event.target===this)closePlanAdjustModal()">
+  <div class="sku-modal" style="width:min(1120px,96vw);">
+    <div class="sku-modal-header" id="planAdjustModalHeader"></div>
+    <div class="sku-modal-body" id="planAdjustModalBody"></div>
+  </div>
+</div>
+
 <!-- SKU 정상소진 상세 모달 -->
 <div id="skuDetailModal" class="sku-modal-overlay" style="display:none;" onclick="if(event.target===this)closeSkuDetail()">
   <div class="sku-modal">
