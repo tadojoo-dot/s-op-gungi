@@ -1871,7 +1871,7 @@ function parseSalesPlanSummaryRows(rows){
         break;
       }
       if(name==='총계'||name==='합계') continue;
-      if(name==='26년 사업계획'){
+      if(name.includes('사업계획')){
         groups.target={
           actual:Array.from({length:5},(_,i)=>Number(row[20+i])||0),
           plan:Array.from({length:5},(_,i)=>Number(row[32+i])||0)
@@ -5242,8 +5242,6 @@ function renderHT(){
 // ═══════════ 영업 판매계획 실적 데이터 ══════════════════════════
 const BRAND_COLORS = ['#1D2783','#C46B4D','#33512E','#E3B341','#9B59B6','#E3521A','#7a8099','#5AA469'];
 const SP_EXCLUDED_ROWS=new Set(['순매출(신제품제외)','25년 매출','26년 사업계획','GAP']);
-const SP_TARGET={actual:[50.5,52.1,63.7,68.4,0],plan:[71.4,68.4,63.5,68.2,83.8]};
-const SP_NET_RATE_ROWS=new Set(['직영몰','쿠팡','스/스','카카오','올리브영','벤더','온라인 기타','오프라인 기타','복지몰','편의점','제로샵']);
 
 const SP_BRAND = [
   {name:'닥터베어',  actual:[21.0,20.8,26.5,26.6,26.6], plan:[24.9,29.0,28.6,28.8,28.8], prevActual:[1.7793,9.8894,12.7450,25.2398,33.2853,6.3603,11.4780,14.3586,27.7300,15.1364,17.3384,17.5484]},
@@ -5296,12 +5294,12 @@ function getSPRows(){
   return clean(fallback);
 }
 function getSPTarget(){
-  return UPLOADED?.sales_plan?.__summary?.target||SP_TARGET;
+  return UPLOADED?.sales_plan?.__summary?.target||null;
 }
 function spNetFactor(row){
   const name=String(row.name||'').trim();
   if(name==='다이소') return 1;
-  return SP_NET_RATE_ROWS.has(name)||spMode==='brand'?0.83:0.83;
+  return 0.83;
 }
 function getSPPeriods(rows){
   return {
@@ -5356,6 +5354,7 @@ function spMetricTotalValues(rows,periods=getSPPeriods(rows)){
 }
 function spTargetSeries(periods=getSPPeriods([])){
   const target=getSPTarget();
+  if(!target) return {values:periods.displayMonths.map(()=>null),cumul:null};
   const values=periods.displayMonths.map(m=>{
     if(periods.actualMonths.includes(m)) return Number(target.actual?.[m-1])||0;
     if(periods.planMonths.includes(m)) return Number(target.plan?.[m-6])||0;
