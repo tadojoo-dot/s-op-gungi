@@ -203,6 +203,8 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .sp-table .sp-name-col{width:72px;}
 .sp-table .sp-month-col{width:6.55%;}
 .sp-table .sp-cum-col{width:6.9%;}
+.sp-table .sp-goal-row td{background:#f7f8fb;font-weight:900;}
+.sp-table .sp-goal-rate-row td{background:#fffaf1;font-weight:900;}
 .sp-sim{margin-top:14px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:12px 14px;}
 .sp-sim-title{font-size:14px;font-weight:900;color:var(--navy);margin-bottom:8px;}
 .sp-sim-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
@@ -5365,6 +5367,46 @@ function fmtSPGoalRate(v){
   if(v==null||!Number.isFinite(v)) return '-';
   return `${v.toFixed(1)}%`;
 }
+function spGoalRateClass(v){
+  if(v==null||!Number.isFinite(v)) return '';
+  return v>=100?'sp-rate-pos':v>=95?'sp-rate-zero':'sp-rate-neg';
+}
+function spGoalRowsHtml(totalSeries,targetSeries,periods){
+  const targetValues=targetSeries.values;
+  if(!(spMetric==='amount'||spMetric==='net')){
+    const emptyCells=periods.displayMonths.map(()=>`<td style="padding:5px 4px;text-align:right;">-</td>`).join('');
+    return `
+      <tr class="sp-goal-row"><td style="padding:5px 8px;">사업계획 목표</td>${emptyCells}<td style="padding:5px 4px;text-align:right;">-</td></tr>
+      <tr class="sp-goal-rate-row"><td style="padding:5px 8px;">목표비</td>${emptyCells}<td style="padding:5px 4px;text-align:right;">-</td></tr>
+      <tr class="sp-goal-rate-row"><td style="padding:5px 8px;">목표비(누계)</td>${emptyCells}<td style="padding:5px 4px;text-align:right;">-</td></tr>`;
+  }
+  let actualCum=0,targetCum=0;
+  const monthlyRates=totalSeries.values.map((v,i)=>{
+    const target=Number(targetValues[i])||0;
+    return target>0?(Number(v)||0)/target*100:null;
+  });
+  const cumulRates=totalSeries.values.map((v,i)=>{
+    actualCum+=Number(v)||0;
+    targetCum+=Number(targetValues[i])||0;
+    return targetCum>0?actualCum/targetCum*100:null;
+  });
+  return `
+    <tr class="sp-goal-row">
+      <td style="padding:5px 8px;">사업계획 목표</td>
+      ${targetValues.map(v=>`<td style="padding:5px 4px;text-align:right;">${fmtSPMetric(v)}</td>`).join('')}
+      <td style="padding:5px 4px;text-align:right;">${fmtSPMetric(targetSeries.cumul)}</td>
+    </tr>
+    <tr class="sp-goal-rate-row">
+      <td style="padding:5px 8px;">목표비</td>
+      ${monthlyRates.map(v=>`<td class="${spGoalRateClass(v)}" style="padding:5px 4px;text-align:right;">${fmtSPGoalRate(v)}</td>`).join('')}
+      <td class="${spGoalRateClass(totalSeries.cumul/(targetSeries.cumul||0)*100)}" style="padding:5px 4px;text-align:right;">${fmtSPGoalRate(targetSeries.cumul>0?totalSeries.cumul/targetSeries.cumul*100:null)}</td>
+    </tr>
+    <tr class="sp-goal-rate-row">
+      <td style="padding:5px 8px;">목표비(누계)</td>
+      ${cumulRates.map(v=>`<td class="${spGoalRateClass(v)}" style="padding:5px 4px;text-align:right;">${fmtSPGoalRate(v)}</td>`).join('')}
+      <td class="${spGoalRateClass(totalSeries.cumul/(targetSeries.cumul||0)*100)}" style="padding:5px 4px;text-align:right;">${fmtSPGoalRate(targetSeries.cumul>0?totalSeries.cumul/targetSeries.cumul*100:null)}</td>
+    </tr>`;
+}
 function fmtSPMetric(v){
   if(v==null||!Number.isFinite(v)) return '-';
   return (spMetric==='amount'||spMetric==='net')?v.toFixed(1):`${v>=0?'+':''}${v.toFixed(1)}%`;
@@ -5447,7 +5489,6 @@ function renderSP(){
         <th colspan="${periods.planMonths.length}" style="background:var(--navy);color:#fff;padding:7px 8px;font-weight:700;text-align:center;">계 획</th>
         <th colspan="2" style="background:#1d3570;color:#fff;padding:7px 8px;font-weight:700;text-align:center;">참 고</th>
         <th rowspan="2" class="sp-cum-col" style="background:#24305f;color:#fff;padding:7px 8px;font-weight:700;text-align:right;">누계</th>
-        <th rowspan="2" class="sp-cum-col" style="background:#36406f;color:#fff;padding:7px 8px;font-weight:700;text-align:right;">목표비</th>
       </tr>
       <tr>
         ${periods.displayMonths.map(m=>{
@@ -5464,7 +5505,6 @@ function renderSP(){
       <td style="padding:5px 8px;font-weight:700;color:var(--text);">${r.name}</td>
       ${values.map((v,i)=>`<td class="${spMetricClass(v)}" style="padding:5px 4px;text-align:right;${periods.planMonths.includes(periods.displayMonths[i])?'color:var(--muted);':''}">${fmtSPMetric(v)}</td>`).join('')}
       <td class="${spMetricClass(series.cumul)}" style="padding:5px 4px;text-align:right;font-weight:900;background:#f5f7ff;">${fmtSPMetric(series.cumul)}</td>
-      <td style="padding:5px 4px;text-align:right;font-weight:900;background:#f5f7ff;">-</td>
     </tr>`;
   });
   // 합계 행
@@ -5472,8 +5512,8 @@ function renderSP(){
     <td style="padding:5px 8px;">합 계</td>
     ${totalValues.map((v,i)=>`<td class="${spMetricClass(v)}" style="padding:5px 4px;text-align:right;${periods.planMonths.includes(periods.displayMonths[i])?'color:var(--muted);':''}">${fmtSPMetric(v)}</td>`).join('')}
     <td class="${spMetricClass(totalSeries.cumul)}" style="padding:5px 4px;text-align:right;font-weight:900;background:#e5e9f7;">${fmtSPMetric(totalSeries.cumul)}</td>
-    <td style="padding:5px 4px;text-align:right;font-weight:900;background:#e5e9f7;">${fmtSPGoalRate(targetSeries.cumul>0?totalSeries.cumul/targetSeries.cumul*100:null)}</td>
   </tr>`;
+  h+=spGoalRowsHtml(totalSeries,targetSeries,periods);
   h+='</tbody></table>';
   tbl.innerHTML = h;
 }
