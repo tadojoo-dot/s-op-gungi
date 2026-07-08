@@ -56,6 +56,15 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .tab-upload-btn:hover{border-color:rgba(255,255,255,.65);}
 .btn-print{height:30px;background:rgba(255,255,255,.13);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:0 14px;font-size:11px;font-weight:700;cursor:pointer;}
 .btn-print:hover{background:rgba(255,255,255,.25);}
+.snap-wrap{position:relative;}
+.snap-panel{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px;gap:8px;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,.18);flex-direction:column;min-width:230px;}
+.snap-panel.open{display:flex;}
+.snap-panel select{flex:1;font-size:12px;padding:5px 6px;border:1px solid var(--border);border-radius:5px;color:var(--text);}
+.snap-panel .snap-row{display:flex;gap:6px;align-items:center;}
+.snap-panel .snap-del{background:#fff;border:1px solid var(--border);border-radius:5px;font-size:12px;cursor:pointer;padding:4px 7px;}
+.snap-panel .snap-save{background:var(--navy);color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer;padding:7px 0;}
+.snap-panel .snap-save:hover{background:var(--navy-dk);}
+.snap-panel .snap-hint{font-size:10.5px;color:var(--muted);}
 
 /* PAGE */
 .page{display:none;padding:20px 28px 40px;}
@@ -88,7 +97,8 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .sec-body.flush{padding:0;}
 /* filters inside dark sec-head */
 .sec-head select,.sec-head input{background:#fff;color:var(--text);border:1px solid rgba(255,255,255,.3);}
-.sp-head-controls{display:grid;grid-template-columns:auto auto 118px auto;align-items:center;gap:12px;flex:0 0 auto;}
+.sp-head-controls{display:grid;grid-template-columns:auto auto auto 118px;align-items:center;gap:8px 12px;flex:0 0 auto;}
+.sp-head-controls #spPeriodNote{grid-column:1/-1;justify-self:start;margin-top:2px;}
 .sp-toggle-group{display:flex;gap:6px;flex:0 0 auto;}
 .sp-toggle-group.metric .sc-btn{width:78px;height:36px;padding:0 4px;font-size:10px;line-height:1.15;text-align:center;justify-content:center;white-space:normal;}
 .sp-toggle-group.metric .sc-btn.metric-yoy{border-color:#E3B341!important;color:#6d4a00!important;}
@@ -113,7 +123,9 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .aging-matrix td.warn{background:#fef8ec;color:var(--terra);font-weight:700;}
 .aging-matrix td.danger{background:var(--red-lt);color:var(--red);font-weight:700;}
 .aging-matrix td.total-col{background:#f7f8fa;font-weight:800;color:var(--navy);}
+.aging-matrix td.rev-col{background:#eafaf6;font-weight:800;color:#0f7d63;}
 .aging-matrix tr.total-row td{background:#eef0f9;font-weight:800;}
+.aging-matrix tr.total-row td.rev-col{background:#d9f2ea;}
 .aging-matrix td:hover:not(:first-child):not(.zero){background:#dde4ff;cursor:pointer;}
 .aging-matrix td.active{background:#c7d2ff!important;outline:2px solid var(--navy);}
 .cell-val{font-size:12px;font-weight:700;}
@@ -143,10 +155,20 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .plan-cell:focus{outline:2px solid #e783a9;background:#ffe6f0!important;}
 .plan-cell:empty::before{content:'소진계획 입력';color:#c96b91;font-weight:700;}
 .plan-cell.saved{background:#fce7f0!important;}
+.plan-cell-td{position:relative;background:#fff0f6!important;border:1px solid #f3b6cf!important;box-shadow:inset 0 0 0 1px rgba(214,69,112,.06);padding-right:18px!important;}
+.plan-cell-td .plan-cell{display:block;background:transparent!important;border:none!important;box-shadow:none!important;color:var(--text);font-size:11px;line-height:1.35;white-space:normal;min-height:14px;outline:none;}
+.plan-cell-td .plan-cell:focus{background:#ffe6f0!important;}
+.plan-cell-td .plan-cell.saved{background:#fce7f0!important;}
+.plan-clear-btn{position:absolute;top:2px;right:2px;width:14px;height:14px;line-height:12px;text-align:center;padding:0;border:none;border-radius:50%;background:rgba(214,69,112,.18);color:#a3405f;font-size:9px;font-weight:700;cursor:pointer;opacity:.5;transition:opacity .15s;}
+.plan-clear-btn:hover{opacity:1;background:#d64570;color:#fff;}
 .psi-buy-input{width:78px;text-align:right;border:1px solid #b0c4e0;border-radius:3px;padding:1px 4px;font-size:11px;font-weight:700;background:#f0f8ff;color:var(--navy);height:21px;box-sizing:border-box;}
 .psi-buy-input:focus{outline:2px solid #4a90e2;background:#e8f4fd;}
 .psi-buy-input.psi-buy-empty{background:#f3f4f6;color:var(--muted);border-color:#d1d5db;}
 .psi-buy-input.psi-buy-override{background:#fffbe6;color:#7c5c00;border-color:#e3b341;}
+/* 입고 개별 초기화 버튼: 조정된 칸에만 표시 */
+.psi-buy-reset{display:none;margin-left:2px;width:15px;height:16px;line-height:13px;padding:0;border:1px solid #e3b341;background:#fff;color:#a8760a;font-size:10px;border-radius:3px;cursor:pointer;vertical-align:middle;}
+.psi-buy-reset:hover{background:#fff3d0;}
+.psi-buy-input.psi-buy-override + .psi-buy-reset{display:inline-block;}
 .minutes-simple{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .quick-minutes{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;}
 .quick-minutes h3{font-size:14px;color:var(--navy);margin-bottom:8px;}
@@ -188,6 +210,9 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .psi-tbl td.r{text-align:right;}
 .psi-tbl td.c{text-align:center;}
 .psi-tbl tr:hover td{background:#f6f8ff;}
+/* PSI 표 전용 스크롤 박스: 높이 제한으로 가로 스크롤바를 항상 접근 가능하게 + 월 헤더 고정 */
+.psi-scroll{overflow:auto;max-width:100%;max-height:74vh;-webkit-overflow-scrolling:touch;}
+.psi-scroll .psi-tbl.monthly thead{position:sticky;top:0;z-index:3;}
 .psi-tbl.monthly{min-width:2700px;font-size:11.5px;}
 .psi-tbl.monthly th{padding:7px 8px;font-size:11px;}
 .psi-tbl.monthly td{padding:6px 8px;}
@@ -379,7 +404,7 @@ table.base tr:last-child td{border-bottom:none;}
 #p2 .ht-table .hit-rate-wrap{display:flex;width:100%;min-height:27px;align-items:center;justify-content:center;}
 #p2 .ht-table .hit-rate-wrap .tag{display:inline-flex;min-width:66px;align-items:center;justify-content:center;box-sizing:border-box;}
 #p2 .ht-scroll{max-height:520px;overflow:auto;position:relative;}
-#p2 .ht-table thead th{position:sticky;top:0;z-index:4;}
+#p2 .ht-table thead th{position:sticky;top:0;z-index:4;text-align:center!important;}
 #p2 .ht-table tr.ht-total-row td{position:sticky;top:39px;z-index:3;background:#eef0f9;border-top:2px solid var(--navy);border-bottom:2px solid var(--navy);}
 #p2 .insight-table{table-layout:fixed;}
 #p2 .insight-table th,#p2 .insight-table td{box-sizing:border-box;}
@@ -493,6 +518,19 @@ table.base tr:last-child td{border-bottom:none;}
       <input type="file" id="xlsxInput2" accept=".xlsx" style="display:none" onchange="handleUpload(this.files[0])">
       📂 <span id="uploadStatus">엑셀 업로드</span>
     </div>
+    <div class="snap-wrap">
+      <button class="btn-print" onclick="toggleSnapshotPanel()">📸 스냅샷</button>
+      <div class="snap-panel" id="snapshotPanel">
+        <div class="snap-row">
+          <select id="snapshotSelect" onchange="loadSnapshot(this.value)">
+            <option value="">시점 선택…</option>
+          </select>
+          <button class="snap-del" title="선택 스냅샷 삭제" onclick="deleteSnapshot(document.getElementById('snapshotSelect').value)">🗑</button>
+        </div>
+        <button class="snap-save" onclick="saveSnapshot()">+ 현재 상태 저장</button>
+        <div class="snap-hint">저장한 시점은 삭제 전까지 계속 보관되며, 월별로 묶여 표시됩니다</div>
+      </div>
+    </div>
     <button class="btn-print" onclick="window.print()">🖨 인쇄</button>
   </div>
 </div>
@@ -581,6 +619,7 @@ table.base tr:last-child td{border-bottom:none;}
     </div>
     <div class="sec-body flush" style="overflow-x:auto;">
       <table class="aging-matrix" id="agingMatrix"></table>
+      <div id="matrixRevNote" style="display:none;margin:8px 16px 0;font-size:10.5px;color:var(--muted);">※ 매출환산: 재고금액(원가 기준)에 SKU별 전월 순매출÷원가 배율을 곱한 값 · 원가 시트(전월 스냅샷) 기준이라 이번 달 실제 마진과 다를 수 있음 · ⚠N = 원가 시트에 없는 SKU N건은 전사 평균 배율로 대체 적용</div>
     </div>
     <div class="drilldown" id="drilldown">
       <div class="dd-header">
@@ -639,6 +678,10 @@ table.base tr:last-child td{border-bottom:none;}
     <div class="sec-head">
       <div class="sec-tw"><div class="sec-bar"></div><div class="sec-title">영업 판매계획 실적</div></div>
       <div class="sp-head-controls">
+        <div class="sp-toggle-group year">
+          <button class="sc-btn" id="spYear25Btn" onclick="toggleSPYear(2025,this)">25년</button>
+          <button class="sc-btn on" id="spYear26Btn" onclick="toggleSPYear(2026,this)">26년</button>
+        </div>
         <div class="sp-toggle-group">
           <button class="sc-btn on" id="spBrandBtn" onclick="toggleSP('brand',this)">브랜드별</button>
           <button class="sc-btn" id="spChBtn"    onclick="toggleSP('ch',this)">채널별</button>
@@ -677,7 +720,7 @@ table.base tr:last-child td{border-bottom:none;}
           <select id="simBase"><option value="plan" selected>판매계획 기준</option><option value="rate">진척율 기준</option></select>
           <button class="sc-btn on" onclick="runSim()">PSI 영향 확인</button>
         </div>
-        <div style="font-size:10.5px;color:var(--muted);margin-top:6px;">판정 기준: 채널 또는 브랜드 대상 SKU에 판매 증감을 배분합니다. 재고부족 = 90일 미만, 정상 = 90~180일, 재고과잉 = 180일 초과이며 음수 입력은 출고 감소로 재고가 증가합니다.</div>
+        <div style="font-size:10.5px;color:var(--muted);margin-top:6px;">판정 기준: 채널 또는 브랜드 대상 SKU에 판매 증감을 배분합니다. 위험 = 90일 미만, 정상 = 90일 이상(2단계)이며 음수 입력은 출고 감소로 재고가 증가합니다.</div>
         <div id="simResult" class="sp-sim-result"></div>
       </div>
     </div>
@@ -690,12 +733,11 @@ table.base tr:last-child td{border-bottom:none;}
       <div id="psiSkuHeaderCount" style="font-size:10px;color:rgba(255,255,255,.6);">전 품목 기준 / 안전재고 90일</div>
     </div>
     <div class="sec-body">
-      <div class="alert r" style="margin-bottom:14px;">⚠ PSI는 6~9월 4개월 시계열로 봅니다. 기초재고 + 입고계획 - 판매계획 = 기말재고, 재고일수 90일 미만은 빨간 신호로 표시합니다.</div>
-      <!-- KPI 4종 -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);">
-        <div class="kpi"><div class="kpi-lbl">재고부족 품목</div><div id="psiShortCount" class="kpi-val kv-red">-</div><div class="kpi-sub">재고일수 90일 미만</div></div>
-        <div class="kpi"><div class="kpi-lbl">재고과잉 품목</div><div id="psiExcessCount" class="kpi-val kv-terra">-</div><div class="kpi-sub">재고일수 180일 초과</div></div>
-        <div class="kpi"><div class="kpi-lbl">정상 품목</div><div id="psiNormalCount" class="kpi-val kv-green">-</div><div class="kpi-sub">재고일수 90~180일</div></div>
+      <div class="alert r" style="margin-bottom:14px;" id="psiAlertText">⚠ PSI는 당월부터 4개월 시계열로 봅니다. 기초재고(전체재고 − 6개월미만 재고) + 입고계획 − 판매계획 = 기말재고, 재고일수 90일 미만은 빨간 신호로 표시합니다.</div>
+      <!-- KPI 3종 (2단계 신호등) -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+        <div class="kpi"><div class="kpi-lbl">위험 품목</div><div id="psiShortCount" class="kpi-val kv-red">-</div><div class="kpi-sub">재고일수 90일 미만</div></div>
+        <div class="kpi"><div class="kpi-lbl">정상 품목</div><div id="psiNormalCount" class="kpi-val kv-green">-</div><div class="kpi-sub">재고일수 90일 이상</div></div>
         <div class="kpi"><div class="kpi-lbl">PSI 대상 SKU</div><div id="psiTotalCount" class="kpi-val kv-navy">-</div><div id="psiNoDataCount" class="kpi-sub">재고일수 미산출 별도</div></div>
       </div>
       <!-- 수평바 + 도넛 -->
@@ -722,9 +764,8 @@ table.base tr:last-child td{border-bottom:none;}
               </div>
             </div>
             <div style="display:flex;gap:12px;justify-content:center;margin-top:10px;font-size:11px;flex-wrap:wrap;">
-              <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--red);margin-right:3px;vertical-align:middle;"></span>재고부족</span>
-              <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--yellow);margin-right:3px;vertical-align:middle;"></span>재고과잉</span>
-              <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:3px;vertical-align:middle;"></span>정상</span>
+              <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--red);margin-right:3px;vertical-align:middle;"></span>위험(90일 미만)</span>
+              <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:3px;vertical-align:middle;"></span>정상(90일 이상)</span>
             </div>
             <div id="riskCompareNote" style="margin-top:10px;padding:8px 12px;background:#f7f8fa;border-radius:6px;font-size:11px;color:var(--muted);text-align:center;">
               전월 PSI 시트 업로드 후 자동 비교
@@ -740,10 +781,10 @@ table.base tr:last-child td{border-bottom:none;}
     <div class="sec-head">
       <div class="sec-tw"><div class="sec-bar"></div><div>
         <div class="sec-title" id="psiTableTitle">PSI 전 품목 현황</div>
-        <div class="sec-sub">6~9월 4개월 · 6월은 판매계획 기준 기말재고와 진척율 기준 예상 재고를 수량/재고일수로 병행 표시 &nbsp;|&nbsp; 재고일수 = 재고수량 ÷ 3개월 평균판매수량 × 30</div>
+        <div class="sec-sub" id="psiSecSub">당월부터 4개월 · 당월은 판매계획 기준 기말재고와 진척율 기준 예상 재고를 수량/재고일수로 병행 표시 &nbsp;|&nbsp; 재고일수 = 재고수량 ÷ 3개월 평균판매수량 × 30</div>
       </div></div>
       <div class="frow no-print" style="margin:0;gap:6px;">
-        <select id="fp" onchange="renderPSI()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;"><option value="">전체</option><option value="red">🔴위험</option><option value="yellow">🟠주의</option><option value="green">🟢정상</option><option value="excess">🟡과잉</option></select>
+        <select id="fp" onchange="renderPSI()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;"><option value="">전체</option><option value="red">🔴위험</option><option value="green">🟢정상</option></select>
         <select id="fpkg" onchange="renderPSI()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;">
           <option value="">전체 품목군</option>
           <option value="건기식">건기식</option>
@@ -763,17 +804,18 @@ table.base tr:last-child td{border-bottom:none;}
           <option value="zero">3평판 없는 품목만</option>
         </select>
         <input type="text" id="fpq" placeholder="자재코드/품목명 검색" oninput="renderPSI()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;width:150px;">
+        <button onclick="resetPsiBuyOverrides()" title="직접 수정한 입고 조정값을 모두 원본 입고계획으로 되돌립니다" style="height:28px;border:1px solid #d6a545;background:#fff8e8;color:#8a5c00;border-radius:5px;padding:0 10px;font-size:11px;font-weight:700;cursor:pointer;">입고 조정 초기화</button>
       </div>
     </div>
     <div class="sec-body flush" style="overflow-x:auto;">
       <div id="psiWrap"></div>
       <div class="remark-box" style="margin:10px 16px 14px;">
         <strong>비고 · PSI 보조 기준 산식</strong><br>
-        6월 보조 기준은 진척율 기준으로 보며, 진척율 기준 재고수량 = 6월 기초재고 + 6월 입고계획 - 진척율 기준 예상 판매수량입니다.
-        7~9월 보조 기준은 3평판 기준으로 보며, 7월 기초는 6월 진척율 기준 예상 기말재고에서 이어지고 이후 월은 전월 3평판 기준 기말재고를 기초로 사용합니다.
+        기초재고 = 전체재고(BQ) − 6개월미만 재고(BS). 6개월미만은 원칙적으로 출고 불가하여 가용 기초에서 제외합니다.<br>
+        당월 보조 기준은 진척율 기준으로 보며, 진척율 기준 재고수량 = 당월 기초재고 + 당월 입고계획 - 진척율 기준 예상 판매수량입니다.
+        차월 이후 보조 기준은 3평판 기준으로 보며, 차월 기초는 당월 진척율 기준 예상 기말재고에서 이어지고 이후 월은 전월 3평판 기준 기말재고를 기초로 사용합니다.
         3평판 기준 판매수량 = 평균출하 시트 I열의 3개월 평균출하 수량, 재고일수 = 재고수량 ÷ 3평판 × 30입니다. PSI 표의 수량·3평판·재고일수는 반올림 정수로 표시합니다.<br>
-        <strong>신호등 기준:</strong> 일반품목은 위험 90일 미만 / 주의 90~119일 / 정상 120일 이상입니다.
-        다이소 품목은 별도 운영기준으로 위험 30일 미만 / 주의 30~44일 / 정상 45~90일 / 과잉 90일 초과이며, 다이소 여부는 `다이소 마스터` C열 등록 자재 기준입니다.
+        <strong>신호등 기준:</strong> 전 품목 동일 2단계 — 위험(빨강) 90일 미만 / 정상(초록) 90일 이상. 다이소 별도기준·과잉 구간은 폐지했습니다.
       </div>
     </div>
   </div>
@@ -867,6 +909,8 @@ table.base tr:last-child td{border-bottom:none;}
       <select id="fhc" onchange="renderHitTrend();renderInsightTables();renderHT()"><option value="">전체</option><option value="직영몰">직영몰</option><option value="다이소">다이소</option><option value="쿠팡">쿠팡</option><option value="스/스">스/스</option><option value="카카오">카카오</option><option value="올리브영">올리브영</option></select>
       <label>보정유형</label>
       <select id="fht" onchange="renderHT()"><option value="">전체</option><option value="계획 상향 검토">계획 상향 검토</option><option value="계획 하향 검토">계획 하향 검토</option><option value="일시성 확인">일시성 확인</option><option value="채널 계획 재점검">채널 계획 재점검</option><option value="금액 영향 확인">금액 영향 확인</option><option value="모니터링">모니터링</option></select>
+      <label>검색</label>
+      <input type="text" id="fhq" placeholder="품목코드/품목명" oninput="renderHT()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;width:150px;">
       <span style="margin-left:auto;display:flex;gap:4px;">
         <button id="htAmtBtn" class="aging-mode-btn on" onclick="setHTUnit('amt',this)">금액</button>
         <button id="htQtyBtn" class="aging-mode-btn" onclick="setHTUnit('qty',this)">수량</button>
@@ -903,7 +947,7 @@ table.base tr:last-child td{border-bottom:none;}
         </div>
       </div>
       <div class="sec-card" style="margin-top:14px;">
-        <div class="sec-head"><div class="sec-tw"><div class="sec-bar"></div><div class="sec-title">회의 Action Log</div></div></div>
+        <div class="sec-head"><div class="sec-tw"><div class="sec-bar"></div><div class="sec-title">회의 Action Log</div></div><button class="btn-print" onclick="clearAllPlanActions()">전체 초기화</button></div>
         <div class="sec-body flush">
           <table class="base">
             <thead><tr><th class="l">화면</th><th class="l">구간</th><th class="l">채널</th><th class="l">SKU</th><th class="l">품목</th><th class="l">소진계획</th><th class="c">저장시각</th></tr></thead>
@@ -1009,7 +1053,7 @@ table.base tr:last-child td{border-bottom:none;}
         <div class="kpi-current red" id="strategyRiskCurrent">67개</div>
         <div class="kpi-target"><span>목표</span><strong>30개 미만</strong></div>
         <div class="kpi-delta bad" id="strategyRiskDelta">▲ 목표 대비 37개 초과</div>
-        <div class="kpi-comment">RISK SKU = 결품 위험(재고일수 90일 미만) + 과잉재고(180일 초과).</div>
+        <div class="kpi-comment">RISK SKU = 결품 위험(재고일수 90일 미만). 과잉재고 개념은 폐지(2단계 신호등).</div>
         <span class="tag y" id="strategyRiskStatus">개선 필요</span>
       </div>
       <div class="goal-card kpi-focus">
@@ -1284,6 +1328,70 @@ function saveToStorage(data){
     try{localStorage.setItem(LS_KEY,JSON.stringify(slim));}catch(e2){console.warn('localStorage save failed',e2);}
   }
 }
+function renderAllScreens(){
+  renderKPICards();renderChAgingChart();renderTrendChart();renderMatrix();
+  renderSensing(parseInt(document.getElementById('monthSlider').value));
+  renderPSI();renderPSIChart();
+  renderStrategyKpis();renderRiskDonuts();
+  renderHitTrend();renderChAchieve();renderInsightTables();renderChProg();renderHT();
+}
+
+// ═══════════ 시점 스냅샷 ══════════════════════
+const SNAP_INDEX_KEY='sopDash_snap_index_v1';
+const SNAP_DATA_PREFIX='sopDash_snap_';
+function getSnapIndex(){
+  try{return JSON.parse(localStorage.getItem(SNAP_INDEX_KEY)||'[]');}catch(e){return [];}
+}
+function setSnapIndex(list){localStorage.setItem(SNAP_INDEX_KEY,JSON.stringify(list));}
+function renderSnapshotUI(){
+  const sel=document.getElementById('snapshotSelect');
+  if(!sel) return;
+  const list=getSnapIndex(); // 최신순 저장돼있음
+  const groups=new Map();
+  list.forEach(s=>{
+    const d=new Date(s.ts||Date.now());
+    const gk=`${d.getFullYear()}년 ${d.getMonth()+1}월`;
+    if(!groups.has(gk)) groups.set(gk,[]);
+    groups.get(gk).push(s);
+  });
+  let html='<option value="">시점 선택…</option>';
+  groups.forEach((items,gk)=>{
+    html+=`<optgroup label="${gk}">${items.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</optgroup>`;
+  });
+  sel.innerHTML=html;
+}
+function toggleSnapshotPanel(){
+  const el=document.getElementById('snapshotPanel');
+  if(el) el.classList.toggle('open');
+}
+function saveSnapshot(){
+  if(!UPLOADED){alert('저장할 업로드 데이터가 없습니다.');return;}
+  const now=new Date();
+  const id='s'+now.getTime();
+  const name=now.toLocaleString('ko-KR');
+  try{localStorage.setItem(SNAP_DATA_PREFIX+id,JSON.stringify(UPLOADED));}
+  catch(e){alert('스냅샷 저장 실패: 브라우저 저장 공간이 가득 찼습니다. 안 쓰는 시점을 삭제한 뒤 다시 시도해 주세요.');return;}
+  const list=getSnapIndex();
+  list.unshift({id,name,ts:now.getTime()});
+  setSnapIndex(list);
+  renderSnapshotUI();
+}
+function loadSnapshot(id){
+  if(!id) return;
+  const raw=localStorage.getItem(SNAP_DATA_PREFIX+id);
+  if(!raw){alert('스냅샷 데이터를 찾을 수 없습니다.');return;}
+  try{UPLOADED=JSON.parse(raw);}catch(e){alert('스냅샷 데이터를 읽는 중 오류가 발생했습니다.');return;}
+  saveToStorage(UPLOADED);
+  renderAllScreens();
+  document.getElementById('snapshotPanel')?.classList.remove('open');
+}
+function deleteSnapshot(id){
+  if(!id) return;
+  if(!confirm('이 스냅샷을 삭제할까요?')) return;
+  localStorage.removeItem(SNAP_DATA_PREFIX+id);
+  setSnapIndex(getSnapIndex().filter(s=>s.id!==id));
+  renderSnapshotUI();
+}
 
 const PLAN_KEY='sopPlanActions_v1';
 const MEETING_MEMO_KEY='sopMeetingMemo_v1';
@@ -1306,7 +1414,7 @@ function bindPlanCells(root){
   (root||document).querySelectorAll('.plan-cell[data-plan-key]').forEach(cell=>{
     const key=cell.dataset.planKey;
     const saved=getPlanActions().find(a=>a.key===key);
-    if(saved) cell.textContent=saved.plan;
+    if(saved){cell.textContent=saved.plan;cell.classList.add('saved');}
     cell.addEventListener('input',()=>{
       cell.classList.add('saved');
       savePlanAction({
@@ -1318,6 +1426,30 @@ function bindPlanCells(root){
         name:cell.dataset.name||''
       },cell.textContent);
     });
+  });
+}
+function clearPlanCell(btn){
+  const cell=btn.previousElementSibling;
+  if(!cell||!cell.classList.contains('plan-cell')) return;
+  cell.textContent='';
+  cell.classList.remove('saved');
+  savePlanAction({
+    key:cell.dataset.planKey,
+    screen:cell.dataset.screen||'',
+    bucket:cell.dataset.bucket||'',
+    channel:cell.dataset.channel||'',
+    sku:cell.dataset.sku||'',
+    name:cell.dataset.name||''
+  },'');
+}
+function clearAllPlanActions(){
+  if(!getPlanActions().length) return;
+  if(!confirm('회의 Action Log에 저장된 모든 소진계획 메모를 삭제하시겠습니까? 되돌릴 수 없습니다.')) return;
+  setPlanActions([]);
+  renderActionLog();
+  document.querySelectorAll('.plan-cell[data-plan-key]').forEach(cell=>{
+    cell.textContent='';
+    cell.classList.remove('saved');
   });
 }
 function renderActionLog(){
@@ -1453,6 +1585,7 @@ function handleUpload(file){
       const prevPsiSheet=wb.SheetNames.find(n=>String(n).replace(/\s/g,'')==='전월PSI');
       const daisoPsiSheet=wb.SheetNames.find(n=>String(n).replace(/\s/g,'')==='다이소(PSI)');
       const daisoMasterSheet=wb.SheetNames.find(n=>String(n).replace(/\s/g,'')==='다이소마스터');
+      const supplySheet=wb.SheetNames.find(n=>String(n).replace(/\s/g,'')==='공급');
       const hitSheet=findSheetName(wb,'오차율 분석')||findSheetName(wb,'오차율분석')||findSheetName(wb,'적중율분석')||findSheetName(wb,'적중률분석')||findSheetName(wb,'적중');
       const actualSheet=findSheetName(wb,'당월실적');
       if(trendSheet){
@@ -1471,7 +1604,8 @@ function handleUpload(file){
         if(daisoPsiSheet&&daisoMasterSheet){
           const daisoMaster=parseDaisoMasterSheet(wb.Sheets[daisoMasterSheet]);
           const daisoIntegrated=parseDaisoPSISheet(wb.Sheets[daisoPsiSheet]);
-          const daisoMerge=mergeDaisoIntegratedPSI(rawPsi,daisoMaster,daisoIntegrated);
+          const supplyPlan=supplySheet?parseSupplySheet(wb.Sheets[supplySheet]):null;
+          const daisoMerge=mergeDaisoIntegratedPSI(rawPsi,daisoMaster,daisoIntegrated,supplyPlan);
           result.psi=daisoMerge.rows;
           result.daiso_components=daisoMerge.componentRows;
           result.daiso_mapping={
@@ -1485,6 +1619,12 @@ function handleUpload(file){
             errors.push(`다이소 통합코드 매칭 오류: 마스터 누락 ${daisoMerge.stats.unmatchedPsiCodes.length}개, PSI 누락 ${daisoMerge.stats.unmatchedMasterCodes.length}개, 품목명 불일치 ${daisoMerge.stats.nameMismatch.length}개`);
           }else{
             warnings.push(`다이소 통합: PSI 하위 자재 ${daisoMerge.stats.mappedMaterialCount.toLocaleString()}개 합산 → 통합코드 ${daisoMerge.stats.matchedGroupCount.toLocaleString()}개 / 최종 ${result.psi.length.toLocaleString()}개`);
+            if(daisoMerge.stats.supplyApplied){
+              const sm=daisoMerge.stats.supplyMissing||[];
+              warnings.push(`다이소 입고 = 공급 시트 기준으로 반영${sm.length?` · 공급 미등록 ${sm.length}개(PSI 입고 유지): ${sm.slice(0,5).join(', ')}${sm.length>5?' 외':''}`:''}`);
+            }else{
+              warnings.push(`공급 시트 없음: 다이소 입고는 PSI 원본 기준`);
+            }
             if(daisoMerge.stats.missingRawMaterials.length){
               warnings.push(`다이소 마스터 하위 자재 중 PSI 미존재 ${daisoMerge.stats.missingRawMaterials.length.toLocaleString()}개: ${daisoMerge.stats.missingRawMaterials.slice(0,5).join(', ')}${daisoMerge.stats.missingRawMaterials.length>5?' 외':''}`);
             }
@@ -1536,6 +1676,26 @@ function handleUpload(file){
         const effCount=Object.values(result.ref_data).filter(v=>v.hasChanEff).length;
         warnings.push(`${refSheet}: ${refCount.toLocaleString()}개 자재 · 채널유효기간 설정 ${effCount.toLocaleString()}개`);
       }
+      const costSheet=findSheetName(wb,'원가');
+      if(costSheet){
+        result.cost_data=parseCostSheet(wb.Sheets[costSheet]);
+        const matCount=Object.keys(result.cost_data.byMat).length;
+        warnings.push(`${costSheet}: ${matCount.toLocaleString()}개 자재 매출/원가 반영 · 전사평균 배율 ${result.cost_data.avgRatio.toFixed(2)}배`);
+      }
+      // 다이소 통합코드 매핑 저장 (오차분석에서 개별코드 → 통합코드 집계용)
+      if(daisoMasterSheet){
+        const _dm=parseDaisoMasterSheet(wb.Sheets[daisoMasterSheet]);
+        const codeMap={},members={};
+        _dm.codeToGroup.forEach((groupKey,matCode)=>{
+          const g=_dm.groups.get(groupKey);
+          if(!g) return;
+          codeMap[String(matCode)]={code:g.code,name:g.name};
+          (members[g.code]=members[g.code]||[]).push(String(matCode));
+        });
+        result.daiso_code_map=codeMap;
+        result.daiso_group_members=members;
+        warnings.push(`다이소 마스터: 개별 ${Object.keys(codeMap).length}개 → 통합코드 ${Object.keys(members).length}개 매핑 (오차분석 통합집계)`);
+      }
       if(errors.length) throw new Error(errors.join(' / '));
       result.uploaded_at=new Date().toLocaleString('ko-KR');
       UPLOADED=result;
@@ -1568,11 +1728,7 @@ function handleUpload(file){
         }
       }
       // 전체 리렌더
-      renderKPICards();renderChAgingChart();renderTrendChart();renderMatrix();
-      renderSensing(parseInt(document.getElementById('monthSlider').value));
-      renderPSI();renderPSIChart();
-      renderStrategyKpis();renderRiskDonuts();
-      renderHitTrend();renderChAchieve();renderInsightTables();renderChProg();renderHT();
+      renderAllScreens();
     }catch(err){
       setUploadStatus('error','❌ 업로드 실패: '+err.message);
       console.error(err);
@@ -1585,15 +1741,20 @@ function parseInventory(ws){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
   const data=rows.slice(2); // 3행부터 (2행=헤더)
   // 0-indexed 컬럼: B=1,C=2,AS=44,AT=45,AO=40,AP=41,AV=47,AK=36,AZ=51
-  const C={MAT:1,NAME:2,QTY:44,AMT:45,AO:40,AP:41,CHANNEL:47,REM:36,AZ:51,CHDL_MO:50};
+  // 수량 분해: 가용 I=8 / 품질검사 K=10 / 보류재고 N=13,  금액 분해: 가용금액 J=9 / 검사금액 L=11 / 보류금액 O=14
+  const C={MAT:1,NAME:2,QTY:44,AMT:45,AO:40,AP:41,CHANNEL:47,REM:36,AZ:51,CHDL_MO:50,
+           AVAIL:8,AVAIL_AMT:9,QC:10,QC_AMT:11,HOLD:13,HOLD_AMT:14};
   const ch_amt={},ch_delivery={},matrix={},matrix_delivery={};
   const kpi={'계':0,'환입':0,'6개월 미만':0,'7개월 미만':0,'9개월 미만':0,'12개월 미만':0,'유효기간 초과':0};
   const stats={totalRows:data.length,usedRows:0,skippedNoChannel:0,skippedNoAging:0,skippedNoAmount:0};
   data.forEach(row=>{
     const mat=row[C.MAT]; if(!mat) return;
     const name=String(row[C.NAME]||'');
-    const qty=Math.round(parseNum(row[C.QTY]));
-    const amt=parseNum(row[C.AMT])/1e8;
+    const av=Math.round(parseNum(row[C.AVAIL]));   // 가용 (I열)
+    const qc=Math.round(parseNum(row[C.QC]));      // 품질검사 (K열)
+    const hd=Math.round(parseNum(row[C.HOLD]));    // 보류재고 (N열)
+    const qty=av+qc+hd;                            // 리포트 수량 = 가용+품질+보류 합산
+    const amt=(parseNum(row[C.AVAIL_AMT])+parseNum(row[C.QC_AMT])+parseNum(row[C.HOLD_AMT]))/1e8; // 금액 = 가용+검사+보류 합산
     const aoType=normalizeAgingBucket(row[C.AO]);
     const matType=String(row[C.AP]||'');
     const ch=String(row[C.CHANNEL]||'');
@@ -1601,7 +1762,7 @@ function parseInventory(ws){
     const azType=normalizeDeliveryBucket(row[C.AZ]);
     if(!ch){stats.skippedNoChannel++; return;}
     if(!aoType){stats.skippedNoAging++; return;}
-    if(amt===0){stats.skippedNoAmount++; return;}
+    if(qty===0 && amt===0){stats.skippedNoAmount++; return;} // 보류/품질(금액 0)이라도 수량 있으면 포함
     stats.usedRows++;
     kpi['계']+=amt;
     if(aoType==='환입') kpi['환입']+=amt;
@@ -1611,7 +1772,7 @@ function parseInventory(ws){
     if(aoType==='12개월 미만') kpi['12개월 미만']+=amt;
     if(aoType==='유효기간 초과') kpi['유효기간 초과']+=amt;
     const chRemMo=Math.round(parseNum(row[C.CHDL_MO]))||0;
-    const sku={m:mat,n:name,q:qty,a:Math.round(amt*1e8/1e6*10)/10,t:matType,r:rem,chRemMo};
+    const sku={m:mat,n:name,q:qty,av,qc,hd,a:Math.round(amt*1e8/1e6*10)/10,t:matType,r:rem,chRemMo};
     // 유통기한 기준 (AO열)
     if(!ch_amt[ch]) ch_amt[ch]={};
     if(!ch_amt[ch][aoType]) ch_amt[ch][aoType]={a:0,q:0};
@@ -1746,6 +1907,23 @@ function parsePSISheet(ws){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:0});
   const headerRow=rows.findIndex(row=>String(row[0]||'').replace(/\s/g,'')==='자재코드');
   const data=rows.slice(headerRow>=0?headerRow+3:6);
+  // 월 블록(L/AB/AM/AW 열)은 매달 사용자가 밀어서 갱신함(L=이번달, 다음달엔 L=다음 월).
+  // sourceMonthlyPsi 키('6월'~'9월')는 실제 캘린더월이 아니라 위치(1~4번째 블록) 식별자로 유지하고,
+  // 표시용 실제 월 텍스트만 '자재코드' 헤더와 같은 행(월 블록 헤더 행)에서 동적으로 읽어 monthRealLabels로 제공한다.
+  // (PSI 시트는 범위가 B2부터 시작해 행 인덱스가 밀리므로 고정 행번호 대신 headerRow를 그대로 재사용한다)
+  const monthHeaderRow=(headerRow>=0?rows[headerRow]:null)||[];
+  const realMonthLabel=(idx,fallback)=>{
+    const v=String(monthHeaderRow[idx]||'').trim();
+    const m=v.match(/^(\d{1,2})월$/);
+    return m?`${m[1]}월`:fallback;
+  };
+  const monthRealLabels={
+    '6월':realMonthLabel(10,'6월'),
+    '7월':realMonthLabel(26,'7월'),
+    '8월':realMonthLabel(37,'8월'),
+    '9월':realMonthLabel(47,'9월'),
+    '10월':realMonthLabel(57,'10월')
+  };
   const result=[];
   data.forEach(row=>{
     // PSI 원본: A 자재코드, B 자재내역, C 품목군, E 3평판,
@@ -1757,18 +1935,25 @@ function parsePSISheet(ws){
     const name=String(row[1]||'').trim();
     const sourcePkg=String(row[2]||'').trim();
     const avg3=Math.round(Number(row[4])||0);
-    const inv=Math.round(Number(row[8])||0);
+    // 기초재고 = 전체재고(BQ,array67) - 6개월미만재고(BS,array69). 6개월미만은 원칙적으로 출고 불가하여 제외.
+    // 구버전 파일(전체재고 컬럼 없음)은 현재고(array8)로 폴백.
+    const _totalStock=Number(row[67]);
+    const _under6=Number(row[69])||0;
+    const inv=(Number.isFinite(_totalStock)&&_totalStock!==0)
+      ? Math.max(0,Math.round(_totalStock-_under6))
+      : Math.round(Number(row[8])||0);
     const plan6=Math.round(Number(row[10])||0);
     const planAmt6=Number(row[11])||0;
     const actual6=Math.round(Number(row[12])||0);
     const rate6=Number(row[13])||0;
     const buy6=Math.round(Number(row[14])||0);
-    const ep=Math.round(Number(row[20])||0);
-    const dp=Math.round(Number(row[23])||0);
+    // 기말재고(판매계획 기준) = 기초+입고-판매 = 표의 6월 기말재고와 동일하게 계산 (원본 X열 대신)
+    const ep=Math.round(inv+buy6-plan6);
+    const dp=avg3>0?Math.round(ep/avg3*30):0;
     const er=Math.round(inv+buy6-plan6*rate6);
     const dr=avg3>0?Math.round(er/avg3*30):0;
-    const sp=avg3===0?'gray':dp<90?'red':dp<120?'yellow':'green';
-    const sr=avg3===0?'gray':dr<90?'red':dr<120?'yellow':'green';
+    const sp=avg3===0?'gray':getPSIStockSignal(dp);
+    const sr=avg3===0?'gray':getPSIStockSignal(dr);
     let pkg=sourcePkg||'건기식';
     if(name.includes('덴티')||name.includes('구강')) pkg='구강';
     const ri=v=>Math.round(Number(v)||0);
@@ -1776,22 +1961,35 @@ function parsePSISheet(ws){
       '6월':{begin:ri(inv),buy:ri(buy6),plan:ri(plan6),end:ri(ep)},
       '7월':{begin:ri(ep),buy:ri(row[28]),plan:ri(row[26]),end:ri(row[31])},
       '8월':{begin:ri(row[31]),buy:ri(row[39]),plan:ri(row[37]),end:ri(row[42])},
-      '9월':{begin:ri(row[42]),buy:ri(row[49]),plan:ri(row[47]),end:ri(row[52])}
+      '9월':{begin:ri(row[42]),buy:ri(row[49]),plan:ri(row[47]),end:ri(row[52])},
+      '10월':{begin:ri(row[52]),buy:ri(row[59]),plan:ri(row[57]),end:ri(row[62])}
     };
     Object.values(sourceMonthlyPsi).forEach(month=>{
       month.days=avg3>0?Math.round(month.end/avg3*30):null;
     });
-    result.push({mat,name,pkg,avg3,inv,plan6,planAmt6,buy6,actual6,rate6,ep,dp,sp,er,dr,sr,sourceMonthlyPsi});
+    result.push({mat,name,pkg,avg3,inv,plan6,planAmt6,buy6,actual6,rate6,ep,dp,sp,er,dr,sr,sourceMonthlyPsi,monthRealLabels});
   });
   return result;
 }
 
+function parseYearMonthCell(v){
+  const n=Number(v);
+  if(!Number.isFinite(n)) return null;
+  const year=Math.floor(n);
+  const month=Math.round((n-year)*100);
+  if(month<1||month>12) return null;
+  return {year,month,label:`${String(year).slice(2)}/${month}`};
+}
 function parseSalesPlanSheet(ws){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-  // 34행=판매계획 헤더, 35행=년월, 36행(index 35)~=데이터
-  // I(8)~AF(31): 25/1~26/12 실적금액  AG(32)~AK(36): 26/6~10 계획금액
-  // AL(37)~AP(41): 26/6~10 단가  AQ(42)~AU(46): 26/6~10 계획수량
+  // 34행=판매계획 헤더, 35행=년월(I~AF 실적 컬럼의 실제 년월은 이 헤더에서 직접 읽음, 고정 배치 가정 안 함)
+  // I(8)~AF(31): 실적금액  AG(32)~AK(36): 계획금액(월 롤링, 매달 컬럼이 밀림)
+  // AL(37)~AP(41): 판매단가(월 롤링) — 단가 환산은 AL(=이번 달 기준) 고정 사용
+  // AQ(42)~AU(46): 계획수량(월 롤링)
   const summary=parseSalesPlanSummaryRows(rows);
+  const ymRow=rows[34]||[]; // Excel 35행: I~AF 실적 컬럼의 실제 년월 헤더
+  const actMonthMeta=[];
+  for(let col=8;col<=31;col++){ actMonthMeta[col-8]=parseYearMonthCell(ymRow[col]); }
   const data=rows.slice(35);
   // 동일 자재코드 여러 행을 누적 집계 (덮어쓰기 금지)
   const acc={};
@@ -1799,8 +1997,7 @@ function parseSalesPlanSheet(ws){
     const mat=String(row[3]||'').trim();
     if(!mat||!/^\d+$/.test(mat)) return;
     const ch=String(row[2]||row[1]||row[0]||'미분류').trim()||'미분류';
-    let unitPrice=0;
-    for(let c=37;c<=41;c++){const v=Number(row[c])||0;if(v>0){unitPrice=v;break;}}
+    let unitPrice=Number(row[37])||0; // AL: 이번 달(현재월) 판매단가
     if(!unitPrice){
       for(let c=0;c<=4;c++){
         const pAmt=Number(row[32+c])||0,pQty=Math.round(Number(row[42+c])||0);
@@ -1839,13 +2036,11 @@ function parseSalesPlanSheet(ws){
     const unitPrice=a.unitPrice;
     const monthly=[];
     for(let idx=0;idx<24;idx++){
-      const col=idx+8;
-      const year=col<20?2025:2026;
-      const month=col<20?(col-8+1):(col-20+1);
+      const meta=actMonthMeta[idx];
       const amt=a.monthlyAmts[idx];
-      const hasData=a.monthlyHas[idx];
+      const hasData=a.monthlyHas[idx]&&!!meta;
       const qty=(unitPrice>0&&hasData)?Math.round(amt/unitPrice):0;
-      monthly.push({year,month,label:`${String(year).slice(2)}/${month}`,amt:hasData?amt:0,qty,hasData});
+      monthly.push({year:meta?.year??null,month:meta?.month??null,label:meta?.label||'',amt:hasData?amt:0,qty,hasData});
     }
     const planAmt=a.planAmts.map((amt,i)=>({year:2026,month:6+i,amt}));
     const planQty=a.planQtys.map((qty,i)=>({year:2026,month:6+i,qty}));
@@ -1865,12 +2060,31 @@ function parseSalesPlanSheet(ws){
 function parseSalesPlanSummaryRows(rows){
   const groups={brand:[],ch:[],target:null};
   const excludedNames=new Set(['순매출(신제품제외)','25년 매출','26년 사업계획','GAP']);
+  const ymRow=rows[34]||[];
+  const ACTUAL_START_COL=20,PLAN_START_COL=32;
+  // 실적 구간은 원래 U~Y(5칸) 고정이었으나, 계획 블록(AG=32) 직전까지 실제 값이 채워진 칸이
+  // 있으면(예: 이번달 실적이 반영된 다음달 Z열) 그만큼 자동으로 확장한다.
+  // 총계 행(요약 상단 35행 이내)을 기준으로 실값 존재 여부를 판단한다.
+  const totalsRow=rows.slice(0,35).find(row=>String(row?.[7]||'').trim()==='총계')||[];
+  let actualEndCol=ACTUAL_START_COL+4;
+  for(let c=ACTUAL_START_COL;c<PLAN_START_COL;c++){
+    const v=Number(totalsRow[c]);
+    if(parseYearMonthCell(ymRow[c])&&Number.isFinite(v)&&Math.abs(v)>0.01) actualEndCol=Math.max(actualEndCol,c);
+  }
+  const actualCols=[];
+  for(let c=ACTUAL_START_COL;c<=actualEndCol;c++) actualCols.push(c);
+  const planCols=[32,33,34,35,36];
+  const readRealMonths=cols=>cols.map(c=>parseYearMonthCell(ymRow[c])?.month).filter(m=>m!=null);
+  const realActualMonths=readRealMonths(actualCols);
+  const realPlanMonths=readRealMonths(planCols);
+  groups.actualMonths=realActualMonths.length?realActualMonths:[1,2,3,4,5];
+  groups.planMonths=realPlanMonths.length?realPlanMonths:[6,7,8,9,10];
   const findTarget=()=>{
     const targetRow=rows.find(row=>(row||[]).some(cell=>String(cell||'').trim().includes('사업계획')));
     if(!targetRow) return null;
     return {
-      actual:Array.from({length:5},(_,i)=>Number(targetRow[20+i])||0),
-      plan:Array.from({length:5},(_,i)=>Number(targetRow[32+i])||0)
+      actual:actualCols.map(c=>Number(targetRow[c])||0),
+      plan:planCols.map(c=>Number(targetRow[c])||0)
     };
   };
   groups.target=findTarget();
@@ -1885,8 +2099,8 @@ function parseSalesPlanSummaryRows(rows){
       if(name==='총계'||name==='합계') continue;
       if(excludedNames.has(name)) continue;
       const prevActual=Array.from({length:12},(_,i)=>Number(row[8+i])||0);
-      const actual=Array.from({length:5},(_,i)=>Number(row[20+i])||0);
-      const plan=Array.from({length:5},(_,i)=>Number(row[32+i])||0);
+      const actual=actualCols.map(c=>Number(row[c])||0);
+      const plan=planCols.map(c=>Number(row[c])||0);
       if(prevActual.some(Boolean)||actual.some(Boolean)||plan.some(Boolean)){
         groups[type].push({name,prevActual,actual,plan});
       }
@@ -1899,6 +2113,33 @@ function parseSalesPlanSummaryRows(rows){
     }
   });
   return groups;
+}
+function parseCostSheet(ws){
+  // 원가 시트: 1행=헤더, 2행~=데이터
+  // B(1)=자재코드, AD(29)=순매출액(공시), AE(30)=원가금액
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  const byMat={};
+  let totalNetSales=0,totalCost=0;
+  rows.slice(1).forEach(row=>{
+    const mat=String(row[1]||'').trim();
+    if(!mat||!/^\d+$/.test(mat)) return;
+    const netSales=Number(row[29])||0;
+    const costAmt=Number(row[30])||0;
+    if(!byMat[mat]) byMat[mat]={netSales:0,costAmt:0};
+    byMat[mat].netSales+=netSales;
+    byMat[mat].costAmt+=costAmt;
+    if(costAmt>0){totalNetSales+=netSales;totalCost+=costAmt;}
+  });
+  const avgRatio=totalCost>0?totalNetSales/totalCost:1;
+  return {byMat,avgRatio};
+}
+function getCostData(){return UPLOADED?.cost_data||null;}
+function getMatRatio(mat){
+  const cd=getCostData();
+  if(!cd) return {ratio:1,matched:false};
+  const rec=cd.byMat?.[String(mat)];
+  if(rec&&rec.costAmt>0) return {ratio:rec.netSales/rec.costAmt,matched:true};
+  return {ratio:cd.avgRatio||1,matched:false};
 }
 function parseMasterRefSheet(ws){
   // 기준정보 시트: 2행=헤더, 3행~=데이터
@@ -1982,21 +2223,39 @@ function parseDaisoPSISheet(ws){
 }
 
 function getPSIStockSignal(days,isDaiso){
+  // 2단계 신호등(전 품목 동일): 90일 미만 위험(red) / 90일 이상 정상(green). 다이소 별도기준·과잉 개념 제거.
   if(days==null||!Number.isFinite(Number(days))) return 'gray';
-  const value=Number(days);
-  if(isDaiso){
-    if(value<30) return 'red';
-    if(value<45) return 'yellow';
-    if(value<=90) return 'green';
-    return 'excess';
-  }
-  if(value<90) return 'red';
-  if(value<120) return 'yellow';
-  if(value<=180) return 'green';
-  return 'excess';
+  return Number(days)<90?'red':'green';
 }
 
-function mergeDaisoIntegratedPSI(rawPsi,master,integrated){
+function parseSupplySheet(ws){
+  // 공급 시트: 자재코드(C열)별 월별 공급계획. 헤더에서 월 라벨(E열='7월'…)을 동적으로 읽어 실제 월 키로 저장.
+  // 매달 롤(다음달 E=8월)되어도 헤더 기준으로 자동 정렬됨.
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:0});
+  const hdrIdx=rows.findIndex(r=>Array.isArray(r)&&r.some(v=>String(v||'').replace(/\s/g,'')==='자재코드'));
+  if(hdrIdx<0) return {byMat:{},monthLabels:[]};
+  const hdr=rows[hdrIdx]||[];
+  const codeCol=hdr.findIndex(v=>String(v||'').replace(/\s/g,'')==='자재코드');
+  const monthCols=[];
+  hdr.forEach((v,c)=>{const m=String(v||'').trim().match(/^(\d{1,2})월$/);if(m)monthCols.push({col:c,label:`${parseInt(m[1])}월`});});
+  const byMat={};
+  rows.slice(hdrIdx+1).forEach(r=>{
+    const code=String(r[codeCol]||'').trim();
+    if(!/^\d+$/.test(code)) return;
+    const mo={};
+    monthCols.forEach(mc=>{mo[mc.label]=Math.round(Number(r[mc.col])||0);});
+    byMat[code]=mo;
+  });
+  return {byMat,monthLabels:monthCols.map(mc=>mc.label)};
+}
+// 다이소 품목 입고를 공급 시트 값으로 대체(실제 월 기준). 공급에 없으면 기존 PSI 입고 유지.
+function supplyBuyFor(supply,mat,monthKey,realLabels,fallback){
+  const realMonth=realLabels?.[monthKey];
+  const v=supply?.byMat?.[String(mat||'')]?.[realMonth];
+  return (v!=null)?Number(v):Number(fallback)||0;
+}
+function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
+  const supplyMissing=[];
   const integratedByCode=new Map();
   integrated.forEach(group=>{
     if(!integratedByCode.has(group.code)) integratedByCode.set(group.code,[]);
@@ -2034,7 +2293,8 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated){
           '6월':{begin:0,buy:0,plan:0,end:0},
           '7월':{begin:0,buy:0,plan:0,end:0},
           '8월':{begin:0,buy:0,plan:0,end:0},
-          '9월':{begin:0,buy:0,plan:0,end:0}
+          '9월':{begin:0,buy:0,plan:0,end:0},
+          '10월':{begin:0,buy:0,plan:0,end:0}
         }
       });
     }
@@ -2044,12 +2304,15 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated){
     agg.er+=Number(row.er)||0;
     agg.planAmt6+=Number(row.planAmt6)||0;
     agg.components.push(String(row.mat||''));
+    const hasSupply=supply?.byMat&&Object.prototype.hasOwnProperty.call(supply.byMat,String(row.mat||''));
+    if(supply&&!hasSupply) supplyMissing.push(String(row.mat||''));
     Object.keys(agg.monthlyPsi).forEach(monthKey=>{
       const source=row.sourceMonthlyPsi?.[monthKey]||{};
+      // 입고는 공급 시트(실제 월 기준) 우선, 없으면 PSI 원본 입고
+      const buy=supply?supplyBuyFor(supply,row.mat,monthKey,row.monthRealLabels,source.buy):(Number(source.buy)||0);
       agg.monthlyPsi[monthKey].begin+=Number(source.begin)||0;
-      agg.monthlyPsi[monthKey].buy+=Number(source.buy)||0;
+      agg.monthlyPsi[monthKey].buy+=buy;
       agg.monthlyPsi[monthKey].plan+=Number(source.plan)||0;
-      agg.monthlyPsi[monthKey].end+=Number(source.end)||0;
     });
   });
 
@@ -2059,6 +2322,15 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated){
     .map(row=>{
       const groupKey=master.codeToGroup.get(String(row.mat||''));
       const masterGroup=master.groups.get(groupKey);
+      // 개별 다이소 행: 입고를 공급 시트 값으로 대체한 monthlyPsi 구성 (fallback 투영값 대신 실제 월별 공급)
+      const compMonthly={};
+      ['6월','7월','8월','9월','10월'].forEach(mk=>{
+        const src=row.sourceMonthlyPsi?.[mk]||{};
+        const begin=Number(src.begin)||0, plan=Number(src.plan)||0;
+        const buy=supply?supplyBuyFor(supply,row.mat,mk,row.monthRealLabels,src.buy):(Number(src.buy)||0);
+        const end=begin+buy-plan;
+        compMonthly[mk]={begin,buy,plan,end,days:row.avg3>0?Math.round(end/row.avg3*30):null};
+      });
       return {
         ...row,
         pkg:'건기식',
@@ -2067,6 +2339,8 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated){
         integratedName:masterGroup?.name||'',
         plant:master.plantByMaterial.get(String(row.mat||''))||'',
         plantValues:master.plantByMaterial.get(String(row.mat||''))?[master.plantByMaterial.get(String(row.mat||''))]:[],
+        monthlyPsi:supply?compMonthly:undefined,
+        buy6:supply?(Number(compMonthly['6월'].buy)||0):row.buy6,
         sp:row.avg3===0?'gray':getPSIStockSignal(row.dp,true),
         sr:row.avg3===0?'gray':getPSIStockSignal(row.dr,true)
       };
@@ -2077,13 +2351,13 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated){
       avg3:0,actual6:0,er:0,planAmt6:0,components:[],monthlyPsi:{}
     };
     const monthlyPsi=agg.monthlyPsi||{};
-    ['6월','7월','8월','9월'].forEach(monthKey=>{
+    ['6월','7월','8월','9월','10월'].forEach(monthKey=>{
       const month=monthlyPsi[monthKey];
       if(!month) return;
       month.begin=Math.round(month.begin);
       month.buy=Math.round(month.buy);
       month.plan=Math.round(month.plan);
-      month.end=Math.round(month.end);
+      month.end=Math.round(month.begin+month.buy-month.plan); // 입고(공급) 반영해 기말 재계산
       month.days=agg.avg3>0?Math.round(month.end/agg.avg3*30):null;
     });
     const june=monthlyPsi['6월']||{};
@@ -2106,6 +2380,8 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated){
       buy6,actual6:agg.actual6,rate6:0,
       ep,dp,sp,er,dr,sr,
       monthlyPsi,
+      sourceMonthlyPsi:monthlyPsi,
+      monthRealLabels:rawPsi[0]?.monthRealLabels||{},
       unitPrice:plan6>0?agg.planAmt6/plan6:Number(group.unitPrice)||0,
       isDaisoIntegrated:true,
       componentCodes:masterGroup.materials,
@@ -2141,7 +2417,9 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated){
       unmatchedMasterCodes,
       unmatchedPsiCodes,
       nameMismatch,
-      balanceMismatch
+      balanceMismatch,
+      supplyMissing:[...new Set(supplyMissing)],
+      supplyApplied:!!supply
     }
   };
 }
@@ -2164,8 +2442,7 @@ function parsePSIRiskSheet(ws){
     }
     const days=Number(raw);
     if(days<90) summary.short++;
-    else if(days>180) summary.excess++;
-    else summary.normal++;
+    else summary.normal++; // 90일 이상 전부 정상 (과잉 개념 제거)
   });
   return summary;
 }
@@ -2664,7 +2941,7 @@ const PSI = [
   {mat:7300121,name:'에너씨슬 콜레다운 (30캡슐)',pkg:'건기식',avg3:3762,inv:15748,plan6:5218,buy6:0,actual6:5,rate6:0.1,ep:10530,dp:59.3,sp:'red',er:15743,dr:125.6,sr:'green'},
   {mat:7300120,name:'에너씨슬 (30캡슐)',pkg:'건기식',avg3:2416,inv:10902,plan6:2442,buy6:0,actual6:49,rate6:2.0,ep:8460,dp:79.4,sp:'red',er:10853,dr:134.9,sr:'green'},
   {mat:7300195,name:'에너씨슬 콜레다운 번들 30*2EA',pkg:'건기식',avg3:1182,inv:6339,plan6:1581,buy6:0,actual6:25,rate6:1.6,ep:4758,dp:78.0,sp:'red',er:6314,dr:160.4,sr:'green'},
-  {mat:7301260,name:'에너씨슬 퍼펙트샷 이뮨+ (올리브영)',pkg:'건기식',avg3:1031,inv:0,plan6:546,buy6:2500,actual6:0,rate6:0.0,ep:1954,dp:87.9,sp:'red',er:2500,dr:102.8,sr:'yellow'},
+  {mat:7301260,name:'에너씨슬 퍼펙트샷 이뮨+ (올리브영)',pkg:'건기식',avg3:1031,inv:0,plan6:546,buy6:2500,actual6:0,rate6:0.0,ep:1954,dp:87.9,sp:'red',er:2500,dr:102.8,sr:'green'},
   {mat:7302291,name:'에너씨슬 집중샷 PLUS+ 10개입',pkg:'건기식',avg3:2792,inv:4866,plan6:980,buy6:0,actual6:0,rate6:0.0,ep:3886,dp:50.0,sp:'red',er:4866,dr:180.5,sr:'green'},
   {mat:7302150,name:'에너씨슬 글루타민+ 10병',pkg:'건기식',avg3:22023,inv:37459,plan6:8550,buy6:0,actual6:8,rate6:0.1,ep:28909,dp:57.8,sp:'red',er:37451,dr:87.6,sr:'red'},
   {mat:7302153,name:'합쎈',pkg:'건기식',avg3:7220,inv:18432,plan6:6210,buy6:0,actual6:0,rate6:0.0,ep:12222,dp:49.7,sp:'red',er:18432,dr:230.5,sr:'green'},
@@ -2676,9 +2953,9 @@ const PSI = [
   {mat:7302027,name:'다이소 닥터베어 루테인 (30캡슐)',pkg:'건기식(다이소)',avg3:54227,inv:40176,plan6:54227,buy6:50000,actual6:0,rate6:0.0,ep:35949,dp:19.9,sp:'red',er:90176,dr:49.9,sr:'red'},
   {mat:7302028,name:'다이소 닥터베어 쏘팔메토 옥타코사놀',pkg:'건기식(다이소)',avg3:54227,inv:52260,plan6:54227,buy6:0,actual6:0,rate6:0.0,ep:-1967,dp:-1.1,sp:'red',er:52260,dr:28.9,sr:'red'},
   {mat:7302032,name:'다이소 닥터베어 칼슘 마그네슘 비타민D',pkg:'건기식(다이소)',avg3:54227,inv:36408,plan6:54227,buy6:27000,actual6:0,rate6:0.0,ep:9181,dp:5.1,sp:'red',er:63408,dr:35.1,sr:'red'},
-  {mat:7300194,name:'에너씨슬 번들 30*2EA (60캡슐)',pkg:'건기식',avg3:4556,inv:10372,plan6:4240,buy6:10000,actual6:0,rate6:0.0,ep:16132,dp:110.8,sp:'yellow',er:20372,dr:134.2,sr:'green'},
-  {mat:7302354,name:'에너씨슬 집중샷 샤인머스캣 10개입',pkg:'건기식',avg3:56432,inv:81681,plan6:39728,buy6:100000,actual6:0,rate6:0.0,ep:141953,dp:96.9,sp:'yellow',er:181681,dr:96.9,sr:'yellow'},
-  {mat:7302068,name:'에너씨슬 플래티넘 360캡슐',pkg:'건기식',avg3:1361,inv:6664,plan6:1254,buy6:0,actual6:0,rate6:0.0,ep:5410,dp:117.1,sp:'yellow',er:6664,dr:146.9,sr:'green'},
+  {mat:7300194,name:'에너씨슬 번들 30*2EA (60캡슐)',pkg:'건기식',avg3:4556,inv:10372,plan6:4240,buy6:10000,actual6:0,rate6:0.0,ep:16132,dp:110.8,sp:'green',er:20372,dr:134.2,sr:'green'},
+  {mat:7302354,name:'에너씨슬 집중샷 샤인머스캣 10개입',pkg:'건기식',avg3:56432,inv:81681,plan6:39728,buy6:100000,actual6:0,rate6:0.0,ep:141953,dp:96.9,sp:'green',er:181681,dr:96.9,sr:'green'},
+  {mat:7302068,name:'에너씨슬 플래티넘 360캡슐',pkg:'건기식',avg3:1361,inv:6664,plan6:1254,buy6:0,actual6:0,rate6:0.0,ep:5410,dp:117.1,sp:'green',er:6664,dr:146.9,sr:'green'},
   {mat:7301186,name:'에너씨슬 퍼펙트샷 이뮨+ 4개입',pkg:'건기식',avg3:2857,inv:12485,plan6:2685,buy6:12000,actual6:0,rate6:0.0,ep:21800,dp:352.4,sp:'green',er:24485,dr:257.3,sr:'green'},
   {mat:7301409,name:'에너씨슬 퍼펙트샷 실속팩 10개입',pkg:'건기식',avg3:2413,inv:14612,plan6:2538,buy6:0,actual6:0,rate6:0.0,ep:12074,dp:237.1,sp:'green',er:14612,dr:181.8,sr:'green'},
   {mat:7301697,name:'에너씨슬 집중샷 10개입',pkg:'건기식',avg3:29802,inv:37266,plan6:20836,buy6:80000,actual6:0,rate6:0.0,ep:96430,dp:125.5,sp:'green',er:117266,dr:118.3,sr:'green'},
@@ -3093,15 +3370,17 @@ function renderMatrix(){
     return;
   }
 
+  const costData=getCostData();
+
   let html=`<thead><tr><th class="ch-head">채널</th>`;
   cats.forEach(c=>html+=`<th style="color:#fff;background:${catCol[c]||'#888'}">${c}</th>`);
-  html+=`<th>합계</th></tr></thead><tbody>`;
+  html+=`<th>합계</th><th>매출환산</th></tr></thead><tbody>`;
 
-  const totals={};cats.forEach(c=>totals[c]={a:0,q:0});let grandA=0,grandQ=0;
+  const totals={};cats.forEach(c=>totals[c]={a:0,q:0});let grandA=0,grandQ=0,grandRev=0,grandUnmatched=0;
 
   chs.forEach(ch=>{
     html+=`<tr><td>${ch}</td>`;
-    let rowA=0,rowQ=0;
+    let rowA=0,rowQ=0,rowRev=0,rowUnmatched=0;
     cats.forEach(c=>{
       const raw=(mxData[ch]||{})[c]||{a:0,q:0,s:[]};
       let d={...raw};
@@ -3111,6 +3390,15 @@ function renderMatrix(){
       }
       totals[c].a+=d.a; totals[c].q+=d.q||0;
       rowA+=d.a; rowQ+=(d.q||0);
+      if(costData){
+        (d.s||[]).forEach(sku=>{
+          const amtMil=Number(sku.a)||0;
+          if(amtMil<=0) return;
+          const{ratio,matched}=getMatRatio(sku.m);
+          rowRev+=amtMil*ratio;
+          if(!matched) rowUnmatched++;
+        });
+      }
       if(!d.a&&!(d.q||0)&&(!d.s||!d.s.length)){html+=`<td class="zero">—</td>`;return;}
       const isWarn=agingViewMode==='delivery'?(c==='납품일정 초과'||c==='환입'):c==='환입'||c==='유효기간 초과'||c==='6개월 미만'||c==='7개월 미만';
       const isDanger=agingViewMode==='delivery'?c==='납품일정 초과':c==='유효기간 초과'||c==='6개월 미만';
@@ -3127,8 +3415,14 @@ function renderMatrix(){
           <div class="cell-qty">${fmtAmt(d.a)}</div></td>`;
       }
     });
-    grandA+=rowA; grandQ+=rowQ;
-    html+=`<td class="total-col"><div class="cell-val">${fmtAmt(rowA)}</div><div class="cell-qty">${formatQty(rowQ)}</div></td></tr>`;
+    grandA+=rowA; grandQ+=rowQ; grandRev+=rowRev; grandUnmatched+=rowUnmatched;
+    html+=`<td class="total-col"><div class="cell-val">${fmtAmt(rowA)}</div><div class="cell-qty">${formatQty(rowQ)}</div></td>`;
+    if(costData){
+      const titleAttr=rowUnmatched>0?` title="원가 시트 미매칭 SKU ${rowUnmatched}건 · 전사 평균 배율(${costData.avgRatio.toFixed(2)}배) 적용"`:'';
+      html+=`<td class="rev-col"${titleAttr}><div class="cell-val">${fmtAmt(rowRev/100)}</div><div class="cell-qty">&nbsp;</div></td></tr>`;
+    }else{
+      html+=`<td class="rev-col zero" title="원가 시트 업로드 필요"><div class="cell-val">—</div><div class="cell-qty">&nbsp;</div></td></tr>`;
+    }
   });
 
   html+=`<tr class="total-row"><td>합계</td>`;
@@ -3137,9 +3431,17 @@ function renderMatrix(){
     if(!d.a&&!d.q){html+=`<td class="zero">—</td>`;return;}
     html+=`<td><div class="cell-val">${d.a.toFixed(1)}억</div><div class="cell-qty">${formatQty(d.q)}</div></td>`;
   });
-  html+=`<td class="total-col"><div class="cell-val" style="font-size:14px;">${grandA.toFixed(1)}억</div><div class="cell-qty">${formatQty(grandQ)}</div></td></tr>`;
+  html+=`<td class="total-col"><div class="cell-val" style="font-size:14px;">${grandA.toFixed(1)}억</div><div class="cell-qty">${formatQty(grandQ)}</div></td>`;
+  if(costData){
+    const totTitleAttr=grandUnmatched>0?` title="원가 시트 미매칭 SKU ${grandUnmatched}건 · 전사 평균 배율 적용"`:'';
+    html+=`<td class="rev-col"${totTitleAttr}><div class="cell-val" style="font-size:14px;">${fmtAmt(grandRev/100)}</div><div class="cell-qty">&nbsp;</div></td></tr>`;
+  }else{
+    html+=`<td class="rev-col zero"><div class="cell-val">—</div><div class="cell-qty">&nbsp;</div></td></tr>`;
+  }
   html+=`</tbody>`;
   document.getElementById('agingMatrix').innerHTML=html;
+  const note=document.getElementById('matrixRevNote');
+  if(note) note.style.display=costData?'block':'none';
 }
 
 function drilldown(ch, cat){
@@ -3163,18 +3465,21 @@ function drilldown(ch, cat){
   if(cat==='18개월 이상'&&(mxData[ch]||{})['18개월 이상']){
     const total=((mxData[ch]||{})['18개월 이상']?.q||0);
     const shown=skus.reduce((a,s)=>a+(s.q||0),0);
-    if(total>shown) overflowNote=`<tr><td colspan="9" style="text-align:center;padding:8px;color:var(--muted);font-size:11px;">... 상위 ${skus.length}개 표시 / 전체 SKU는 현재고 시트 참조</td></tr>`;
+    if(total>shown) overflowNote=`<tr><td colspan="12" style="text-align:center;padding:8px;color:var(--muted);font-size:11px;">... 상위 ${skus.length}개 표시 / 전체 SKU는 현재고 시트 참조</td></tr>`;
   }
   _ddState={skus,ch,cat,overflowNote};
 
   const si=col=>_sortIcon(_ddSort,col);
   const h=`<table class="dd-table"><colgroup>
-    <col style="width:11%"><col style="width:22%"><col style="width:9%"><col style="width:8%">
-    <col style="width:9%"><col style="width:10%"><col style="width:8%"><col style="width:11%"><col style="width:12%">
+    <col style="width:10%"><col style="width:18%"><col style="width:7%"><col style="width:6%"><col style="width:6%"><col style="width:6%">
+    <col style="width:8%"><col style="width:7%"><col style="width:8%"><col style="width:7%"><col style="width:7%"><col style="width:10%">
   </colgroup><thead><tr>
     <th class="l" data-scol="code" onclick="sortDDCol('code')" style="cursor:pointer;">자재코드${si('code')}</th>
     <th class="l" data-scol="name" onclick="sortDDCol('name')" style="cursor:pointer;">자재명${si('name')}</th>
-    <th class="r" data-scol="qty" onclick="sortDDCol('qty')" style="cursor:pointer;">수량${si('qty')}</th>
+    <th class="r" data-scol="qty" onclick="sortDDCol('qty')" style="cursor:pointer;">수량(합계)${si('qty')}</th>
+    <th class="r" data-scol="avail" onclick="sortDDCol('avail')" style="cursor:pointer;">가용${si('avail')}</th>
+    <th class="r" data-scol="qc" onclick="sortDDCol('qc')" style="cursor:pointer;">품질${si('qc')}</th>
+    <th class="r" data-scol="hold" onclick="sortDDCol('hold')" style="cursor:pointer;">보류${si('hold')}</th>
     <th class="r" data-scol="amt" onclick="sortDDCol('amt')" style="cursor:pointer;">금액(백만)${si('amt')}</th>
     <th class="c" data-scol="rem" onclick="sortDDCol('rem')" style="cursor:pointer;">잔여일${si('rem')}</th>
     <th class="c" data-scol="exp" onclick="sortDDCol('exp')" style="cursor:pointer;">유효기간${si('exp')}</th>
@@ -3217,6 +3522,9 @@ function _renderDDTbody(){
       case 'code': return String(s.m||'');
       case 'name': return String(s.n||'');
       case 'qty': return s.q||0;
+      case 'avail': return s.av||0;
+      case 'qc': return s.qc||0;
+      case 'hold': return s.hd||0;
       case 'amt': return s.a||0;
       case 'rem': return s.r!=null?s.r:999999;
       case 'exp': return s.e||'9999';
@@ -3251,13 +3559,16 @@ function _renderDDTbody(){
     rows+=`<tr class="clickable-row" data-mat="${escapeSensingText(String(s.m||''))}" data-name="${escapeSensingText(String(s.n||''))}" data-ch="${escapeSensingText(ch)}" data-qty="${s.q||0}" data-rem="${s.r!=null?s.r:''}" data-ch-rem-mo="${s.chRemMo!=null?s.chRemMo:''}" onclick="openSkuDetailFromRow(this)">
       <td class="l" style="font-size:11px;color:var(--muted);">${s.m}</td>
       <td class="l"><strong>${s.n}</strong></td>
-      <td class="r">${formatQty(s.q)}</td>
+      <td class="r"><strong>${formatQty(s.q)}</strong></td>
+      <td class="r" style="color:#0a7d34;">${s.av!=null?formatQty(s.av):'—'}</td>
+      <td class="r" style="color:#b8860b;">${s.qc!=null?formatQty(s.qc):'—'}</td>
+      <td class="r" style="color:#c0392b;">${s.hd!=null?formatQty(s.hd):'—'}</td>
       <td class="r">${(s.a||0).toFixed(1)}</td>
       <td class="c">${remHtml}</td>
       <td class="c" style="font-size:11px;color:var(--muted);">${s.e||'—'}</td>
       <td class="c"><span class="tag" style="background:${AGING_COL[cat]||'#eee'};color:#fff;font-size:10px;">${grade}</span></td>
       <td class="c">${soojinChip}</td>
-      <td class="l plan-cell" contenteditable="true" onclick="event.stopPropagation()" data-plan-key="AGING|${ch}|${cat}|${s.m}" data-screen="재고 Aging" data-bucket="${cat}" data-channel="${ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></td>
+      <td class="l plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="AGING|${ch}|${cat}|${s.m}" data-screen="재고 Aging" data-bucket="${cat}" data-channel="${ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button></td>
     </tr>`;
   });
   const tbody=document.querySelector('#ddBody .dd-table tbody');
@@ -3420,7 +3731,7 @@ function _renderSenTbody(){
       <td class="c"><span class="tag gray">${s.nowCat}</span></td>
       <td class="c"><span class="tag" style="background:${catCol};color:#fff;font-size:10px;">${s.futureCat}</span></td>
       <td class="c">${soojinChip}</td>
-      <td class="l plan-cell" contenteditable="true" onclick="event.stopPropagation()" data-plan-key="SENSING|${sensingLabel}|${cat}|${s.ch}|${s.m}" data-screen="Aging Sensing" data-bucket="${sensingLabel} ${cat}" data-channel="${s.ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></td>
+      <td class="l plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="SENSING|${sensingLabel}|${cat}|${s.ch}|${s.m}" data-screen="Aging Sensing" data-bucket="${sensingLabel} ${cat}" data-channel="${s.ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button></td>
     </tr>`;
   });
   const tbody=document.querySelector('#senCategoryRows tbody');
@@ -3507,6 +3818,8 @@ function computeSoojin(mat,qty,rem,ch,chRemMo){
 // ═══════════ SKU 상세 모달 ════════════════════════════════════
 let skuDetailChart=null;
 function openSkuDetailFromRow(tr){
+  // 텍스트를 드래그 선택 중이면(자재코드/품목명 복사 등) 상세 팝업을 열지 않음
+  if(window.getSelection&&String(window.getSelection()).trim().length>0) return;
   const mat=tr.dataset.mat||'';
   const n=tr.dataset.name||'';
   const ch=tr.dataset.ch||'';
@@ -3535,18 +3848,29 @@ function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
   const psi=getPSIData()?.find(p=>String(p.mat)===String(mat));
   // 실적: SF 시트에서 qty>0 인 달 전부 (25/1~26/12 중 데이터 있는 달)
   const actMonths=(skuSp?.monthly||[]).filter(m=>m.hasData&&m.qty>0);
-  // 계획: PSI 6~9월 또는 SF planQty (차트 레이블 YY/M 통일)
+  // 계획: PSI 1~5번째 월 블록(당월 포함 5개월, 위치 키 '6월'~'10월') 또는 SF planQty — 라벨은 PSI monthRealLabels로 실제 캘린더월 동적 반영
   const mp=psi?.sourceMonthlyPsi||{};
+  const rlbl=psi?.monthRealLabels||{};
   const sfPlanQty=skuSp?.planQty||[];
-  const planMoKeys=[{key:'6월',label:'26/6'},{key:'7월',label:'26/7'},{key:'8월',label:'26/8'},{key:'9월',label:'26/9'}];
+  const planMoKeys=['6월','7월','8월','9월','10월'].map(key=>({key,label:`26/${(rlbl[key]||key).replace('월','')}`}));
   const planMonths=planMoKeys.map((mo,i)=>{
     const psiQty=mp[mo.key]?.plan??null;
     const sfQty=(sfPlanQty[i]?.qty||0)>0?sfPlanQty[i].qty:null;
     return {label:mo.label,qty:psiQty??sfQty};
   });
-  const chartLabels=[...actMonths.map(m=>m.label),...planMonths.map(m=>m.label)];
-  const actData=[...actMonths.map(m=>m.qty!=null?Math.round(m.qty):null),...planMonths.map(()=>null)];
-  const planData=[...actMonths.map(()=>null),...planMonths.map(m=>m.qty!=null?Math.round(m.qty):null)];
+  // 라벨(년/월) 기준 병합: 실적과 계획이 같은 달이면(예: 이미 지난 6월) 같은 x축 포인트에 겹쳐 표시 — 중복 라벨 방지
+  const labelOrder=[]; const actByLabel={}; const planByLabel={};
+  actMonths.forEach(m=>{
+    if(!(m.label in actByLabel)) labelOrder.push(m.label);
+    actByLabel[m.label]=m.qty!=null?Math.round(m.qty):null;
+  });
+  planMonths.forEach(m=>{
+    if(!(m.label in actByLabel)&&!(m.label in planByLabel)) labelOrder.push(m.label);
+    planByLabel[m.label]=m.qty!=null?Math.round(m.qty):null;
+  });
+  const chartLabels=labelOrder;
+  const actData=labelOrder.map(l=>l in actByLabel?actByLabel[l]:null);
+  const planData=labelOrder.map(l=>l in planByLabel?planByLabel[l]:null);
   const mainSt=soojin.mainStatus||soojin.status;
   const stCls={'정상소진 가능':'g','미소진 Risk':'r','판매계획 없음':'y','데이터 부족':'gray'}[mainSt]||'gray';
   const noEff=soojin.hasChanEff===false;
@@ -3593,6 +3917,9 @@ function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
   skuDetailChart=null;
   const canvas=document.getElementById('skuDetailChart');
   if(canvas&&hasChart()){
+    // 실적/계획이 둘 다 있는 달만 차이(실적-계획)를 배지로 표시 — 배지는 두 값의 중간 높이에 위치
+    const diffVal=chartLabels.map((_,i)=>(actData[i]!=null&&planData[i]!=null)?actData[i]-planData[i]:null);
+    const diffPos=chartLabels.map((_,i)=>(actData[i]!=null&&planData[i]!=null)?(actData[i]+planData[i])/2:null);
     skuDetailChart=new Chart(canvas,{
       type:'line',
       plugins:[ChartDataLabels],
@@ -3607,13 +3934,24 @@ function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
          borderWidth:2.5,borderDash:[6,4],
          pointRadius:5,pointBackgroundColor:'#C46B4D',pointBorderColor:'#fff',pointBorderWidth:2,
          fill:false,tension:0.2,spanGaps:false,
-         datalabels:{anchor:'top',align:'top',offset:3,color:'#C46B4D',font:{size:9,weight:'bold'},formatter:v=>v!=null?formatQty(v):''}}
+         datalabels:{anchor:'top',align:'top',offset:3,color:'#C46B4D',font:{size:9,weight:'bold'},formatter:v=>v!=null?formatQty(v):''}},
+        {label:'차이',data:diffPos,
+         showLine:false,pointRadius:0,pointHoverRadius:0,fill:false,
+         datalabels:{
+           display:ctx=>diffVal[ctx.dataIndex]!=null,
+           anchor:'center',align:'center',
+           formatter:(v,ctx)=>{const d=diffVal[ctx.dataIndex];return d==null?'':`${d>=0?'▲+':'▼'}${formatQty(d)}`;},
+           color:'#fff',
+           backgroundColor:ctx=>{const d=diffVal[ctx.dataIndex];return d>=0?'#33512E':'#D64545';},
+           borderRadius:8,padding:{top:3,bottom:3,left:6,right:6},
+           font:{size:9,weight:'900'}
+         }}
       ]},
       options:{
         responsive:true,maintainAspectRatio:false,
         plugins:{
-          legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,usePointStyle:true}},
-          tooltip:{callbacks:{label:c=>c.parsed.y!=null?`${c.dataset.label}: ${formatQty(c.parsed.y)}`:''}}
+          legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,usePointStyle:true,filter:item=>item.text!=='차이'}},
+          tooltip:{filter:c=>c.dataset.label!=='차이',callbacks:{label:c=>c.parsed.y!=null?`${c.dataset.label}: ${formatQty(c.parsed.y)}`:''}}
         },
         scales:{
           x:{grid:{display:false},ticks:{font:{size:11,weight:'bold'}}},
@@ -3754,15 +4092,41 @@ const SENS_AVG=[
   {m:5,data:{'환입':0.200,'유효기간 초과':1.230,'6개월 미만':1.501,'7개월 미만':0.800,'9개월 미만':1.116,'12개월 미만':1.663,'15개월 미만':3.980,'18개월 미만':12.621,'18개월 이상':0.157}},
   {m:6,data:{'환입':0.100,'유효기간 초과':1.830,'6개월 미만':2.501,'7개월 미만':1.700,'9개월 미만':2.116,'12개월 미남':1.763,'15개월 미만':4.080,'18개월 미만':7.221,'18개월 이상':0}},
 ];
-const SENS_INBOUND=[
-  {m:0,data:{'18개월 이상':1.2}}, // 6월 입고계획: 6/1 입고로 즉시 편입
-  {m:1,data:{'18개월 이상':1.8}}, // 7월 입고계획: 7/1 입고로 편입
-  {m:2,data:{'18개월 이상':2.1}}, // 8월 입고계획: 8/1 입고로 편입
-  {m:3,data:{'18개월 이상':2.4}},
-  {m:4,data:{'18개월 이상':2.6}},
-  {m:5,data:{'18개월 이상':2.8}},
-  {m:6,data:{'18개월 이상':0}},
-];
+// PSI 입고 편입: 월별 입고계획(실측 6~9월) × SKU 원가단가로 실제 금액 산출.
+// 원가단가는 현재고 재고금액÷재고수량(가용+품질+보류)에서 산출 — 현재/예측 막대와 동일한 원가 기준으로 맞춤
+// (판매단가 기준은 재고 원가 대비 과도하게 커서 차트가 왜곡됨, 실측 비교로 확인).
+// 10~12월(M+4~6)은 PSI에 월별 실측 입고 데이터가 없어 0으로 표시(추정 확장 안 함).
+// 유효기간 분류는 배치 단위 Y/Z 데이터가 없어 전량 '18개월 이상'(신선 재고)으로 단순화.
+const SENS_INBOUND_MONTH_KEYS=['6월','7월','8월','9월'];
+function getMaterialCostMap(){
+  const map={};
+  getSensingBaseInventory().forEach(row=>{
+    const mat=String(row.m||''); if(!mat) return;
+    if(!map[mat]) map[mat]={amt:0,qty:0};
+    map[mat].amt+=Number(row.a)||0;  // 백만원 단위
+    map[mat].qty+=Number(row.q)||0;
+  });
+  const out={};
+  Object.keys(map).forEach(mat=>{
+    const v=map[mat];
+    out[mat]=v.qty>0?(v.amt*1e6/v.qty):0; // 원 단위 재고 원가단가
+  });
+  return out;
+}
+function computeSensInbound(months){
+  const key=SENS_INBOUND_MONTH_KEYS[months];
+  if(!key) return {};
+  const costMap=getMaterialCostMap();
+  let total=0;
+  (getPSIData()||[]).forEach(psi=>{
+    const buy=Number(psi?.sourceMonthlyPsi?.[key]?.buy)||0;
+    if(buy<=0) return;
+    const price=costMap[String(psi.mat)]||0;
+    if(price<=0) return;
+    total+=buy*price;
+  });
+  return total>0?{'18개월 이상':total/1e8}:{};
+}
 let senChart=null;
 let currentSensingMonths=3;
 function ageCatFromDays(days){
@@ -3898,6 +4262,19 @@ function summarizeSensingRows(rows,catField){
   });
   return summary;
 }
+function summarizeNewEntries(rows,catField){
+  const summary={};
+  CATS.forEach(cat=>{summary[cat]={cnt:0,amt:0};});
+  rows.forEach(row=>{
+    if(row.entryType!=='신규진입') return;
+    if((Number(row.q)||0)<=0) return;
+    const cat=row[catField];
+    if(!CATS.includes(cat)) return;
+    summary[cat].cnt+=1;
+    summary[cat].amt+=(Number(row.a)||0)/100;
+  });
+  return summary;
+}
 function normalizeSensingProjection(curr, rawProj){
   const proj={...(rawProj||{})};
   const fixedReturn=Number(curr?.['환입'])||0;
@@ -3944,7 +4321,8 @@ function renderSensing(months){
   const projectedRows=projectSensingInventory(months);
   const curr=summarizeSensingRows(currentRows,'currentCat');
   const proj=summarizeSensingRows(projectedRows,'futureCat');
-  const inbound=SENS_INBOUND[Math.min(months,6)]?.data||{};
+  const inbound=computeSensInbound(months);
+  const newEntries=summarizeNewEntries(projectedRows,'futureCat');
 
   // Chart
   const cats=CATS;
@@ -4062,16 +4440,17 @@ function renderSensing(months){
   let totalCurr=0,totalProj=0;
   cats.forEach(c=>{
     const cv=curr[c]||0; const pv=proj[c]||0; const iv=inbound[c]||0; const diff=pv-cv;
-    if(!cv&&!pv&&!iv) return;
     totalCurr+=cv; totalProj+=pv;
     const diffStr=diff>0?`<span style="color:var(--red);font-weight:700;">+${diff.toFixed(1)}억</span>`:
                   diff<0?`<span style="color:var(--green);font-weight:700;">${diff.toFixed(1)}억</span>`:
                   `<span style="color:var(--muted);">0</span>`;
     const isWarn=(c==='환입'||c==='6개월 미만'||c==='유효기간 초과'||c==='납품일정 초과')&&pv>cv;
+    const ne=newEntries[c]||{cnt:0,amt:0};
+    const newBadge=(months>0&&ne.cnt>0)?`<span class="tag y" style="font-size:9px;padding:1px 5px;margin-left:5px;font-weight:700;" title="${c} 구간에 새로 진입한 SKU">신규 ${ne.cnt}건·${ne.amt.toFixed(1)}억</span>`:'';
     html+=`<tr onclick="showSenDrill('${c}')" title="${c} 구간 SKU 확인" style="${isWarn?'background:#fef8ec;':''}cursor:pointer;">
       <td style="padding:5px 8px;border:1px solid #eee;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${AGING_COL[c]||'#888'};margin-right:4px;vertical-align:middle;"></span>${c}</td>
       <td style="text-align:right;padding:5px 8px;border:1px solid #eee;">${cv.toFixed(1)}억</td>
-      <td style="text-align:right;padding:5px 8px;border:1px solid #eee;font-weight:700;">${pv.toFixed(1)}억</td>
+      <td style="text-align:right;padding:5px 8px;border:1px solid #eee;font-weight:700;white-space:nowrap;">${pv.toFixed(1)}억${newBadge}</td>
       <td style="text-align:right;padding:5px 8px;border:1px solid #eee;color:#8a5c00;font-weight:800;background:#fffaf0;">${iv?iv.toFixed(1)+'억':'—'}</td>
       <td style="text-align:right;padding:5px 8px;border:1px solid #eee;">${diffStr}</td>
     </tr>`;
@@ -4081,7 +4460,7 @@ function renderSensing(months){
   const totalInbound=cats.reduce((s,c)=>s+(inbound[c]||0),0);
   html+=`<tr style="background:#eef0f9;font-weight:700;"><td style="padding:5px 8px;border:1px solid #eee;">합계</td><td style="text-align:right;padding:5px 8px;border:1px solid #eee;">${totalCurr.toFixed(1)}억</td><td style="text-align:right;padding:5px 8px;border:1px solid #eee;">${totalProj.toFixed(1)}억</td><td style="text-align:right;padding:5px 8px;border:1px solid #eee;color:#8a5c00;">${totalInbound?totalInbound.toFixed(1)+'억':'—'}</td><td style="text-align:right;padding:5px 8px;border:1px solid #eee;">${tdStr}</td></tr>`;
   html+=`</tbody></table>`;
-  html+=`<div style="margin-top:6px;font-size:10.5px;color:var(--muted);">※ PSI 입고 편입: 월별 입고계획은 해당 월 1일 입고로 봅니다. 따라서 당월은 6월 입고계획을 6/1 입고로 즉시 편입하고, M+1은 7월 입고계획을 7/1 입고로 편입합니다. 입고분 유효기간은 현재고의 Z 배치만료일 - Y 배치생산일 기준 SKU별 대표 유효기간으로 산정합니다. 현재 초안은 입고분 금액 단가 연결 전 표시입니다.</div>`;
+  html+=`<div style="margin-top:6px;font-size:10.5px;color:var(--muted);">※ PSI 입고 편입: 월별 입고계획(PSI 실측 6~9월)은 해당 월 1일 입고로 보고, 금액은 현재고 원가단가(재고금액÷재고수량) 기준으로 산출합니다(당월=6월 입고, M+1=7월 입고, M+2=8월 입고, M+3=9월 입고 · 계획 미입력 시 0). M+4~6(10~12월)은 PSI에 해당 월 데이터가 없어 표시하지 않습니다. 배치별 정확한 유효기간(Y/Z) 데이터가 없어, 입고분은 전량 '18개월 이상'(신선 재고) 구간으로 단순화해 표시합니다.</div>`;
 
   // 경고 메시지
   const warn6=proj['6개월 미만']||0;
@@ -4174,12 +4553,12 @@ function _renderPsiTbody(){
       const origBuy=exact?(Number(exact.buy)||0):Math.round((d.buy6||0)*m.buy);
       const buyOvOn=rowOv[m.key]!=null;
       const buyCls=buyOvOn?'psi-buy-override':origBuy===0?'psi-buy-empty':'';
-      return `<td class="r month-start">${fmtPsiInt(r.begin)}</td><td class="r"><input type="text" class="psi-buy-input${buyCls?' '+buyCls:''}" onclick="event.stopPropagation()" data-mat="${d.mat}" data-mo="${m.key}" data-orig-buy="${origBuy}" value="${r.buy.toLocaleString('ko-KR')}"></td><td class="r">${fmtPsiInt(r.plan)}</td><td class="r"${endCls}>${fmtPsiInt(r.end)}</td><td class="c"><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}</td><td class="r"${bec}>${fmtPsiInt(basisEnd)}</td><td class="c month-end"><span class="sig-dot ${bsc}"></span> ${psiDaysHtml(basisDays,basisSig)}</td>`;
+      return `<td class="r month-start">${fmtPsiInt(r.begin)}</td><td class="r"><input type="text" class="psi-buy-input${buyCls?' '+buyCls:''}" onclick="event.stopPropagation()" data-mat="${d.mat}" data-mo="${m.key}" data-orig-buy="${origBuy}" value="${r.buy.toLocaleString('ko-KR')}"><button type="button" class="psi-buy-reset" title="이 입고 조정을 원래값(${fmtPsiInt(origBuy)})으로 초기화" onclick="event.stopPropagation();resetPsiBuyCell(this)">↺</button></td><td class="r">${fmtPsiInt(r.plan)}</td><td class="r"${endCls}>${fmtPsiInt(r.end)}</td><td class="c"><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}</td><td class="r"${bec}>${fmtPsiInt(basisEnd)}</td><td class="c month-end"><span class="sig-dot ${bsc}"></span> ${psiDaysHtml(basisDays,basisSig)}</td>`;
     }).join('');
     const sCls=_psiSoojinCls[soojinStatus]||'gray';
     const sLbl=_psiSoojinLabel[soojinStatus]||'판단필요';
     h+=`<tr data-mat="${d.mat}" data-name="${escapeSensingText(d.name||'')}" data-ch="${escapeSensingText(d.pkg||'')}" data-qty="${d.inv||0}" data-rem="" data-ch-rem-mo="" class="clickable-row" onclick="openSkuDetailFromRow(this)">
-      <td class="l" style="font-size:11px;color:var(--muted);font-weight:800;">${d.mat||'—'}</td>
+      <td class="l" style="font-size:11px;color:var(--muted);font-weight:800;cursor:text;user-select:all;-webkit-user-select:all;" onclick="event.stopPropagation()" title="클릭하면 자재코드 전체 선택 → Ctrl+C로 복사">${d.mat||'—'}</td>
       <td class="l"><strong>${d.name}</strong></td>
       <td class="l" style="font-size:11px;color:var(--muted);">${d.pkg==='구강'?'구강':'건기식'}</td>
       <td class="l" style="font-size:11px;font-weight:800;color:${isIntegrated?'#0f766e':isDaisoComponent?'#b45309':'var(--muted)'};">${isIntegrated?'다이소 통합':isDaisoComponent?'다이소 원본':'일반'}</td>
@@ -4278,6 +4657,35 @@ function recalcPsiRow(mat){
     tds[bi+6].innerHTML=`<span class="sig-dot ${bsc}"></span> ${psiDaysHtml(basisDays,basisSig)}`;
   });
 }
+function resetPsiBuyCell(btn){
+  const inp=btn.previousElementSibling;
+  if(!inp||!inp.classList.contains('psi-buy-input')) return;
+  const mat=inp.dataset.mat, mo=inp.dataset.mo;
+  const origBuy=Number(inp.dataset.origBuy||0);
+  const data=getPsiSimBuy();
+  if(data[mat]){ delete data[mat][mo]; if(!Object.keys(data[mat]).length) delete data[mat]; localStorage.setItem(PSI_SIM_BUY_KEY,JSON.stringify(data)); }
+  inp.value=origBuy.toLocaleString('ko-KR');
+  inp.classList.remove('psi-buy-override');           // → CSS가 초기화 버튼 자동 숨김
+  inp.classList.toggle('psi-buy-empty',origBuy===0);
+  recalcPsiRow(mat);                                   // 전체 재렌더 없이 해당 행만 갱신(스크롤 유지)
+}
+function resetPsiBuyOverrides(){
+  const data=getPsiSimBuy();
+  const cnt=Object.values(data).reduce((s,m)=>s+Object.keys(m||{}).length,0);
+  if(!cnt){ alert('저장된 입고 조정값이 없습니다.'); return; }
+  if(!confirm(`직접 수정한 PSI 입고 조정값 ${cnt}건을 모두 초기화하시겠습니까?\n원본 입고계획으로 되돌아갑니다. (되돌릴 수 없음)`)) return;
+  localStorage.removeItem(PSI_SIM_BUY_KEY);
+  // 전체 재렌더 대신 조정됐던 입력칸만 제자리에서 원복 + 해당 행만 재계산 (성능)
+  const mats=new Set();
+  document.querySelectorAll('#psiWrap .psi-buy-input.psi-buy-override').forEach(inp=>{
+    const origBuy=Number(inp.dataset.origBuy||0);
+    inp.value=origBuy.toLocaleString('ko-KR');
+    inp.classList.remove('psi-buy-override');
+    inp.classList.toggle('psi-buy-empty',origBuy===0);
+    if(inp.dataset.mat) mats.add(inp.dataset.mat);
+  });
+  mats.forEach(mat=>recalcPsiRow(mat));
+}
 function bindPsiBuyInputs(){
   document.querySelectorAll('#psiWrap .psi-buy-input').forEach(inp=>{
     inp.addEventListener('focus',()=>{
@@ -4305,6 +4713,14 @@ function bindPsiBuyInputs(){
 }
 
 // ═══════════ PSI ════════════════════════════════════════════
+// PSI 상단 알림/설명의 월 범위를 업로드된 시트 실제 월로 갱신 (매달 엑셀 롤 시 자동 반영)
+function updatePsiMonthTexts(firstMo,lastMo){
+  const range=(firstMo&&lastMo)?`${firstMo}~${lastMo}`:'당월부터 4개월';
+  const alertEl=document.getElementById('psiAlertText');
+  if(alertEl) alertEl.innerHTML=`⚠ PSI는 ${range} 4개월 시계열로 봅니다. 기초재고(전체재고 − 6개월미만 재고) + 입고계획 − 판매계획 = 기말재고, 재고일수 90일 미만은 빨간 신호로 표시합니다.`;
+  const subEl=document.getElementById('psiSecSub');
+  if(subEl) subEl.innerHTML=`${range} 4개월 · ${firstMo||'당월'}은 판매계획 기준 기말재고와 진척율 기준 예상 재고를 수량/재고일수로 병행 표시 &nbsp;|&nbsp; 재고일수 = 재고수량 ÷ 3개월 평균판매수량 × 30`;
+}
 function renderPSI(){
   const fs=document.getElementById('fp')?.value||'';
   const fpkg=document.getElementById('fpkg')?.value||'';
@@ -4355,6 +4771,12 @@ function renderPSI(){
   });
 
   const months=PSI_MONTHS;
+  // 표시 월 라벨: 업로드된 PSI 시트의 실제 월(monthRealLabels)을 사용 → 엑셀만 롤하면 매달 자동으로 따라감.
+  const realLabels=getPSIData()?.[0]?.monthRealLabels||{};
+  const moLabel=m=>realLabels[m.key]||m.key;
+  const firstMo=moLabel(months[0]);
+  const lastMo=moLabel(months[months.length-1]);
+  updatePsiMonthTexts(firstMo,lastMo);
 
   let h=`<div style="padding:7px 12px;background:#f7f8fb;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:700;">
     표시 ${data.length.toLocaleString()}개 / ${fdaiso==='all'?'다이소 마스터 원본':`전체 ${allData.length.toLocaleString()}개 SKU`}
@@ -4373,7 +4795,7 @@ function renderPSI(){
     </div>`;
   }
   const si=col=>`${_sortIcon(_psiSort,col)}`;
-  h+=`<table class="psi-tbl monthly">
+  h+=`<div class="psi-scroll"><table class="psi-tbl monthly">
     <thead>
       <tr>
         <th rowspan="3" class="l" style="min-width:86px;cursor:pointer;" onclick="sortPsiCol('mat')" data-scol="mat">자재코드 ${si('mat')}</th>
@@ -4383,7 +4805,7 @@ function renderPSI(){
         <th rowspan="3" class="l" style="min-width:110px;cursor:pointer;" onclick="sortPsiCol('plant')" data-scol="plant">플랜트 ${si('plant')}</th>
         <th rowspan="3" class="r" style="cursor:pointer;" onclick="sortPsiCol('avg3')" data-scol="avg3">3평판 ${si('avg3')}</th>
         <th rowspan="3" class="c plan-hd" style="min-width:74px;cursor:pointer;" onclick="sortPsiCol('soojin')" data-scol="soojin">소진판단 ${si('soojin')}</th>
-        ${months.map(m=>`<th colspan="7" class="plan-hd month-group" style="text-align:center;">${m.key}</th>`).join('')}
+        ${months.map(m=>`<th colspan="7" class="plan-hd month-group" style="text-align:center;">${moLabel(m)}</th>`).join('')}
         <th rowspan="3" class="l plan-hd" style="min-width:130px;">소진계획</th>
       </tr>
       <tr>
@@ -4392,7 +4814,7 @@ function renderPSI(){
       <tr>
         ${months.map(m=>`<th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-end')" data-scol="${m.key}-end">수량 ${si(m.key+'-end')}</th><th class="plan-hd c" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-days')" data-scol="${m.key}-days">재고일수 ${si(m.key+'-days')}</th><th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisEnd')" data-scol="${m.key}-basisEnd">수량 ${si(m.key+'-basisEnd')}</th><th class="plan-hd c month-end" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisDays')" data-scol="${m.key}-basisDays">재고일수 ${si(m.key+'-basisDays')}</th>`).join('')}
       </tr>
-    </thead><tbody id="psiTbody"></tbody></table>`;
+    </thead><tbody id="psiTbody"></tbody></table></div>`;
 
   _psiState.data=data.map(d=>{
     const soojin=computeSoojin(d.mat,d.inv,null,d.pkg,0);
@@ -4407,8 +4829,10 @@ let psiBarChart=null;
 function renderPSIChart(){
   safeDestroyChart('psiChart'); psiBarChart=null;
   if(!hasChart()){ markChartOffline('psiChart','Chart.js가 차단되어 PSI 차트는 숨기고 리스트를 표시합니다.'); renderChProg(); return; }
-  const data=getPSIData().filter(d=>d.sp==='red'||d.sp==='yellow').sort((a,b)=>a.dp-b.dp).slice(0,12);
-  psiBarChart=new Chart(document.getElementById('psiChart'),{
+  const psiCanvas=document.getElementById('psiChart');
+  if(!psiCanvas) return;
+  const data=getPSIData().filter(d=>d.sp==='red').sort((a,b)=>a.dp-b.dp).slice(0,12);
+  psiBarChart=new Chart(psiCanvas,{
     type:'bar',
     plugins:[ChartDataLabels],
     data:{
@@ -4507,13 +4931,12 @@ function runSim(){
     const share=requiredQty==null?0:(amt>=0?requiredQty:-requiredQty);
     const newEnd=currEnd-share;
     const newDays=d.avg3>0?Math.round(newEnd/d.avg3*30):null;
-    const risk=requiredQty==null||newDays==null?'nodata':(newEnd<=0||newDays<90)?'short':newDays>180?'excess':'normal';
+    const risk=requiredQty==null||newDays==null?'nodata':(newEnd<=0||newDays<90)?'short':'normal';
     return {...d,share,requiredQty,planShare,allocatedAmt,currEnd,currDays,newEnd,newDays,risk};
   }).sort((a,b)=>(a.newDays??99999)-(b.newDays??99999));
 
   const shortage=results.filter(r=>r.risk==='short');
   const normal=results.filter(r=>r.risk==='normal');
-  const excess=results.filter(r=>r.risk==='excess').sort((a,b)=>b.newDays-a.newDays);
   const nodata=results.filter(r=>r.risk==='nodata');
   const totalRequiredQty=results.reduce((sum,r)=>sum+Math.abs(r.share||0),0);
 
@@ -4532,7 +4955,7 @@ function runSim(){
           <th style="width:10%;text-align:right;padding:5px;">판정</th>
         </tr></thead><tbody>`;
     rows.slice(0,20).forEach(r=>{
-      const decision=riskType==='short'?`${Math.max(0,90-(r.newDays??0))}일 부족`:riskType==='excess'?`${Math.max(0,(r.newDays??180)-180)}일 초과`:'정상';
+      const decision=riskType==='short'?`${Math.max(0,90-(r.newDays??0))}일 부족`:'정상';
       const qtyPrefix=amt>=0?'+':'-';
       block+=`<tr style="border-bottom:1px solid rgba(0,0,0,.07);">
         <td style="padding:6px 5px;font-weight:800;color:var(--muted);">${r.mat||'—'}</td>
@@ -4550,8 +4973,7 @@ function runSim(){
   };
 
   html+=renderRiskTable('재고부족 Risk · 90일 미만',shortage,'var(--red-lt)','var(--red)','short');
-  html+=renderRiskTable('정상 · 90~180일',normal,'#eaf2e8','var(--green)','normal');
-  html+=renderRiskTable('재고과잉 Risk · 180일 초과',excess,'var(--yellow-lt)','#8a5c00','excess');
+  html+=renderRiskTable('정상 · 90일 이상',normal,'#eaf2e8','var(--green)','normal');
 
   if(nodata.length){
     html+=`<div style="padding:8px 12px;background:#f7f8fa;color:var(--muted);font-size:11px;border-top:1px solid var(--border);">
@@ -4627,12 +5049,25 @@ function aggregateHitRows(rows){
     return {...row,diff,hitAcc,type:diff>0?'over':diff<0?'under':'match',over:Math.max(diff,0),under:Math.min(diff,0)};
   }).filter(row=>row.plan>0||row.actual>0);
 }
+function getDaisoCodeMap(){return UPLOADED?.daiso_code_map||null;}
+function getDaisoGroupMembers(){return UPLOADED?.daiso_group_members||null;}
+// 다이소 개별 자재코드 → 통합코드/통합품목명으로 치환 (채널은 유지 → 채널+통합코드 집계).
+// 같은 통합품목이 여러 제조사 코드로 나뉘어 계획/실적이 분산되는 문제를 통합코드로 합산해 해소.
+function remapHitRowDaiso(row){
+  const map=getDaisoCodeMap();
+  if(!map) return row;
+  const mat=String(row.mat||'').trim();
+  const g=map[mat];
+  if(!g) return row;
+  return {...row,mat:g.code,n:g.name,name:g.name,_daisoIntegrated:true,_origMat:mat};
+}
 function getHitMonthRows(month){
   const hit=getHitData();
   const mo=normalizeMonthKey(month);
   const monthRows=hit?.byMonth?.[mo]||[];
   const fallbackRows=(hit?.rows&&hit.rows.length)?hit.rows:ALL_SKU;
-  return aggregateHitRows(monthRows.length?monthRows:fallbackRows);
+  const src=(monthRows.length?monthRows:fallbackRows).map(remapHitRowDaiso);
+  return aggregateHitRows(src);
 }
 function buildMonthAggMap(month){
   const map=new Map();
@@ -4641,9 +5076,29 @@ function buildMonthAggMap(month){
 }
 function getNextPlan(row,nextMonth,matCurrentTotals){
   const mat=String(row.mat||'').trim();
-  const sp=getSalesPlanData()?.[mat];
-  if(!sp||!nextMonth||nextMonth<6||nextMonth>10) return {amt:0,qty:0,source:'차월계획 없음'};
+  if(!nextMonth||nextMonth<6||nextMonth>10) return {amt:0,qty:0,source:'차월계획 없음'};
   const idx=nextMonth-6;
+  // 다이소 통합코드 행: 판매계획은 개별코드로 들어있으므로 멤버 코드들의 계획을 채널 기준으로 합산
+  const members=getDaisoGroupMembers()?.[mat];
+  if(members&&members.length){
+    let amt=0,qty=0,found=false;
+    members.forEach(code=>{
+      const msp=getSalesPlanData()?.[code];
+      if(!msp) return;
+      found=true;
+      const mch=msp.byChannel?.[row.ch];
+      if(mch){
+        amt+=(Number(mch.planAmt?.[idx]?.amt)||0)/1e8;
+        qty+=Number(mch.planQty?.[idx]?.qty)||0;
+      }else{
+        amt+=(Number(msp.planAmt?.[idx]?.amt)||0)/1e8;
+        qty+=Number(msp.planQty?.[idx]?.qty)||0;
+      }
+    });
+    return {amt,qty,source:found?'다이소 통합계획 합산':'차월계획 없음'};
+  }
+  const sp=getSalesPlanData()?.[mat];
+  if(!sp) return {amt:0,qty:0,source:'차월계획 없음'};
   const chPlan=sp.byChannel?.[row.ch];
   if(chPlan){
     return {
@@ -5026,12 +5481,16 @@ function applySort(rows,sorts){
   return [...rows].sort((a,b)=>compareSortRows(a,b,sorts));
 }
 function nextSortState(current,key,shiftKey){
+  // 같은 컬럼을 다시 클릭하면(Shift 여부 무관) 방향을 토글해야 하므로, 배열을 새로 만들기 전에
+  // 기존 상태(current)에서 먼저 같은 key를 찾아 다음 방향을 결정한다.
+  const existing=current.find(s=>s.key===key);
+  const nextDir=existing?(existing.dir==='asc'?'desc':'asc'):defaultSortDir(key);
   const next=shiftKey?cloneSort(current):[];
   const idx=next.findIndex(s=>s.key===key);
   if(idx>=0){
-    next[idx]={...next[idx],dir:next[idx].dir==='asc'?'desc':'asc',label:sortLabelFor(key)};
+    next[idx]={...next[idx],dir:nextDir,label:sortLabelFor(key)};
   }else{
-    next.push({key,dir:defaultSortDir(key),label:sortLabelFor(key)});
+    next.push({key,dir:nextDir,label:sortLabelFor(key)});
   }
   return next;
 }
@@ -5151,6 +5610,24 @@ function getHTTotals(rows){
   totals.skuCount=skuSet.size;
   return totals;
 }
+// 판매계획 보정 대상 리스트 전용: 당월계획/당월실적/차이금액 소수 2자리 표기 (다른 탭 공용 포맷 함수는 영향 없음)
+function fmtHTPlanActual2dp(row,key,unit){
+  if(unit==='qty'){
+    const q=qtyFromAmountM(row,row[key]);
+    if(q==null||!isFinite(q)) return '<span style="color:var(--muted);font-size:10px;">매칭 없음</span>';
+    return Math.round(q).toLocaleString();
+  }
+  return `${(Number(row[key])||0).toFixed(2)}억`;
+}
+function fmtHTDiff2dp(row,unit){
+  if(unit==='qty'){
+    const q=qtyFromAmountM(row,row.diff);
+    if(q==null||!isFinite(q)) return '<span style="color:var(--muted);font-size:10px;">매칭 없음</span>';
+    return (q>0?'+':'')+Math.round(q).toLocaleString();
+  }
+  const n=Number(row.diff)||0;
+  return `${n>0?'+':n<0?'-':''}${Math.abs(n).toFixed(2)}억`;
+}
 function fmtHTTotal(rows,key){
   if(htUnit==='amt'){
     const value=rows.reduce((sum,row)=>{
@@ -5158,7 +5635,7 @@ function fmtHTTotal(rows,key){
       if(key==='under') return sum+Math.min(Number(row.under)||0,0);
       return sum+(Number(row[key])||0);
     },0);
-    const formatted=Math.abs(value)>=10?value.toFixed(1):value.toFixed(2);
+    const formatted=value.toFixed(2);
     if(key==='over') return value>0?'+'+formatted:'—';
     if(key==='under') return value<0?formatted:'—';
     return formatted;
@@ -5180,8 +5657,10 @@ function fmtHTTotal(rows,key){
 function renderHT(){
   const fhc=document.getElementById('fhc')?.value||'';
   const fht=document.getElementById('fht')?.value||'';
+  const fhq=(document.getElementById('fhq')?.value||'').trim().toLowerCase();
   const allRows=getVisibleAdjustmentRows();
-  const filteredRows=fht?allRows.filter(d=>d.correctionType===fht):allRows;
+  let filteredRows=fht?allRows.filter(d=>d.correctionType===fht):allRows;
+  if(fhq) filteredRows=filteredRows.filter(d=>String(d.mat||'').toLowerCase().includes(fhq)||String(d.n||d.name||'').toLowerCase().includes(fhq));
   const data=applySort(filteredRows,htSort);
   planAdjustRowsCache=data;
   const totals=getHTTotals(data);
@@ -5217,7 +5696,7 @@ function renderHT(){
       <td class="l" colspan="2">총계 · ${totals.skuCount.toLocaleString()}개 SKU</td>
       <td class="r">${fmtHTTotal(data,'plan')}</td>
       <td class="r">${fmtHTTotal(data,'actual')}</td>
-      <td class="r">${amountFmtEok(totals.actual-totals.plan)}</td>
+      <td class="r">${(()=>{const n=totals.actual-totals.plan;return `${n>0?'+':n<0?'-':''}${Math.abs(n).toFixed(2)}억`;})()}</td>
       <td class="hit-rate-col">
         <div class="hit-rate-wrap"><span class="tag ${totalClass}" style="font-size:15px;font-weight:900;padding:3px 9px;">${displayWape.toFixed(1)}%</span></div>
         <div style="font-size:9px;color:var(--muted);margin-top:2px;">${displaySubText}</div>
@@ -5231,8 +5710,9 @@ function renderHT(){
     const name=String(d.n||'');
     const memoKey=`hitAdjustMemo|${hitRowKey(d)}`;
     const memo=(localStorage.getItem(memoKey)||'').replace(/"/g,'&quot;');
-    h+=`<tr${d.needCorrection?'':' style="opacity:0.72;"'}><td class="l">${d.ch}</td><td class="l" style="color:var(--muted);font-weight:700;">${d.mat||'—'}</td><td class="l"><button class="link-btn item-ellipsis" title="${name}" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;" onclick="openPlanAdjustModalByIndex(${idx})">${name}</button></td>
-      <td class="r">${fmtPlanActualByUnit(d,'plan',htUnit)}</td><td class="r">${fmtPlanActualByUnit(d,'actual',htUnit)}</td><td class="r ${d.diff>=0?'diff-pos':'diff-neg'}">${fmtAdjustAmount(d,'diff')}</td>
+    const daisoTag=d._daisoIntegrated?'<span class="tag b" style="font-size:9px;padding:0 4px;margin-left:4px;vertical-align:middle;" title="다이소 통합코드 · 개별 제조사 코드 합산">통합</span>':'';
+    h+=`<tr${d.needCorrection?'':' style="opacity:0.72;"'}><td class="l">${d.ch}</td><td class="l" style="color:var(--muted);font-weight:700;">${d.mat||'—'}</td><td class="l"><button class="link-btn item-ellipsis" title="${name}" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;" onclick="openPlanAdjustModalByIndex(${idx})">${name}</button>${daisoTag}</td>
+      <td class="r">${fmtHTPlanActual2dp(d,'plan',htUnit)}</td><td class="r">${fmtHTPlanActual2dp(d,'actual',htUnit)}</td><td class="r ${d.diff>=0?'diff-pos':'diff-neg'}">${fmtHTDiff2dp(d,htUnit)}</td>
       <td class="r"><span class="tag ${ac}">${err}</span></td><td class="c">${d.recentDirection}</td><td class="c"><span class="tag ${ac}">${d.correctionType}</span></td>
       <td class="l">${d.recommendedAction}</td><td class="l"><textarea class="action-memo" data-memo-key="${memoKey}" oninput="localStorage.setItem(this.dataset.memoKey,this.value)" placeholder="조치의견 입력">${memo}</textarea></td>
     </tr>`;
@@ -5269,12 +5749,32 @@ const SP_CH = [
 
 let spMode = 'brand';
 let spMetric = 'amount';
+let spYear = 2026;
 let spChart = null;
 
 function toggleSP(mode, btn){
   spMode = mode;
   document.querySelectorAll('#spBrandBtn,#spChBtn').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
+  renderSP();
+}
+function toggleSPYear(year, btn){
+  spYear = year;
+  document.querySelectorAll('#spYear25Btn,#spYear26Btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  // 25년은 전년(24년) 데이터가 없어 전년비 계산 불가 → 전년비 선택 중이면 매출로 자동 전환하고 버튼 비활성화
+  ['spMetricYoyBtn','spMetricCumYoyBtn'].forEach(id=>{
+    const b=document.getElementById(id);
+    if(!b) return;
+    b.disabled=(spYear===2025);
+    b.style.opacity=spYear===2025?'0.4':'';
+    b.style.cursor=spYear===2025?'not-allowed':'';
+  });
+  if(spYear===2025&&(spMetric==='yoy'||spMetric==='cumYoy')){
+    spMetric='amount';
+    document.querySelectorAll('#spMetricAmountBtn,#spMetricNetBtn,#spMetricYoyBtn,#spMetricCumYoyBtn').forEach(b=>b.classList.remove('on'));
+    document.getElementById('spMetricAmountBtn')?.classList.add('on');
+  }
   renderSP();
 }
 function toggleSPMetric(metric, btn){
@@ -5300,11 +5800,16 @@ function getSPRows(mode=spMode){
   return clean(fallback);
 }
 function getSPTarget(){
+  if(spYear===2025) return null; // 25년은 사업계획 목표 미보유
   return UPLOADED?.sales_plan?.__summary?.target||null;
 }
 function spRawValue(row,m,periods){
-  if(periods.actualMonths.includes(m)) return Number(row.actual?.[m-1])||0;
-  if(periods.planMonths.includes(m)) return Number(row.plan?.[m-6])||0;
+  // 25년 뷰: prevActual(=2025 실적 12개월)을 그대로 표시 (전 구간 실적)
+  if(spYear===2025) return Number(row.prevActual?.[m-1])||0;
+  const ai=periods.actualMonths.indexOf(m);
+  if(ai>=0) return Number(row.actual?.[ai])||0;
+  const pi=periods.planMonths.indexOf(m);
+  if(pi>=0) return Number(row.plan?.[pi])||0;
   return null;
 }
 function spNetFactor(row,monthIdx,periods){
@@ -5334,11 +5839,24 @@ function getSPBrandNetFactors(periods){
   });
 }
 function getSPPeriods(rows){
+  if(spYear===2025){
+    // 25년: 전 구간 확정 실적, 계획 구간 없음
+    return {actualMonths:[1,2,3,4,5,6,7,8,9,10,11,12],planMonths:[],displayMonths:[1,2,3,4,5,6,7,8,9,10,11,12]};
+  }
+  const summary=UPLOADED?.sales_plan?.__summary;
   return {
-    actualMonths:[1,2,3,4,5],
-    planMonths:[6,7,8,9,10],
+    actualMonths:summary?.actualMonths?.length?summary.actualMonths:[1,2,3,4,5],
+    planMonths:summary?.planMonths?.length?summary.planMonths:[6,7,8,9,10],
     displayMonths:[1,2,3,4,5,6,7,8,9,10,11,12]
   };
+}
+function getSPGapMonths(periods){
+  if(!periods.actualMonths.length||!periods.planMonths.length) return [];
+  const lastActual=Math.max(...periods.actualMonths);
+  const firstPlan=Math.min(...periods.planMonths);
+  const gaps=[];
+  for(let m=lastActual+1;m<firstPlan;m++) gaps.push(m);
+  return gaps;
 }
 function spPointSeries(row,periods=getSPPeriods([row])){
   const current=periods.displayMonths.map((m,i)=>{
@@ -5346,7 +5864,7 @@ function spPointSeries(row,periods=getSPPeriods([row])){
     if(value==null) return null;
     return value*(spMetric==='net'?spNetFactor(row,i,periods):1);
   });
-  const prev=periods.displayMonths.map((m,i)=>(Number(row.prevActual?.[m-1])||0)*(spMetric==='net'?spNetFactor(row,i,periods):1));
+  const prev=periods.displayMonths.map((m,i)=>(spYear===2025?0:(Number(row.prevActual?.[m-1])||0))*(spMetric==='net'?spNetFactor(row,i,periods):1));
   const cumulCurrent=current.reduce((s,v)=>s+(Number(v)||0),0);
   const cumulPrev=prev.reduce((s,v)=>s+(Number(v)||0),0);
   if(spMetric==='amount'||spMetric==='net') return {current,prev,values:current,cumul:cumulCurrent};
@@ -5387,8 +5905,10 @@ function spTargetSeries(periods=getSPPeriods([])){
   const target=getSPTarget();
   if(!target) return {values:periods.displayMonths.map(()=>null),cumul:null};
   const values=periods.displayMonths.map(m=>{
-    if(periods.actualMonths.includes(m)) return Number(target.actual?.[m-1])||0;
-    if(periods.planMonths.includes(m)) return Number(target.plan?.[m-6])||0;
+    const ai=periods.actualMonths.indexOf(m);
+    if(ai>=0) return Number(target.actual?.[ai])||0;
+    const pi=periods.planMonths.indexOf(m);
+    if(pi>=0) return Number(target.plan?.[pi])||0;
     return null;
   });
   return {values,cumul:values.reduce((s,v)=>s+(Number(v)||0),0)};
@@ -5407,8 +5927,8 @@ function spGoalRowsHtml(totalSeries,targetSeries,periods){
     const emptyCells=periods.displayMonths.map(()=>`<td style="padding:5px 4px;text-align:right;">-</td>`).join('');
     return `
       <tr class="sp-goal-row"><td style="padding:5px 8px;">사업계획 목표</td>${emptyCells}<td style="padding:5px 4px;text-align:right;">-</td></tr>
-      <tr class="sp-goal-rate-row"><td style="padding:5px 8px;">목표비</td>${emptyCells}<td style="padding:5px 4px;text-align:right;">-</td></tr>
-      <tr class="sp-goal-rate-row"><td style="padding:5px 8px;">목표비(누계)</td>${emptyCells}<td style="padding:5px 4px;text-align:right;">-</td></tr>`;
+      <tr class="sp-goal-rate-row"><td style="padding:5px 8px;">달성율</td>${emptyCells}<td style="padding:5px 4px;text-align:right;">-</td></tr>
+      <tr class="sp-goal-rate-row"><td style="padding:5px 8px;">누계 달성율</td>${emptyCells}<td style="padding:5px 4px;text-align:right;">-</td></tr>`;
   }
   let actualCum=0,targetCum=0;
   const monthlyRates=totalSeries.values.map((v,i)=>{
@@ -5427,12 +5947,12 @@ function spGoalRowsHtml(totalSeries,targetSeries,periods){
       <td style="padding:5px 4px;text-align:right;">${fmtSPMetric(targetSeries.cumul)}</td>
     </tr>
     <tr class="sp-goal-rate-row">
-      <td style="padding:5px 8px;">목표비</td>
+      <td style="padding:5px 8px;">달성율</td>
       ${monthlyRates.map(v=>`<td class="${spGoalRateClass(v)}" style="padding:5px 4px;text-align:right;">${fmtSPGoalRate(v)}</td>`).join('')}
       <td class="${spGoalRateClass(totalSeries.cumul/(targetSeries.cumul||0)*100)}" style="padding:5px 4px;text-align:right;">${fmtSPGoalRate(targetSeries.cumul>0?totalSeries.cumul/targetSeries.cumul*100:null)}</td>
     </tr>
     <tr class="sp-goal-rate-row">
-      <td style="padding:5px 8px;">목표비(누계)</td>
+      <td style="padding:5px 8px;">누계 달성율</td>
       ${cumulRates.map(v=>`<td class="${spGoalRateClass(v)}" style="padding:5px 4px;text-align:right;">${fmtSPGoalRate(v)}</td>`).join('')}
       <td class="${spGoalRateClass(totalSeries.cumul/(targetSeries.cumul||0)*100)}" style="padding:5px 4px;text-align:right;">${fmtSPGoalRate(targetSeries.cumul>0?totalSeries.cumul/targetSeries.cumul*100:null)}</td>
     </tr>`;
@@ -5456,7 +5976,16 @@ function renderSP(){
     metricNote.textContent=spMetric==='amount'?'매출: 억원':spMetric==='net'?'순매출: 억원':spMetric==='yoy'?'전년 동월 대비':'1월부터 누계 기준 전년비';
   }
   const periodNote=document.getElementById('spPeriodNote');
-  if(periodNote) periodNote.innerHTML=`단위: 억원 &nbsp;|&nbsp; 1~5월: 실적 &nbsp;/&nbsp; 6~10월: 계획`;
+  if(periodNote){
+    if(spYear===2025){
+      periodNote.innerHTML=`단위: 억원 &nbsp;|&nbsp; 25년 확정 실적 (1~12월) &nbsp;|&nbsp; 사업계획 목표·전년비 미제공`;
+    }else{
+      const rangeTxt=months=>months.length?(months.length===1?`${months[0]}월`:`${Math.min(...months)}~${Math.max(...months)}월`):'-';
+      const gaps=getSPGapMonths(periods);
+      const gapHtml=gaps.length?` &nbsp;<span style="color:#ffd166;font-weight:900;">⚠ ${gaps.join(',')}월 구간 비어있음 — 원본 판매계획(SF) 시트 실적 구간 확인 필요</span>`:'';
+      periodNote.innerHTML=`단위: 억원 &nbsp;|&nbsp; ${rangeTxt(periods.actualMonths)}: 실적 &nbsp;/&nbsp; ${rangeTxt(periods.planMonths)}: 계획${gapHtml}`;
+    }
+  }
 
   // 합계 행 계산
   const totalSeries=spMetricTotalValues(rows,periods);
@@ -5514,17 +6043,17 @@ function renderSP(){
   let h=`<table class="sp-table">
     <thead>
       <tr>
-        <th rowspan="2" class="sp-name-col" style="background:var(--navy);color:#fff;padding:7px 8px;font-weight:700;text-align:left;">구분</th>
+        <th rowspan="2" class="sp-name-col" style="background:var(--navy);color:#fff;padding:7px 8px;font-weight:700;text-align:center;">구분</th>
         <th colspan="${periods.actualMonths.length}" style="background:var(--terra);color:#fff;padding:7px 8px;font-weight:700;text-align:center;">실 적</th>
-        <th colspan="${periods.planMonths.length}" style="background:var(--navy);color:#fff;padding:7px 8px;font-weight:700;text-align:center;">계 획</th>
-        <th colspan="2" style="background:#1d3570;color:#fff;padding:7px 8px;font-weight:700;text-align:center;">참 고</th>
+        ${periods.planMonths.length>0?`<th colspan="${periods.planMonths.length}" style="background:var(--navy);color:#fff;padding:7px 8px;font-weight:700;text-align:center;">계 획</th>`:''}
+        ${(()=>{const refCols=periods.displayMonths.length-periods.actualMonths.length-periods.planMonths.length;return refCols>0?`<th colspan="${refCols}" style="background:#1d3570;color:#fff;padding:7px 8px;font-weight:700;text-align:center;">참 고</th>`:'';})()}
         <th rowspan="2" class="sp-cum-col" style="background:#24305f;color:#fff;padding:7px 8px;font-weight:700;text-align:right;">누계</th>
       </tr>
       <tr>
         ${periods.displayMonths.map(m=>{
           const bg=periods.actualMonths.includes(m)?'#d45a35':periods.planMonths.includes(m)?'#2d3a9a':'#59627e';
           const label=periods.planMonths.includes(m)?`${m}월(P)`:`${m}월`;
-          return `<th class="sp-month-col" style="background:${bg};color:#fff;padding:7px 4px;text-align:right;">${label}</th>`;
+          return `<th class="sp-month-col" style="background:${bg};color:#fff;padding:7px 4px;text-align:center;">${label}</th>`;
         }).join('')}
       </tr>
     </thead><tbody>`;
@@ -5650,16 +6179,24 @@ function renderStrategyKpis(){
     '▼ 0.0억원 유지',
     '의사결정 필요','매우 우수');
 }
+function filterPSIBySignal(sig){
+  // Supply Risk 당월 도넛 조각 클릭 → PSI 전 품목 현황을 위험(red)/정상(green)으로 필터 + 스크롤
+  const fp=document.getElementById('fp');
+  if(fp){ fp.value=sig; renderPSI(); }
+  const target=document.getElementById('psiTableTitle')||document.getElementById('psiWrap');
+  if(target&&typeof target.scrollIntoView==='function') target.scrollIntoView({behavior:'smooth',block:'start'});
+}
 function renderRiskDonuts(){
   const uploaded=getSupplyRiskData();
-  const prev=uploaded?.previous||{short:19,excess:17,normal:4,nodata:0,total:40};
-  const curr=uploaded?.current||{short:19,excess:11,normal:10,nodata:0,total:40};
+  const prev=uploaded?.previous||{short:19,excess:0,normal:21,nodata:0,total:40};
+  const curr=uploaded?.current||{short:19,excess:0,normal:21,nodata:0,total:40};
   const baseText=String(UPLOADED?.base_label||currentDetailLabel()||'당월');
   const monthMatch=baseText.match(/(\d{1,2})\s*[\/월]/);
   const currMonth=monthMatch?Number(monthMatch[1]):6;
   const prevMonth=currMonth===1?12:currMonth-1;
-  const prevRisk=(prev.short||0)+(prev.excess||0);
-  const currRisk=(curr.short||0)+(curr.excess||0);
+  // RISK SKU = 위험(90일 미만)만. 과잉 개념 제거.
+  const prevRisk=(prev.short||0);
+  const currRisk=(curr.short||0);
   const riskDiff=currRisk-prevRisk;
 
   const prevLabel=document.getElementById('riskPrevLabel');
@@ -5669,7 +6206,6 @@ function renderRiskDonuts(){
   const note=document.getElementById('riskCompareNote');
   const psiHeader=document.getElementById('psiSkuHeaderCount');
   const psiShort=document.getElementById('psiShortCount');
-  const psiExcess=document.getElementById('psiExcessCount');
   const psiNormal=document.getElementById('psiNormalCount');
   const psiTotal=document.getElementById('psiTotalCount');
   const psiNoData=document.getElementById('psiNoDataCount');
@@ -5686,7 +6222,6 @@ function renderRiskDonuts(){
   }
   if(psiHeader) psiHeader.textContent=`전 품목 ${(curr.total||0).toLocaleString()}개 / 안전재고 90일 기준`;
   if(psiShort) psiShort.textContent=`${(curr.short||0).toLocaleString()}개`;
-  if(psiExcess) psiExcess.textContent=`${(curr.excess||0).toLocaleString()}개`;
   if(psiNormal) psiNormal.textContent=`${(curr.normal||0).toLocaleString()}개`;
   if(psiTotal) psiTotal.textContent=`${(curr.total||0).toLocaleString()}개`;
   if(psiNoData) psiNoData.textContent=`재고일수 미산출 ${(curr.nodata||0).toLocaleString()}개`;
@@ -5711,9 +6246,10 @@ function renderRiskDonuts(){
   if(strategyRiskCard) strategyRiskCard.classList.toggle('warn',!strategyRiskGood);
   if(note){
     const diffText=riskDiff===0?'전월과 동일':`전월 대비 ${riskDiff>0?'▲':'▼'} ${Math.abs(riskDiff).toLocaleString()}개`;
-    note.innerHTML=`재고부족 90일 미만 · 정상 90~180일 · 재고과잉 180일 초과<br>
+    note.innerHTML=`위험 90일 미만 · 정상 90일 이상 (2단계)<br>
       <strong style="color:${riskDiff<=0?'var(--green)':'var(--red)'};">${diffText}</strong>
-      &nbsp;|&nbsp; 재고일수 미산출: 전월 ${(prev.nodata||0).toLocaleString()}개 / 당월 ${(curr.nodata||0).toLocaleString()}개`;
+      &nbsp;|&nbsp; 재고일수 미산출: 전월 ${(prev.nodata||0).toLocaleString()}개 / 당월 ${(curr.nodata||0).toLocaleString()}개
+      <br><span style="color:var(--navy);font-weight:800;">👆 당월 그래프 조각을 클릭하면 아래 PSI 전 품목 현황이 해당 품목으로 필터됩니다</span>`;
   }
 
   if(!hasChart()){
@@ -5721,17 +6257,19 @@ function renderRiskDonuts(){
     markChartOffline('riskDonut2','Chart.js가 차단되어 도넛 차트를 숨깁니다.');
     return;
   }
-  const COLORS=['#D64545','#E3B341','#33512E'];
-  [[riskDonut1Chart,'riskDonut1',[prev.short||0,prev.excess||0,prev.normal||0]],
-   [riskDonut2Chart,'riskDonut2',[curr.short||0,curr.excess||0,curr.normal||0]]].forEach(([ref,id,vals],ri)=>{
+  const COLORS=['#D64545','#33512E'];
+  [[riskDonut1Chart,'riskDonut1',[prev.short||0,prev.normal||0]],
+   [riskDonut2Chart,'riskDonut2',[curr.short||0,curr.normal||0]]].forEach(([ref,id,vals],ri)=>{
     safeDestroyChart(id);
     const chart = new Chart(document.getElementById(id),{
       type:'doughnut',
       data:{datasets:[{data:vals,backgroundColor:COLORS,borderWidth:2,borderColor:'#fff'}]},
       options:{
         responsive:true,maintainAspectRatio:false,cutout:'65%',
+        onClick:ri===1?(e,els)=>{ if(els&&els.length) filterPSIBySignal(els[0].index===0?'red':'green'); }:undefined,
+        onHover:ri===1?(e,els)=>{ if(e?.native?.target) e.native.target.style.cursor=(els&&els.length)?'pointer':'default'; }:undefined,
         plugins:{legend:{display:false},datalabels:{display:false},tooltip:{
-          callbacks:{label:c=>`${c.label||['재고부족','재고과잉','정상'][c.dataIndex]}: ${c.parsed}개`}
+          callbacks:{label:c=>`${c.label||['위험','정상'][c.dataIndex]}: ${c.parsed}개${ri===1?' · 클릭 시 품목 보기':''}`}
         }}
       }
     });
@@ -5849,20 +6387,31 @@ function renderChAchieve(){
   const monthDiffLabelPlugin={
     id:'monthDiffLabel',
     afterDraw(chart){
-      const {ctx,chartArea,scales}=chart;
+      const {ctx,chartArea}=chart;
       if(!chartArea) return;
       ctx.save();
       ctx.textAlign='center';
-      ctx.textBaseline='bottom';
+      ctx.textBaseline='middle';
       ctx.font='900 11px Arial';
       rows.forEach((d,i)=>{
         const meta0=chart.getDatasetMeta(0).data[i];
         const meta1=chart.getDatasetMeta(1).data[i];
         if(!meta0||!meta1) return;
+        const text=`${d.diff>=0?'▲+':'▼'}${Math.abs(d.diff).toFixed(1)}억`;
         const x=(meta0.x+meta1.x)/2;
-        const y=Math.min(meta0.y,meta1.y)-18;
+        const y=Math.min(meta0.y,meta1.y)-32;
+        const w=ctx.measureText(text).width;
+        const boxW=w+12, boxH=17;
         ctx.fillStyle=d.diff>=0?'#33512E':'#D64545';
-        ctx.fillText(`${d.diff>=0?'+':'-'}${Math.abs(d.diff).toFixed(1)}억`,x,y);
+        if(ctx.roundRect){
+          ctx.beginPath();
+          ctx.roundRect(x-boxW/2,y-boxH/2,boxW,boxH,8);
+          ctx.fill();
+        }else{
+          ctx.fillRect(x-boxW/2,y-boxH/2,boxW,boxH);
+        }
+        ctx.fillStyle='#fff';
+        ctx.fillText(text,x,y+1);
       });
       ctx.restore();
     }
@@ -5895,7 +6444,7 @@ function renderChAchieve(){
     options:{
       responsive:true,maintainAspectRatio:false,
       plugins:{
-        legend:{position:'top',labels:{font:{size:11},boxWidth:20}},
+        legend:{position:'bottom',labels:{font:{size:11},boxWidth:20}},
         tooltip:{callbacks:{
           label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}억`,
           afterBody:(items)=>{
@@ -5905,7 +6454,7 @@ function renderChAchieve(){
         }},
         datalabels:{}
       },
-      layout:{padding:{top:24,right:14}},
+      layout:{padding:{top:38,right:14}},
       scales:{
         x:{grid:{display:false},ticks:{font:{size:11,weight:'800'}}},
         y:{grid:{color:'#f0f1f5'},ticks:{callback:v=>v+'억',font:{size:10}},border:{display:false}}
@@ -5970,11 +6519,12 @@ function renderInsightBody(id,rows,mode){
     const err=d.errorRate==null?'계획없음':d.errorRate.toFixed(1)+'%';
     const diffCls=d.diff>=0?'diff-pos':'diff-neg';
     const name=String(d.n||d.name||'');
+    const daisoTag=d._daisoIntegrated?'<span class="tag b" style="font-size:9px;padding:0 4px;margin-left:3px;vertical-align:middle;" title="다이소 통합코드 · 개별 제조사 코드 합산">통합</span>':'';
     if(mode==='impact'){
       return `<tr>
         <td class="insight-text" title="${d.ch}">${d.ch}</td>
         <td class="insight-text" title="${d.mat||'—'}">${d.mat||'—'}</td>
-        <td class="insight-text"><button class="link-btn item-ellipsis" title="${name}" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;" onclick="openPlanAdjustModalByKey('${hitRowKey(d).replace(/'/g,'&#39;')}')">${name}</button></td>
+        <td class="insight-text"><button class="link-btn item-ellipsis" title="${name}" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;" onclick="openPlanAdjustModalByKey('${hitRowKey(d).replace(/'/g,'&#39;')}')">${name}</button>${daisoTag}</td>
         <td class="insight-num">${plan}</td>
         <td class="insight-num">${actual}</td>
         <td class="insight-num ${diffCls}">${diff}</td>
@@ -5985,7 +6535,7 @@ function renderInsightBody(id,rows,mode){
     return `<tr style="border-bottom:1px solid var(--border);">
       <td class="insight-text" title="${d.ch}">${d.ch}</td>
       <td class="insight-text" title="${d.mat||'—'}">${d.mat||'—'}</td>
-      <td class="insight-text"><button class="link-btn item-ellipsis" title="${name}" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;" onclick="openPlanAdjustModalByKey('${hitRowKey(d).replace(/'/g,'&#39;')}')">${name}</button></td>
+      <td class="insight-text"><button class="link-btn item-ellipsis" title="${name}" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;" onclick="openPlanAdjustModalByKey('${hitRowKey(d).replace(/'/g,'&#39;')}')">${name}</button>${daisoTag}</td>
       <td class="insight-num">${plan}</td>
       <td class="insight-num">${actual}</td>
       <td class="insight-num ${diffCls}">${diff}</td>
@@ -6063,9 +6613,15 @@ function openPlanAdjustModal(row){
         </tbody></table>
       </div>
       <div class="analysis-box">
-        <div class="analysis-title">채널별 계획·실적·차이</div>
+        <div class="analysis-title">이 품목 채널별 분포 <span style="font-weight:600;color:var(--muted);font-size:10.5px;">(참고 · 배분 문제 진단용)</span></div>
+        ${row.correctionType==='채널 계획 재점검'?`<div style="font-size:10.5px;color:#8a5c00;background:#fff8e8;border:1px solid #f0d089;border-radius:4px;padding:5px 8px;margin-bottom:6px;">⚠ 품목 총량 대비 <b>${row.ch}</b> 채널 편차가 커 <b>채널 배분 재점검</b> 대상입니다.</div>`:''}
         <table class="analysis-table"><colgroup><col style="width:28%"><col style="width:24%"><col style="width:24%"><col style="width:24%"></colgroup><thead><tr><th class="l">채널</th><th class="r">계획</th><th class="r">실적</th><th class="r">차이</th></tr></thead><tbody>
-          ${channels.map(c=>`<tr><td class="l">${c.ch}</td><td class="r">${amountFmtEokPlain(c.plan)}</td><td class="r">${amountFmtEokPlain(c.actual)}</td><td class="r ${c.diff>=0?'diff-pos':'diff-neg'}">${amountFmtEok(c.diff)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--muted);">채널 데이터 없음</td></tr>'}
+          ${channels.map(c=>{
+            const isCurrent=String(c.ch||'').trim()===String(row.ch||'').trim();
+            const trStyle=isCurrent?'background:#eef2ff;':'';
+            const nameCell=isCurrent?`<strong style="color:var(--navy);">${c.ch}</strong> <span style="color:var(--navy);font-weight:900;font-size:10px;">◀ 현재</span>`:`<span style="color:var(--muted);">${c.ch}</span>`;
+            return `<tr style="${trStyle}"><td class="l">${nameCell}</td><td class="r">${amountFmtEokPlain(c.plan)}</td><td class="r">${amountFmtEokPlain(c.actual)}</td><td class="r ${c.diff>=0?'diff-pos':'diff-neg'}">${amountFmtEok(c.diff)}</td></tr>`;
+          }).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--muted);">채널 데이터 없음</td></tr>'}
         </tbody></table>
       </div>
       <div class="analysis-box">
@@ -6102,14 +6658,26 @@ function openPlanAdjustModal(row){
         const {ctx}=chart;
         ctx.save();
         ctx.textAlign='center';
-        ctx.textBaseline='bottom';
+        ctx.textBaseline='middle';
         ctx.font='900 10px Arial';
         trend.forEach((d,i)=>{
           const m0=chart.getDatasetMeta(0).data[i];
           const m1=chart.getDatasetMeta(1).data[i];
           if(!m0||!m1) return;
+          const text=`${d.diff>=0?'▲+':'▼'}${Math.abs(d.diff).toFixed(1)}억`;
+          const x=(m0.x+m1.x)/2, y=Math.min(m0.y,m1.y)-28;
+          const w=ctx.measureText(text).width;
+          const boxW=w+12, boxH=16;
           ctx.fillStyle=d.diff>=0?'#33512E':'#D64545';
-          ctx.fillText(`${d.diff>=0?'+':'-'}${Math.abs(d.diff).toFixed(1)}억`,(m0.x+m1.x)/2,Math.min(m0.y,m1.y)-12);
+          if(ctx.roundRect){
+            ctx.beginPath();
+            ctx.roundRect(x-boxW/2,y-boxH/2,boxW,boxH,8);
+            ctx.fill();
+          }else{
+            ctx.fillRect(x-boxW/2,y-boxH/2,boxW,boxH);
+          }
+          ctx.fillStyle='#fff';
+          ctx.fillText(text,x,y+1);
         });
         ctx.restore();
       }
@@ -6119,11 +6687,21 @@ function openPlanAdjustModal(row){
       plugins:[ChartDataLabels,modalDiffLabelPlugin],
       data:{labels:trend.map(t=>t.month),datasets:[
         {label:'계획',data:trend.map(t=>t.plan),backgroundColor:'#AEB4C6',borderRadius:5,borderSkipped:false,barPercentage:.62,categoryPercentage:.72,
-          datalabels:{display:false}},
+          datalabels:{
+            display:ctx=>(ctx.dataset.data[ctx.dataIndex]||0)>=0.1,
+            anchor:'end',align:'top',offset:3,clamp:true,clip:false,
+            color:'#555',font:{size:10,weight:'800'},
+            formatter:v=>v.toFixed(1)+'억'
+          }},
         {label:'실적',data:trend.map(t=>t.actual),backgroundColor:trend.map(t=>t.diff>=0?'#33512E':'#D64545'),borderRadius:5,borderSkipped:false,barPercentage:.62,categoryPercentage:.72,
-          datalabels:{display:false}}
+          datalabels:{
+            display:ctx=>(ctx.dataset.data[ctx.dataIndex]||0)>=0.1,
+            anchor:'end',align:'top',offset:3,clamp:true,clip:false,
+            color:'#8F3F2D',font:{size:10,weight:'900'},
+            formatter:v=>v.toFixed(1)+'억'
+          }}
       ]},
-      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:24}},plugins:{legend:{position:'bottom'},datalabels:{},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}억`,afterBody:(items)=>{const d=trend[items?.[0]?.dataIndex||0];return `차이: ${diffText(d.diff)}`;}}}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>v+'억'}}}}
+      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:36,right:14}},plugins:{legend:{position:'bottom'},datalabels:{},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}억`,afterBody:(items)=>{const d=trend[items?.[0]?.dataIndex||0];return `차이: ${diffText(d.diff)}`;}}}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>v+'억'}}}}
     });
   }
 }
@@ -6132,6 +6710,7 @@ function openPlanAdjustModal(row){
 window.addEventListener('DOMContentLoaded',()=>{
   runStep('initChartPlugins', initChartPlugins);
   runStep('loadFromStorage', loadFromStorage);
+  runStep('renderSnapshotUI', renderSnapshotUI);
   runStep('renderKPICards', renderKPICards);
   runStep('renderChAgingChart', renderChAgingChart);
   runStep('renderTrendChart', renderTrendChart);
