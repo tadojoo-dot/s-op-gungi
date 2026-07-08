@@ -52,7 +52,8 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .tab.strategy-tab.on{background:rgba(255,209,102,.12);}
 .tab.strategy-tab.on .tab-kr{color:#FFE08A;}
 .tab-tools{display:flex;align-items:center;gap:8px;padding:0 8px;margin-left:auto;}
-.tab-upload-btn{display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 12px;border:1.5px dashed rgba(255,255,255,.3);border-radius:6px;font-size:11px;font-weight:600;color:rgba(255,255,255,.7);white-space:nowrap;transition:border-color .15s;}
+.tab-upload-btn{display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 12px;border:1.5px dashed rgba(255,255,255,.3);border-radius:6px;font-size:11px;font-weight:600;color:rgba(255,255,255,.7);white-space:nowrap;transition:border-color .15s;flex-shrink:1;min-width:0;max-width:340px;overflow:hidden;}
+.tab-upload-btn #uploadStatus{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tab-upload-btn:hover{border-color:rgba(255,255,255,.65);}
 .btn-print{height:30px;background:rgba(255,255,255,.13);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:0 14px;font-size:11px;font-weight:700;cursor:pointer;}
 .btn-print:hover{background:rgba(255,255,255,.25);}
@@ -154,11 +155,12 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .plan-cell{background:#fff0f6!important;color:var(--text);font-size:11px;line-height:1.35;white-space:normal;border:1px solid #f3b6cf!important;box-shadow:inset 0 0 0 1px rgba(214,69,112,.06);}
 .plan-cell:focus{outline:2px solid #e783a9;background:#ffe6f0!important;}
 .plan-cell:empty::before{content:'소진계획 입력';color:#c96b91;font-weight:700;}
-.plan-cell.saved{background:#fce7f0!important;}
+.plan-cell.saved{background:#e3f4fb!important;border-color:#6cb6e0!important;box-shadow:inset 0 0 0 1px rgba(60,140,190,.15)!important;}
 .plan-cell-td{position:relative;background:#fff0f6!important;border:1px solid #f3b6cf!important;box-shadow:inset 0 0 0 1px rgba(214,69,112,.06);padding-right:18px!important;}
+.plan-cell-td:has(.plan-cell.saved){background:#e3f4fb!important;border-color:#6cb6e0!important;box-shadow:inset 0 0 0 1px rgba(60,140,190,.15)!important;}
 .plan-cell-td .plan-cell{display:block;background:transparent!important;border:none!important;box-shadow:none!important;color:var(--text);font-size:11px;line-height:1.35;white-space:normal;min-height:14px;outline:none;}
 .plan-cell-td .plan-cell:focus{background:#ffe6f0!important;}
-.plan-cell-td .plan-cell.saved{background:#fce7f0!important;}
+.plan-cell-td .plan-cell.saved{background:transparent!important;}
 .plan-clear-btn{position:absolute;top:2px;right:2px;width:14px;height:14px;line-height:12px;text-align:center;padding:0;border:none;border-radius:50%;background:rgba(214,69,112,.18);color:#a3405f;font-size:9px;font-weight:700;cursor:pointer;opacity:.5;transition:opacity .15s;}
 .plan-clear-btn:hover{opacity:1;background:#d64570;color:#fff;}
 .psi-buy-input{width:78px;text-align:right;border:1px solid #b0c4e0;border-radius:3px;padding:1px 4px;font-size:11px;font-weight:700;background:#f0f8ff;color:var(--navy);height:21px;box-sizing:border-box;}
@@ -435,6 +437,7 @@ table.base tr:last-child td{border-bottom:none;}
 #p2 .analysis-box{border:1px solid var(--border);border-radius:7px;background:#fff;padding:12px;}
 #p2 .analysis-title{font-size:13px;font-weight:900;color:var(--navy);margin-bottom:8px;}
 #p2 .action-memo{width:100%;min-height:78px;border:1px solid var(--border);border-radius:6px;padding:9px 10px;font-family:inherit;font-size:13px;resize:vertical;}
+.action-memo.saved{background:#eceef3!important;border-color:#a9afc4!important;}
 #p2 .tbl tr:hover td{background:#f8f9ff;}
 #p2 .tbl tr:last-child td{border-bottom:none;}
 
@@ -486,7 +489,7 @@ table.base tr:last-child td{border-bottom:none;}
       <div class="hdr-sub">재고 Aging · PSI · 판매계획 오차 분석 · 회의 의사결정</div>
     </div>
   </div>
-  <div class="hdr-right">기준년월 <strong>2026.06</strong><br>데이터 기준: 현재고 AM2</div>
+  <div class="hdr-right">기준년월 <strong id="hdrBaseYm">—</strong><br>데이터 기준: 현재고 AM2</div>
 </div>
 
 <div class="no-print" style="display:none;">
@@ -528,7 +531,7 @@ table.base tr:last-child td{border-bottom:none;}
           <button class="snap-del" title="선택 스냅샷 삭제" onclick="deleteSnapshot(document.getElementById('snapshotSelect').value)">🗑</button>
         </div>
         <button class="snap-save" onclick="saveSnapshot()">+ 현재 상태 저장</button>
-        <div class="snap-hint">저장한 시점은 삭제 전까지 계속 보관되며, 월별로 묶여 표시됩니다</div>
+        <div class="snap-hint">저장한 시점은 삭제 전까지 계속 보관되며 월별로 묶여 표시됩니다 (전체 데이터 그대로 저장)</div>
       </div>
     </div>
     <button class="btn-print" onclick="window.print()">🖨 인쇄</button>
@@ -803,6 +806,10 @@ table.base tr:last-child td{border-bottom:none;}
           <option value="">전체 (3평판 없음 포함)</option>
           <option value="zero">3평판 없는 품목만</option>
         </select>
+        <select id="fMinInv" onchange="renderPSI()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;">
+          <option value="">전체</option>
+          <option value="1">당월 기초재고 100개 미만 제외</option>
+        </select>
         <input type="text" id="fpq" placeholder="자재코드/품목명 검색" oninput="renderPSI()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;width:150px;">
         <button onclick="resetPsiBuyOverrides()" title="직접 수정한 입고 조정값을 모두 원본 입고계획으로 되돌립니다" style="height:28px;border:1px solid #d6a545;background:#fff8e8;color:#8a5c00;border-radius:5px;padding:0 10px;font-size:11px;font-weight:700;cursor:pointer;">입고 조정 초기화</button>
       </div>
@@ -943,15 +950,24 @@ table.base tr:last-child td{border-bottom:none;}
         <div class="quick-minutes">
           <h3>결정사항 요약</h3>
           <textarea id="decisionMemo" oninput="saveMeetingMemo()" placeholder="확정된 의사결정만 간단히 정리&#10;예) 다이소 판매 증감 시뮬레이션 결과 검토 / 6개월 미만 신규진입 SKU 소진계획 확정"></textarea>
-          <div class="minutes-note">Sensing/AGING 드릴다운의 소진계획은 아래 Action Log에 자동 연동됩니다.</div>
+          <div class="minutes-note">Sensing/AGING 드릴다운의 소진계획은 재고Aging Action Log에, PSI 입고수량 조정은 PSI Action Log에 자동 연동됩니다.</div>
         </div>
       </div>
       <div class="sec-card" style="margin-top:14px;">
-        <div class="sec-head"><div class="sec-tw"><div class="sec-bar"></div><div class="sec-title">회의 Action Log</div></div><button class="btn-print" onclick="clearAllPlanActions()">전체 초기화</button></div>
+        <div class="sec-head"><div class="sec-tw"><div class="sec-bar"></div><div class="sec-title">재고Aging Action Log</div></div><button class="btn-print" onclick="clearAllPlanActions()">전체 초기화</button></div>
         <div class="sec-body flush">
           <table class="base">
             <thead><tr><th class="l">화면</th><th class="l">구간</th><th class="l">채널</th><th class="l">SKU</th><th class="l">품목</th><th class="l">소진계획</th><th class="c">저장시각</th></tr></thead>
             <tbody id="actionLogBody"><tr><td class="l" colspan="7">소진계획을 입력하면 여기에 자동 누적됩니다.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="sec-card" style="margin-top:14px;">
+        <div class="sec-head"><div class="sec-tw"><div class="sec-bar"></div><div class="sec-title">PSI Action Log</div></div><button class="btn-print" onclick="clearAllPsiActions()">전체 초기화</button></div>
+        <div class="sec-body flush">
+          <table class="base">
+            <thead><tr><th class="l">자재코드</th><th class="l">품목명</th><th class="c">월</th><th class="r">원래입고</th><th class="r">조정입고</th><th class="c">저장시각</th></tr></thead>
+            <tbody id="psiActionLogBody"><tr><td class="l" colspan="6">PSI 입고수량을 조정하면 여기에 자동 누적됩니다.</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1319,6 +1335,7 @@ function loadFromStorage(){
       setUploadStatus('warning','⚠ 판매계획 목표/순매출 계산 기준이 변경되었습니다. 최신 엑셀을 다시 업로드해 주세요.');
     }
   }catch(e){console.warn('localStorage load',e);}
+  updateHdrBaseYm();
 }
 function saveToStorage(data){
   try{localStorage.setItem(LS_KEY,JSON.stringify(data));}
@@ -1329,24 +1346,42 @@ function saveToStorage(data){
   }
 }
 function renderAllScreens(){
+  updateHdrBaseYm();
   renderKPICards();renderChAgingChart();renderTrendChart();renderMatrix();
   renderSensing(parseInt(document.getElementById('monthSlider').value));
-  renderPSI();renderPSIChart();
+  renderSP();
+  renderPSI();renderPSIChart();renderPSIRiskChart();
   renderStrategyKpis();renderRiskDonuts();
   renderHitTrend();renderChAchieve();renderInsightTables();renderChProg();renderHT();
 }
 
-// ═══════════ 시점 스냅샷 ══════════════════════
-const SNAP_INDEX_KEY='sopDash_snap_index_v1';
-const SNAP_DATA_PREFIX='sopDash_snap_';
-function getSnapIndex(){
-  try{return JSON.parse(localStorage.getItem(SNAP_INDEX_KEY)||'[]');}catch(e){return [];}
+// ═══════════ 시점 스냅샷 (IndexedDB — localStorage 용량 한계를 피하기 위해 별도 저장소 사용) ══════════════════════
+const SNAP_DB_NAME='sopDashSnapDB', SNAP_STORE='snapshots';
+function openSnapDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(SNAP_DB_NAME,1);
+    req.onupgradeneeded=(e)=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains(SNAP_STORE)) db.createObjectStore(SNAP_STORE,{keyPath:'id'});
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
 }
-function setSnapIndex(list){localStorage.setItem(SNAP_INDEX_KEY,JSON.stringify(list));}
-function renderSnapshotUI(){
+function snapTx(mode){
+  return openSnapDB().then(db=>db.transaction(SNAP_STORE,mode).objectStore(SNAP_STORE));
+}
+function getAllSnapshots(){
+  return snapTx('readonly').then(store=>new Promise((resolve,reject)=>{
+    const req=store.getAll();
+    req.onsuccess=()=>resolve(req.result||[]);
+    req.onerror=()=>reject(req.error);
+  })).catch(()=>[]);
+}
+async function renderSnapshotUI(){
   const sel=document.getElementById('snapshotSelect');
   if(!sel) return;
-  const list=getSnapIndex(); // 최신순 저장돼있음
+  const list=(await getAllSnapshots()).sort((a,b)=>(b.ts||0)-(a.ts||0));
   const groups=new Map();
   list.forEach(s=>{
     const d=new Date(s.ts||Date.now());
@@ -1364,33 +1399,48 @@ function toggleSnapshotPanel(){
   const el=document.getElementById('snapshotPanel');
   if(el) el.classList.toggle('open');
 }
-function saveSnapshot(){
+async function saveSnapshot(){
   if(!UPLOADED){alert('저장할 업로드 데이터가 없습니다.');return;}
   const now=new Date();
-  const id='s'+now.getTime();
-  const name=now.toLocaleString('ko-KR');
-  try{localStorage.setItem(SNAP_DATA_PREFIX+id,JSON.stringify(UPLOADED));}
-  catch(e){alert('스냅샷 저장 실패: 브라우저 저장 공간이 가득 찼습니다. 안 쓰는 시점을 삭제한 뒤 다시 시도해 주세요.');return;}
-  const list=getSnapIndex();
-  list.unshift({id,name,ts:now.getTime()});
-  setSnapIndex(list);
-  renderSnapshotUI();
+  const record={id:'s'+now.getTime(),name:now.toLocaleString('ko-KR'),ts:now.getTime(),data:UPLOADED};
+  try{
+    const store=await snapTx('readwrite');
+    await new Promise((resolve,reject)=>{
+      const req=store.put(record);
+      req.onsuccess=()=>resolve();
+      req.onerror=()=>reject(req.error);
+    });
+  }catch(e){alert('스냅샷 저장 실패: '+(e?.message||e));return;}
+  await renderSnapshotUI();
 }
-function loadSnapshot(id){
+async function loadSnapshot(id){
   if(!id) return;
-  const raw=localStorage.getItem(SNAP_DATA_PREFIX+id);
-  if(!raw){alert('스냅샷 데이터를 찾을 수 없습니다.');return;}
-  try{UPLOADED=JSON.parse(raw);}catch(e){alert('스냅샷 데이터를 읽는 중 오류가 발생했습니다.');return;}
+  try{
+    const store=await snapTx('readonly');
+    const record=await new Promise((resolve,reject)=>{
+      const req=store.get(id);
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    });
+    if(!record){alert('스냅샷 데이터를 찾을 수 없습니다.');return;}
+    UPLOADED=record.data;
+  }catch(e){alert('스냅샷 불러오기 실패: '+(e?.message||e));return;}
   saveToStorage(UPLOADED);
   renderAllScreens();
   document.getElementById('snapshotPanel')?.classList.remove('open');
 }
-function deleteSnapshot(id){
+async function deleteSnapshot(id){
   if(!id) return;
   if(!confirm('이 스냅샷을 삭제할까요?')) return;
-  localStorage.removeItem(SNAP_DATA_PREFIX+id);
-  setSnapIndex(getSnapIndex().filter(s=>s.id!==id));
-  renderSnapshotUI();
+  try{
+    const store=await snapTx('readwrite');
+    await new Promise((resolve,reject)=>{
+      const req=store.delete(id);
+      req.onsuccess=()=>resolve();
+      req.onerror=()=>reject(req.error);
+    });
+  }catch(e){alert('삭제 실패: '+(e?.message||e));return;}
+  await renderSnapshotUI();
 }
 
 const PLAN_KEY='sopPlanActions_v1';
@@ -1444,7 +1494,7 @@ function clearPlanCell(btn){
 }
 function clearAllPlanActions(){
   if(!getPlanActions().length) return;
-  if(!confirm('회의 Action Log에 저장된 모든 소진계획 메모를 삭제하시겠습니까? 되돌릴 수 없습니다.')) return;
+  if(!confirm('재고Aging Action Log에 저장된 모든 소진계획 메모를 삭제하시겠습니까? 되돌릴 수 없습니다.')) return;
   setPlanActions([]);
   renderActionLog();
   document.querySelectorAll('.plan-cell[data-plan-key]').forEach(cell=>{
@@ -1486,6 +1536,7 @@ function loadMeetingMemo(){
     if(d) d.value=data.decision||'';
   }catch(e){}
   renderActionLog();
+  renderPsiActionLog();
 }
 
 // ═══════════ 동적 데이터 GETTER ══════════════════════════════
@@ -1515,6 +1566,7 @@ function setUploadStatus(kind, message){
   const colors={loading:'var(--terra)',success:'var(--green)',warning:'#E3B341',error:'var(--red)'};
   document.querySelectorAll('#uploadStatus').forEach(el=>{
     el.textContent=message;
+    el.title=message;
     el.style.color=colors[kind]||'var(--muted)';
     el.style.fontWeight='800';
   });
@@ -1551,6 +1603,23 @@ function parseBaseLabel(ws){
   }
   return String(v||'당월').trim()||'당월';
 }
+// 기준년월(헤더 우측 "기준년월 YYYY.MM") — AM2 셀의 실제 날짜값에서 연.월만 추출 (표시서식 무관)
+function parseBaseYearMonth(ws){
+  const cell=ws?.['AM2'];
+  if(!cell) return null;
+  let d=null;
+  if(cell.v instanceof Date) d=cell.v;
+  else if(typeof cell.v==='number'&&typeof XLSX!=='undefined'&&XLSX.SSF?.parse_date_code){
+    const p=XLSX.SSF.parse_date_code(cell.v);
+    if(p) d=new Date(p.y,p.m-1,p.d);
+  }
+  if(!d||isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function updateHdrBaseYm(){
+  const el=document.getElementById('hdrBaseYm');
+  if(el) el.textContent=UPLOADED?.base_yearmonth||'—';
+}
 function handleUpload(file){
   if(!file) return;
   setUploadStatus('loading','⏳ 파싱 중...');
@@ -1564,6 +1633,7 @@ function handleUpload(file){
       const invSheet=findSheetName(wb,'현재고');
       if(invSheet){
         result.base_label=parseBaseLabel(wb.Sheets[invSheet]);
+        result.base_yearmonth=parseBaseYearMonth(wb.Sheets[invSheet]);
         const p=parseInventory(wb.Sheets[invSheet]);
         const totalAmt=sumNestedAging(p.ch_amt);
         if(totalAmt<=0){
@@ -1599,10 +1669,12 @@ function handleUpload(file){
         }
         warnings.push(`${trendSheet}: ${Object.keys(result.trend_data||{}).length}개 현황 스냅샷 반영`);
       }
+      let daisoMatSet=null;
       if(psiSheet){
         const rawPsi=parsePSISheet(wb.Sheets[psiSheet]);
         if(daisoPsiSheet&&daisoMasterSheet){
           const daisoMaster=parseDaisoMasterSheet(wb.Sheets[daisoMasterSheet]);
+          daisoMatSet=new Set(daisoMaster.codeToGroup.keys());
           const daisoIntegrated=parseDaisoPSISheet(wb.Sheets[daisoPsiSheet]);
           const supplyPlan=supplySheet?parseSupplySheet(wb.Sheets[supplySheet]):null;
           const daisoMerge=mergeDaisoIntegratedPSI(rawPsi,daisoMaster,daisoIntegrated,supplyPlan);
@@ -1637,11 +1709,11 @@ function handleUpload(file){
         }
         if(!result.psi.length) errors.push(`${psiSheet}: PSI 품목 0건 · 자재코드/품목명 헤더 위치 확인 필요`);
         else warnings.push(`${psiSheet}: ${result.psi.length.toLocaleString()}개 SKU 반영`);
-        result.supply_risk={current:parsePSIRiskSheet(wb.Sheets[psiSheet])};
+        result.supply_risk={current:parsePSIRiskSheet(wb.Sheets[psiSheet],daisoMatSet)};
       }
       if(prevPsiSheet){
         result.supply_risk=result.supply_risk||{};
-        result.supply_risk.previous=parsePSIRiskSheet(wb.Sheets[prevPsiSheet]);
+        result.supply_risk.previous=parsePSIRiskSheet(wb.Sheets[prevPsiSheet],daisoMatSet);
         warnings.push(`${prevPsiSheet}: ${result.supply_risk.previous.total.toLocaleString()}개 SKU 비교 기준 반영`);
       }else{
         warnings.push('전월 PSI 시트 없음: Supply Risk 전월 비교는 기존 화면 유지');
@@ -1711,12 +1783,7 @@ function handleUpload(file){
         ?`⚠ ${result.uploaded_at} 부분 성공 · 기준일 ${result.base_label||'당월'} · 누락: ${missing.join(', ')}`
         :`✅ ${result.uploaded_at} 업로드 성공 · 기준일 ${result.base_label||'당월'}`;
       setUploadStatus(missing.length?'warning':'success',statusMsg);
-      if(warnings.length){
-        console.info('[SOP upload]', warnings.join(' / '));
-        // 오차율 분석 관련 메시지만 화면에 표시
-        const hitMsg=warnings.find(w=>w.includes('오차율 분석')||w.includes('오차율분석')||w.includes('시트 없음'));
-        if(hitMsg) setUploadStatus(missing.length?'warning':'success', statusMsg+' · '+hitMsg);
-      }
+      if(warnings.length) console.info('[SOP upload]', warnings.join(' / '));
       // 업로드된 오차율 데이터에서 가장 최근 월로 드롭다운 자동 전환
       const _hitForMonth=getHitData();
       if(_hitForMonth?.byMonth){
@@ -1929,7 +1996,10 @@ function parsePSISheet(ws){
     // PSI 원본: A 자재코드, B 자재내역, C 품목군, E 3평판,
     // I 현재고, K 판매계획, M 실적, N 진척율, O 입고, U 기말재고, X 재고일수
     const matRaw=row[0];
-    const mat=String(matRaw||'').trim();
+    // 신규 입력 셀의 전각숫자(한글 IME 오타)·공백·콤마를 정리 후 판정 (안 그러면 새로 추가한 품목이 조용히 누락됨)
+    const mat=String(matRaw||'').trim()
+      .replace(/[０-９]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
+      .replace(/[\s,]/g,'');
     if(!mat||mat==='합계'||mat==='자재코드') return;
     if(!/^\d+$/.test(mat)) return;
     const name=String(row[1]||'').trim();
@@ -2223,9 +2293,10 @@ function parseDaisoPSISheet(ws){
 }
 
 function getPSIStockSignal(days,isDaiso){
-  // 2단계 신호등(전 품목 동일): 90일 미만 위험(red) / 90일 이상 정상(green). 다이소 별도기준·과잉 개념 제거.
+  // 2단계 신호등: 일반 90일 미만 위험(red) / 90일 이상 정상(green). 다이소 마스터 품목은 위험기준 45일.
   if(days==null||!Number.isFinite(Number(days))) return 'gray';
-  return Number(days)<90?'red':'green';
+  const threshold=isDaiso?45:90;
+  return Number(days)<threshold?'red':'green';
 }
 
 function parseSupplySheet(ws){
@@ -2424,7 +2495,7 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
   };
 }
 
-function parsePSIRiskSheet(ws){
+function parsePSIRiskSheet(ws,daisoMatSet){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
   const headerRow=rows.findIndex(row=>String(row[0]||'').replace(/\s/g,'')==='자재코드');
   const data=rows.slice(headerRow>=0?headerRow+3:6);
@@ -2441,8 +2512,9 @@ function parsePSIRiskSheet(ws){
       return;
     }
     const days=Number(raw);
-    if(days<90) summary.short++;
-    else summary.normal++; // 90일 이상 전부 정상 (과잉 개념 제거)
+    const threshold=daisoMatSet?.has(mat)?45:90; // 다이소 마스터 소속 품목은 위험기준 45일
+    if(days<threshold) summary.short++;
+    else summary.normal++; // 기준일 이상 전부 정상 (과잉 개념 제거)
   });
   return summary;
 }
@@ -4549,7 +4621,7 @@ function _renderPsiTbody(){
       else{const ab=avgPrev==null?r.begin:avgPrev;basisEnd=ab+r.buy-(Number(d.avg3)||0);basisDays=d.avg3>0?Math.round(basisEnd/d.avg3*30):null;basisSig=d.avg3===0?'gray':getPSIStockSignal(basisDays,isIntegrated||isDaisoComponent);avgPrev=basisEnd;}
       const bsc=basisSig==='red'?'sig-r':basisSig==='yellow'?'sig-y':basisSig==='excess'?'sig-x':basisSig==='green'?'sig-g':'sig-gray';
       const bec=basisEnd<0?' style="color:var(--red);font-weight:900;"':' style="font-weight:800;color:var(--navy);"';
-      const exact=d.monthlyPsi?.[m.key];
+      const exact=d.monthlyPsi?.[m.key]||d.sourceMonthlyPsi?.[m.key];
       const origBuy=exact?(Number(exact.buy)||0):Math.round((d.buy6||0)*m.buy);
       const buyOvOn=rowOv[m.key]!=null;
       const buyCls=buyOvOn?'psi-buy-override':origBuy===0?'psi-buy-empty':'';
@@ -4595,7 +4667,7 @@ function psiDaysHtml(days,sig){
 }
 function calcPsiMonth(d,m,prevEnd,buyOverride){
   const isDaisoRow=isPsiIntegrated(d)||isPsiDaisoComponent(d);
-  const exact=d.monthlyPsi?.[m.key];
+  const exact=d.monthlyPsi?.[m.key]||d.sourceMonthlyPsi?.[m.key];
   if(exact){
     const begin=prevEnd!=null?prevEnd:Number(exact.begin)||0;
     const buy=buyOverride!=null?buyOverride:Number(exact.buy)||0;
@@ -4667,7 +4739,9 @@ function resetPsiBuyCell(btn){
   inp.value=origBuy.toLocaleString('ko-KR');
   inp.classList.remove('psi-buy-override');           // → CSS가 초기화 버튼 자동 숨김
   inp.classList.toggle('psi-buy-empty',origBuy===0);
+  logPsiBuyAction(mat,mo,inp.closest('tr')?.dataset.name||'',origBuy,origBuy);
   recalcPsiRow(mat);                                   // 전체 재렌더 없이 해당 행만 갱신(스크롤 유지)
+  renderPSIRiskChart();
 }
 function resetPsiBuyOverrides(){
   const data=getPsiSimBuy();
@@ -4685,6 +4759,71 @@ function resetPsiBuyOverrides(){
     if(inp.dataset.mat) mats.add(inp.dataset.mat);
   });
   mats.forEach(mat=>recalcPsiRow(mat));
+  setPsiActionLog([]);
+  renderPsiActionLog();
+  renderPSIRiskChart();
+}
+// ─ PSI Action Log (입고수량 조정 기록) ─
+const PSI_LOG_KEY='sopPsiActionLog_v1';
+function getPsiActionLog(){try{return JSON.parse(localStorage.getItem(PSI_LOG_KEY)||'[]');}catch(e){return [];}}
+function setPsiActionLog(list){localStorage.setItem(PSI_LOG_KEY,JSON.stringify(list));}
+function logPsiBuyAction(mat,mo,name,origBuy,newVal){
+  const key=`${mat}|${mo}`;
+  const list=getPsiActionLog().filter(a=>a.key!==key);
+  if(newVal!==origBuy){
+    const d=getPSIData().find(p=>String(p.mat)===String(mat));
+    const moLabel=d?.monthRealLabels?.[mo]||mo;
+    list.unshift({key,mat,name,mo,moLabel,origBuy,newVal,ts:new Date().toLocaleString('ko-KR')});
+  }
+  setPsiActionLog(list.slice(0,200));
+  renderPsiActionLog();
+}
+function clearAllPsiActions(){
+  if(!getPsiActionLog().length) return;
+  if(!confirm('PSI Action Log에 저장된 모든 입고 조정 기록을 삭제하시겠습니까? (조정값 자체는 유지되고 기록만 삭제됩니다) 되돌릴 수 없습니다.')) return;
+  setPsiActionLog([]);
+  renderPsiActionLog();
+}
+function reconcilePsiActionLog(){
+  const overrides=getPsiSimBuy(); // {mat:{mo:val}}
+  const psiByMat=new Map(getPSIData().map(d=>[String(d.mat||''),d]));
+  let log=getPsiActionLog();
+  const activeKeys=new Set();
+  Object.entries(overrides).forEach(([mat,months])=>{
+    Object.entries(months||{}).forEach(([mo,val])=>{
+      const key=`${mat}|${mo}`;
+      activeKeys.add(key);
+      if(!log.some(a=>a.key===key)){
+        const d=psiByMat.get(String(mat));
+        const mObj=PSI_MONTHS.find(m=>m.key===mo);
+        const exact=d?.monthlyPsi?.[mo]||d?.sourceMonthlyPsi?.[mo];
+        const origBuy=exact?(Number(exact.buy)||0):Math.round((d?.buy6||0)*(mObj?.buy||0));
+        const moLabel=d?.monthRealLabels?.[mo]||mo;
+        log.unshift({key,mat,name:d?.name||'',mo,moLabel,origBuy,newVal:Number(val)||0,ts:'이전 조정분 (시각 미기록)'});
+      }
+    });
+  });
+  // 이미 원복돼 더 이상 활성 상태가 아닌 항목은 로그에서도 정리
+  const cleaned=log.filter(a=>activeKeys.has(a.key));
+  setPsiActionLog(cleaned.slice(0,200));
+}
+function renderPsiActionLog(){
+  const body=document.getElementById('psiActionLogBody');
+  if(!body) return;
+  reconcilePsiActionLog();
+  const actions=getPsiActionLog();
+  if(!actions.length){
+    body.innerHTML='<tr><td class="l" colspan="6">PSI 입고수량을 조정하면 여기에 자동 누적됩니다.</td></tr>';
+    return;
+  }
+  body.innerHTML=actions.map(a=>`<tr>
+    <td class="l">${a.mat||'-'}</td>
+    <td class="l"><strong>${a.name||'-'}</strong></td>
+    <td class="c">${a.moLabel||a.mo||'-'}</td>
+    <td class="r">${fmtPsiInt(a.origBuy)}</td>
+    <td class="r">${fmtPsiInt(a.newVal)}</td>
+    <td class="c" style="font-size:11px;color:var(--muted);">${a.ts||''}</td>
+  </tr>`).join('');
 }
 function bindPsiBuyInputs(){
   document.querySelectorAll('#psiWrap .psi-buy-input').forEach(inp=>{
@@ -4694,6 +4833,7 @@ function bindPsiBuyInputs(){
     });
     inp.addEventListener('blur',()=>{
       const mat=inp.dataset.mat,mo=inp.dataset.mo;
+      const name=inp.closest('tr')?.dataset.name||'';
       const origBuy=Number(inp.dataset.origBuy||0);
       const val=Math.max(0,Math.round(parseFloat(inp.value.replace(/,/g,''))||0));
       inp.value=val.toLocaleString('ko-KR');
@@ -4707,7 +4847,9 @@ function bindPsiBuyInputs(){
         inp.classList.remove('psi-buy-override');
         inp.classList.toggle('psi-buy-empty',origBuy===0);
       }
+      logPsiBuyAction(mat,mo,name,origBuy,val);
       recalcPsiRow(mat);
+      renderPSIRiskChart();
     });
   });
 }
@@ -4728,6 +4870,7 @@ function renderPSI(){
   const plantSelect=document.getElementById('fplant');
   const fplant=plantSelect?.value||'';
   const favg3=document.getElementById('favg3')?.value||'';
+  const fMinInv=document.getElementById('fMinInv')?.value==='1';
   const fq=(document.getElementById('fpq')?.value||'').toLowerCase();
   const allData=getPSIData();
   const psiTableTitle=document.getElementById('psiTableTitle');
@@ -4763,7 +4906,8 @@ function renderPSI(){
     plantMatch&&
     (favg3!=='positive'||Number(d.avg3)>0)&&
     (favg3!=='zero'||Number(d.avg3)<=0)&&
-    (!fq||String(d.mat||'').includes(fq)||d.name.toLowerCase().includes(fq))
+    (!fMinInv||Number(d.inv)>=100)&&
+    (!fq||String(d.mat||'').toLowerCase().includes(fq)||d.name.toLowerCase().includes(fq))
     );
   }).sort((a,b)=>{
     const order={gray:-1,red:0,yellow:1,excess:2,green:3};
@@ -5714,7 +5858,7 @@ function renderHT(){
     h+=`<tr${d.needCorrection?'':' style="opacity:0.72;"'}><td class="l">${d.ch}</td><td class="l" style="color:var(--muted);font-weight:700;">${d.mat||'—'}</td><td class="l"><button class="link-btn item-ellipsis" title="${name}" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;" onclick="openPlanAdjustModalByIndex(${idx})">${name}</button>${daisoTag}</td>
       <td class="r">${fmtHTPlanActual2dp(d,'plan',htUnit)}</td><td class="r">${fmtHTPlanActual2dp(d,'actual',htUnit)}</td><td class="r ${d.diff>=0?'diff-pos':'diff-neg'}">${fmtHTDiff2dp(d,htUnit)}</td>
       <td class="r"><span class="tag ${ac}">${err}</span></td><td class="c">${d.recentDirection}</td><td class="c"><span class="tag ${ac}">${d.correctionType}</span></td>
-      <td class="l">${d.recommendedAction}</td><td class="l"><textarea class="action-memo" data-memo-key="${memoKey}" oninput="localStorage.setItem(this.dataset.memoKey,this.value)" placeholder="조치의견 입력">${memo}</textarea></td>
+      <td class="l">${d.recommendedAction}</td><td class="l"><textarea class="action-memo${memo.trim()?' saved':''}" data-memo-key="${memoKey}" oninput="localStorage.setItem(this.dataset.memoKey,this.value);this.classList.toggle('saved',this.value.trim()!=='')" placeholder="조치의견 입력">${memo}</textarea></td>
     </tr>`;
   });
   if(!data.length){
@@ -5919,7 +6063,7 @@ function fmtSPGoalRate(v){
 }
 function spGoalRateClass(v){
   if(v==null||!Number.isFinite(v)) return '';
-  return v>=100?'sp-rate-pos':v>=95?'sp-rate-zero':'sp-rate-neg';
+  return v>=100?'sp-rate-pos':'sp-rate-neg';
 }
 function spGoalRowsHtml(totalSeries,targetSeries,periods){
   const targetValues=targetSeries.values;
@@ -6078,27 +6222,31 @@ function renderSP(){
 }
 
 // ═══════════ PSI 위험품목 수평 바차트 ═══════════════════════════
-const PSI_RISK12 = [
-  {name:'바나비밀 추출물(전천)',    days:72},
-  {name:'비타민D(전천)',            days:65},
-  {name:'마그네슐(전천)',           days:58},
-  {name:'rTG 오메가3(전천)',        days:52},
-  {name:'녹차 카테킨(전천)',        days:46},
-  {name:'멀티비타민미네랄(전천)',   days:41},
-  {name:'프렌자임Q10(전천)',        days:35},
-  {name:'밀크씨슐(전천)',           days:29},
-  {name:'루테인(전천)',             days:24},
-  {name:'오메가3(전천)',            days:19},
-  {name:'아르기닌(전천)',           days:14},
-  {name:'콜라겐(전천)',             days:9},
-];
+function computePSIRisk12(){
+  // 재고일수 낮은(위험) 순 TOP12 — 사용자가 조정한 입고수량(PSI 시뮬레이션 override) 반영한 당월 기말재고 일수 기준
+  // 3평판 없는 품목·당월 기초재고 100개 미만은 제외
+  const overrides=getPsiSimBuy();
+  const m0=PSI_MONTHS[0];
+  return getPSIData()
+    .filter(d=>Number(d.avg3)>0&&Number(d.inv)>=100)
+    .map(d=>{
+      const rowOv=overrides[d.mat]||{};
+      const r=calcPsiMonth(d,m0,null,rowOv[m0.key]!=null?rowOv[m0.key]:null);
+      return {name:d.name,days:r.days};
+    })
+    .filter(d=>Number.isFinite(d.days))
+    .sort((a,b)=>a.days-b.days)
+    .slice(0,12)
+    .map(d=>({name:d.name,days:Math.max(0,Math.round(d.days))}))
+    .reverse(); // render에서 다시 reverse해 오름차순(위험순)으로 표시
+}
 
 let psiRiskChart=null, riskDonut1Chart=null, riskDonut2Chart=null;
 
 function renderPSIRiskChart(){
   safeDestroyChart('psiRiskChart'); psiRiskChart=null;
   if(!hasChart()){ markChartOffline('psiRiskChart','Chart.js가 차단되어 PSI 위험 차트는 숨기고 전 품목 리스트를 표시합니다.'); return; }
-  const data = [...PSI_RISK12].reverse();
+  const data = [...computePSIRisk12()].reverse();
   psiRiskChart = new Chart(document.getElementById('psiRiskChart'),{
     type:'bar',
     plugins:[ChartDataLabels],
@@ -6444,7 +6592,23 @@ function renderChAchieve(){
     options:{
       responsive:true,maintainAspectRatio:false,
       plugins:{
-        legend:{position:'bottom',labels:{font:{size:11},boxWidth:20}},
+        legend:{
+          position:'bottom',
+          labels:{
+            font:{size:11},boxWidth:20,
+            generateLabels:(chart)=>[
+              {text:'계획(억)',fillStyle:'#AEB4C6',strokeStyle:'#AEB4C6',lineWidth:0,hidden:!chart.isDatasetVisible(0),datasetIndex:0},
+              {text:'실적(달성)',fillStyle:'#33512E',strokeStyle:'#33512E',lineWidth:0,hidden:!chart.isDatasetVisible(1),datasetIndex:1},
+              {text:'실적(미달)',fillStyle:'#D64545',strokeStyle:'#D64545',lineWidth:0,hidden:!chart.isDatasetVisible(1),datasetIndex:1},
+            ]
+          },
+          onClick:(e,legendItem,legend)=>{
+            const chart=legend.chart;
+            const idx=legendItem.datasetIndex;
+            chart.setDatasetVisibility(idx,!chart.isDatasetVisible(idx));
+            chart.update();
+          }
+        },
         tooltip:{callbacks:{
           label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}억`,
           afterBody:(items)=>{
@@ -6644,7 +6808,7 @@ function openPlanAdjustModal(row){
     <div class="analysis-box" style="margin-top:14px;">
       <div class="analysis-title">조치의견</div>
       <table class="analysis-kv"><tbody>
-        <tr><th>담당 의견</th><td><textarea class="action-memo" data-memo-key="${memoKey}" oninput="localStorage.setItem(this.dataset.memoKey,this.value)" placeholder="조치의견 입력">${memo}</textarea></td></tr>
+        <tr><th>담당 의견</th><td><textarea class="action-memo${memo.trim()?' saved':''}" data-memo-key="${memoKey}" oninput="localStorage.setItem(this.dataset.memoKey,this.value);this.classList.toggle('saved',this.value.trim()!=='')" placeholder="조치의견 입력">${memo}</textarea></td></tr>
       </tbody></table>
     </div>
     <div class="sku-insight good" style="font-weight:900;">${statement}</div>`;
