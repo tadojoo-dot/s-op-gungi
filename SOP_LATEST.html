@@ -4829,6 +4829,31 @@ function resetPsiBuyOverrides(){
 }
 // ─ PSI Action Log (입고수량 조정 기록) ─
 const PSI_LOG_KEY='sopPsiActionLog_v1';
+const RECOVERED_PSI_SIM_BUY={
+  '7302487':{'7월':0,'8월':0},
+  'DAI-33':{'6월':10000,'7월':98000},
+  'DAI-36':{'6월':10000,'7월':100600},
+  'DAI-35':{'6월':10000,'7월':98000},
+  'DAI-9':{'7월':50000}
+};
+const RECOVERED_PSI_ACTION_LOG=[
+  {key:'DAI-9|7월',mat:'DAI-9',name:'철분',mo:'7월',moLabel:'8월',origBuy:25000,newVal:50000,ts:'2026. 7. 10. 오전 10:45:41'},
+  {key:'DAI-36|7월',mat:'DAI-36',name:'rTG 오메가3(천원건기식)',mo:'7월',origBuy:110600,newVal:100600,ts:'2026. 7. 8. 오후 8:01:35'},
+  {key:'DAI-35|7월',mat:'DAI-35',name:'마그네슘(천원건기식)',mo:'7월',origBuy:108000,newVal:98000,ts:'2026. 7. 8. 오후 8:01:00'},
+  {key:'DAI-35|6월',mat:'DAI-35',name:'마그네슘(천원건기식)',mo:'6월',origBuy:0,newVal:10000,ts:'이전 조정분 (시각 미기록)'},
+  {key:'DAI-36|6월',mat:'DAI-36',name:'rTG 오메가3(천원건기식)',mo:'6월',origBuy:0,newVal:10000,ts:'이전 조정분 (시각 미기록)'},
+  {key:'DAI-33|7월',mat:'DAI-33',name:'바나바잎 추출물(천원건기식)',mo:'7월',origBuy:0,newVal:98000,ts:'이전 조정분 (시각 미기록)'},
+  {key:'DAI-33|6월',mat:'DAI-33',name:'바나바잎 추출물(천원건기식)',mo:'6월',origBuy:0,newVal:10000,ts:'이전 조정분 (시각 미기록)'}
+];
+const RECOVERED_MEETING_MEMO={
+  meeting:'1. 횡성공장 생산 진척률, 가동률 Ramp-up 주차 점검 추가(금액 추가)\n - 초도 생산 5월, 주차별 생산 게획 대비 생산 진척률 주차별 점검 필요 \n\n2. 판매계획 오차율\n  - 전체 채널 리스트화\n  - 절대값 오차 \n\n3. 품목 합리화 \n  \n ',
+  decision:''
+};
+function seedRecoveredLocalInputs(){
+  if(!localStorage.getItem(PSI_SIM_BUY_KEY)) localStorage.setItem(PSI_SIM_BUY_KEY,JSON.stringify(RECOVERED_PSI_SIM_BUY));
+  if(!localStorage.getItem(PSI_LOG_KEY)) localStorage.setItem(PSI_LOG_KEY,JSON.stringify(RECOVERED_PSI_ACTION_LOG));
+  if(!localStorage.getItem(MEETING_MEMO_KEY)) localStorage.setItem(MEETING_MEMO_KEY,JSON.stringify(RECOVERED_MEETING_MEMO));
+}
 function getPsiActionLog(){try{return JSON.parse(localStorage.getItem(PSI_LOG_KEY)||'[]');}catch(e){return [];}}
 function setPsiActionLog(list){localStorage.setItem(PSI_LOG_KEY,JSON.stringify(list));}
 function logPsiBuyAction(mat,mo,name,origBuy,newVal){
@@ -6938,6 +6963,7 @@ function openPlanAdjustModal(row){
 window.addEventListener('DOMContentLoaded',()=>{
   runStep('initChartPlugins', initChartPlugins);
   runStep('loadFromStorage', loadFromStorage);
+  runStep('seedRecoveredLocalInputs', seedRecoveredLocalInputs);
   runStep('renderSnapshotUI', renderSnapshotUI);
   runStep('renderKPICards', renderKPICards);
   runStep('renderChAgingChart', renderChAgingChart);
