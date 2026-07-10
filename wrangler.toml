@@ -1,0 +1,8 @@
+name = "s-op-gungi"
+compatibility_date = "2026-07-10"
+pages_build_output_dir = "public"
+
+[[kv_namespaces]]
+binding = "SOP_STATE"
+id = "c15a809856ea404f83a66274e3dc603c"
+preview_id = "c15a809856ea404f83a66274e3dc603c"
