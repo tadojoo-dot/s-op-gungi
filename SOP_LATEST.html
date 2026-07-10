@@ -767,8 +767,8 @@ table.base tr:last-child td{border-bottom:none;}
               </div>
             </div>
             <div style="display:flex;gap:12px;justify-content:center;margin-top:10px;font-size:11px;flex-wrap:wrap;">
-              <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--red);margin-right:3px;vertical-align:middle;"></span>위험(90일 미만)</span>
-              <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:3px;vertical-align:middle;"></span>정상(90일 이상)</span>
+              <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--red);margin-right:3px;vertical-align:middle;"></span>위험(다이소 45일 미만 · 그 외 전체 90일 미만)</span>
+              <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:3px;vertical-align:middle;"></span>정상(다이소 45일 이상 · 그 외 전체 90일 이상)</span>
             </div>
             <div id="riskCompareNote" style="margin-top:10px;padding:8px 12px;background:#f7f8fa;border-radius:6px;font-size:11px;color:var(--muted);text-align:center;">
               전월 PSI 시트 업로드 후 자동 비교
@@ -938,7 +938,10 @@ table.base tr:last-child td{border-bottom:none;}
         <div class="sec-title">회의록 및 의사결정 입력</div>
         <div class="sec-sub">Risk · Decision · Action을 화면별/SKU별로 연결 관리</div>
       </div></div>
-      <button class="btn-print" onclick="window.print()">인쇄</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-print" onclick="downloadMeetingExcel()">엑셀 다운로드</button>
+        <button class="btn-print" onclick="window.print()">인쇄</button>
+      </div>
     </div>
     <div class="sec-body">
       <div class="minutes-simple">
@@ -1538,6 +1541,46 @@ function loadMeetingMemo(){
   renderActionLog();
   renderPsiActionLog();
 }
+function downloadMeetingExcel(){
+  if(typeof XLSX==='undefined'){alert('엑셀 라이브러리를 불러오지 못했습니다.');return;}
+  const now=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const stamp=`${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}`;
+  const wb=XLSX.utils.book_new();
+
+  // 1) 회의 메모 / 결정사항 요약
+  const meeting=document.getElementById('meetingMemo')?.value||'';
+  const decision=document.getElementById('decisionMemo')?.value||'';
+  const memoAoa=[
+    ['건기식 S&OP 회의록'],
+    ['생성시각',now.toLocaleString('ko-KR')],
+    [],
+    ['회의 메모'],
+    [meeting],
+    [],
+    ['결정사항 요약'],
+    [decision]
+  ];
+  const wsMemo=XLSX.utils.aoa_to_sheet(memoAoa);
+  wsMemo['!cols']=[{wch:20},{wch:90}];
+  XLSX.utils.book_append_sheet(wb,wsMemo,'회의메모');
+
+  // 2) 재고Aging Action Log
+  const planAoa=[['화면','구간','채널','SKU','품목','소진계획','저장시각']];
+  getPlanActions().forEach(a=>planAoa.push([a.screen||'',a.bucket||'',a.channel||'',a.sku||'',a.name||'',a.plan||'',a.ts||'']));
+  const wsPlan=XLSX.utils.aoa_to_sheet(planAoa);
+  wsPlan['!cols']=[{wch:14},{wch:10},{wch:10},{wch:14},{wch:26},{wch:44},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,wsPlan,'재고Aging Action Log');
+
+  // 3) PSI Action Log
+  const psiAoa=[['자재코드','품목명','월','원래입고','조정입고','저장시각']];
+  getPsiActionLog().forEach(a=>psiAoa.push([a.mat||'',a.name||'',a.moLabel||a.mo||'',Number(a.origBuy)||0,Number(a.newVal)||0,a.ts||'']));
+  const wsPsi=XLSX.utils.aoa_to_sheet(psiAoa);
+  wsPsi['!cols']=[{wch:14},{wch:26},{wch:10},{wch:12},{wch:12},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,wsPsi,'PSI Action Log');
+
+  XLSX.writeFile(wb,`건기식_SOP_회의록_${stamp}.xlsx`);
+}
 
 // ═══════════ 동적 데이터 GETTER ══════════════════════════════
 function getChAmt(month){return UPLOADED?.monthly_ch_amt?.[month]??MONTHLY_CH_AMT[month];}
@@ -1709,7 +1752,7 @@ function handleUpload(file){
         }
         if(!result.psi.length) errors.push(`${psiSheet}: PSI 품목 0건 · 자재코드/품목명 헤더 위치 확인 필요`);
         else warnings.push(`${psiSheet}: ${result.psi.length.toLocaleString()}개 SKU 반영`);
-        result.supply_risk={current:parsePSIRiskSheet(wb.Sheets[psiSheet],daisoMatSet)};
+        result.supply_risk={current:summarizePSIRisk(result.psi)};
       }
       if(prevPsiSheet){
         result.supply_risk=result.supply_risk||{};
@@ -2022,8 +2065,8 @@ function parsePSISheet(ws){
     const dp=avg3>0?Math.round(ep/avg3*30):0;
     const er=Math.round(inv+buy6-plan6*rate6);
     const dr=avg3>0?Math.round(er/avg3*30):0;
-    const sp=avg3===0?'gray':getPSIStockSignal(dp);
-    const sr=avg3===0?'gray':getPSIStockSignal(dr);
+    const sp=avg3===0?'gray':(inv<100?'green':getPSIStockSignal(dp)); // 당월 기초재고 100개 미만은 정상 처리
+    const sr=avg3===0?'gray':(inv<100?'green':getPSIStockSignal(dr));
     let pkg=sourcePkg||'건기식';
     if(name.includes('덴티')||name.includes('구강')) pkg='구강';
     const ri=v=>Math.round(Number(v)||0);
@@ -2412,8 +2455,8 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
         plantValues:master.plantByMaterial.get(String(row.mat||''))?[master.plantByMaterial.get(String(row.mat||''))]:[],
         monthlyPsi:supply?compMonthly:undefined,
         buy6:supply?(Number(compMonthly['6월'].buy)||0):row.buy6,
-        sp:row.avg3===0?'gray':getPSIStockSignal(row.dp,true),
-        sr:row.avg3===0?'gray':getPSIStockSignal(row.dr,true)
+        sp:row.avg3===0?'gray':(row.inv<100?'green':getPSIStockSignal(row.dp,true)),
+        sr:row.avg3===0?'gray':(row.inv<100?'green':getPSIStockSignal(row.dr,true))
       };
     });
   const integratedRows=matchedGroups.map(({masterGroup,group})=>{
@@ -2440,8 +2483,8 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
     const dp=avg3>0?Math.round(ep/avg3*30):0;
     const er=agg.er;
     const dr=avg3>0?Math.round(er/avg3*30):0;
-    const sp=avg3===0?'gray':getPSIStockSignal(dp,true);
-    const sr=avg3===0?'gray':getPSIStockSignal(dr,true);
+    const sp=avg3===0?'gray':(inv<100?'green':getPSIStockSignal(dp,true));
+    const sr=avg3===0?'gray':(inv<100?'green':getPSIStockSignal(dr,true));
     return {
       mat:group.code,
       name:group.name,
@@ -2506,15 +2549,36 @@ function parsePSIRiskSheet(ws,daisoMatSet){
     if(!/^\d+$/.test(mat)||seen.has(mat)) return;
     seen.add(mat);
     summary.total++;
-    const raw=row[23];
-    if(raw===''||raw==null||!Number.isFinite(Number(raw))){
+    // 재고일수는 원본 시트의 재고일수 열(진척율/실적 반영)을 쓰지 않고, PSI 표와 동일하게
+    // 기말재고(판매계획 기준) = 기초+입고-판매 로 직접 계산한다 (parsePSISheet의 ep/dp와 동일 로직).
+    const avg3=Math.round(Number(row[4])||0);
+    if(avg3===0){
       summary.nodata++;
       return;
     }
-    const days=Number(raw);
+    const _totalStock=Number(row[67]);
+    const _under6=Number(row[69])||0;
+    const inv=(Number.isFinite(_totalStock)&&_totalStock!==0)
+      ? Math.max(0,Math.round(_totalStock-_under6))
+      : Math.round(Number(row[8])||0);
+    const plan6=Math.round(Number(row[10])||0);
+    const buy6=Math.round(Number(row[14])||0);
+    const ep=Math.round(inv+buy6-plan6);
+    const days=Math.round(ep/avg3*30);
     const threshold=daisoMatSet?.has(mat)?45:90; // 다이소 마스터 소속 품목은 위험기준 45일
     if(days<threshold) summary.short++;
     else summary.normal++; // 기준일 이상 전부 정상 (과잉 개념 제거)
+  });
+  return summary;
+}
+// 당월 위험/정상 집계는 원본 시트 재파싱 대신 최종 result.psi(다이소 통합 반영, 기초재고 100개 미만 예외 반영된 sp)를 그대로 센다.
+// parsePSIRiskSheet와 이중 계산되던 걸 제거해 표(PSI 전 품목 현황)와 도넛/KPI 숫자가 항상 일치하도록 함.
+function summarizePSIRisk(psiRows){
+  const summary={short:0,excess:0,normal:0,nodata:0,total:0};
+  (psiRows||[]).forEach(d=>{
+    summary.total++;
+    if(d.avg3===0){ summary.nodata++; return; }
+    if(d.sp==='red') summary.short++; else summary.normal++;
   });
   return summary;
 }
@@ -6336,7 +6400,7 @@ function filterPSIBySignal(sig){
 }
 function renderRiskDonuts(){
   const uploaded=getSupplyRiskData();
-  const prev=uploaded?.previous||{short:19,excess:0,normal:21,nodata:0,total:40};
+  const prev={short:54,excess:0,normal:57,nodata:0,total:111}; // 하드코딩: 6월 S&OP 확정 기준 (사용자 지정, 2026-07-09)
   const curr=uploaded?.current||{short:19,excess:0,normal:21,nodata:0,total:40};
   const baseText=String(UPLOADED?.base_label||currentDetailLabel()||'당월');
   const monthMatch=baseText.match(/(\d{1,2})\s*[\/월]/);
@@ -6361,7 +6425,7 @@ function renderRiskDonuts(){
   const strategyRiskCurrent=document.getElementById('strategyRiskCurrent');
   const strategyRiskDelta=document.getElementById('strategyRiskDelta');
   const strategyRiskStatus=document.getElementById('strategyRiskStatus');
-  if(prevLabel) prevLabel.textContent=uploaded?.previous?`${prevMonth}월 S&OP 확정 (전월)`:'전월 예시';
+  if(prevLabel) prevLabel.textContent=`${prevMonth}월 S&OP 확정 (전월)`;
   if(currLabel) currLabel.textContent=uploaded?.current?`${currMonth}월 (당월)`:'당월 예시';
   if(prevTotal) prevTotal.textContent=`${prevRisk.toLocaleString()}개`;
   if(currTotal){
@@ -6394,7 +6458,7 @@ function renderRiskDonuts(){
   if(strategyRiskCard) strategyRiskCard.classList.toggle('warn',!strategyRiskGood);
   if(note){
     const diffText=riskDiff===0?'전월과 동일':`전월 대비 ${riskDiff>0?'▲':'▼'} ${Math.abs(riskDiff).toLocaleString()}개`;
-    note.innerHTML=`위험 90일 미만 · 정상 90일 이상 (2단계)<br>
+    note.innerHTML=`위험 다이소 45일 미만·그 외 전체 90일 미만 / 정상 다이소 45일 이상·그 외 전체 90일 이상 (2단계)<br>
       <strong style="color:${riskDiff<=0?'var(--green)':'var(--red)'};">${diffText}</strong>
       &nbsp;|&nbsp; 재고일수 미산출: 전월 ${(prev.nodata||0).toLocaleString()}개 / 당월 ${(curr.nodata||0).toLocaleString()}개
       <br><span style="color:var(--navy);font-weight:800;">👆 당월 그래프 조각을 클릭하면 아래 PSI 전 품목 현황이 해당 품목으로 필터됩니다</span>`;
