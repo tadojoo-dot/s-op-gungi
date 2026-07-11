@@ -30,3 +30,38 @@ Cloudflare Pages 프로젝트 설정에서 아래 둘 중 하나를 바인딩하
 - 대안: D1 database를 만들고 Pages 변수/바인딩에서 이름을 `DB`로 연결
 
 바인딩 후 재배포하면 여러 사용자가 같은 PSI 조정값과 회의록을 볼 수 있습니다. 저장소 바인딩이 없으면 기존처럼 각 브라우저의 localStorage만 사용합니다.
+
+### KV binding checklist
+
+Cloudflare 대시보드에서 설정할 때는 아래 값을 정확히 맞추세요.
+
+1. Workers & Pages > `s-op-gungi` Pages 프로젝트 선택
+2. Settings > Bindings > Add > KV namespace
+3. Variable name: `SOP_STATE`
+4. KV namespace: 저장용 KV namespace 선택
+5. Save
+6. Deployments에서 최신 배포를 다시 배포
+
+확인은 브라우저에서 아래 URL을 열어 JSON이 나오는지 보면 됩니다.
+
+```text
+https://<your-pages-domain>/api/shared-state
+```
+
+`Missing Cloudflare binding`이 나오면 `SOP_STATE` 바인딩이 Production 환경에 적용되지 않았거나, 재배포가 아직 안 된 상태입니다.
+
+### Terminal copy note
+
+터미널에서 `Ctrl+C`는 복사가 아니라 실행 중인 명령 중단입니다. 복사는 `Ctrl+Shift+C`, 붙여넣기는 `Ctrl+Shift+V`를 사용하세요.
+
+실수로 서버를 끄는 것을 잠깐 막으려면 현재 터미널에서 아래를 실행합니다.
+
+```bash
+stty intr undef
+```
+
+다시 `Ctrl+C`를 복구하려면 아래를 실행합니다.
+
+```bash
+stty intr ^C
+```
