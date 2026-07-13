@@ -4888,11 +4888,15 @@ function queueSharedStateSave(){
 }
 async function saveSharedState(){
   try{
-    await fetch('/api/shared-state',{
+    const res=await fetch('/api/shared-state',{
       method:'PUT',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({state:collectSharedState()})
     });
+    if(!res.ok){
+      const detail=await res.text().catch(()=>'');
+      throw new Error(`HTTP ${res.status}${detail?`: ${detail.slice(0,200)}`:''}`);
+    }
   }catch(e){console.warn('shared state save failed',e);}
 }
 async function loadSharedState(){
