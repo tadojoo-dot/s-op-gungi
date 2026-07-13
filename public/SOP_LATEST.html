@@ -176,6 +176,19 @@ body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var
 .quick-minutes h3{font-size:14px;color:var(--navy);margin-bottom:8px;}
 .quick-minutes textarea{width:100%;min-height:120px;border:1px solid var(--border);border-radius:7px;padding:10px;font-family:inherit;font-size:12px;resize:vertical;}
 .minutes-note{font-size:11px;color:var(--muted);line-height:1.5;margin-top:6px;}
+.archive-panel{display:grid;grid-template-columns:1.1fr .9fr;gap:10px;align-items:start;margin-bottom:14px;padding:12px;border:1px solid var(--border);background:#f8fafc;border-radius:7px;}
+.archive-title{font-size:13px;font-weight:900;color:var(--navy);margin-bottom:4px;}
+.archive-copy{font-size:11px;color:var(--muted);line-height:1.5;}
+.archive-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center;}
+.archive-actions input,.archive-actions select{height:30px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-size:11px;background:#fff;}
+.archive-result{grid-column:1/-1;display:none;border-top:1px solid var(--border);padding-top:10px;}
+.archive-result.on{display:block;}
+.archive-result h4{margin:0 0 8px;font-size:12px;color:var(--navy);}
+.archive-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.archive-box{border:1px solid var(--border);background:#fff;border-radius:6px;padding:9px;}
+.archive-box strong{display:block;font-size:11px;color:var(--navy);margin-bottom:5px;}
+.archive-box pre{white-space:pre-wrap;margin:0;font-family:inherit;font-size:11px;line-height:1.45;color:var(--text);}
+@media(max-width:900px){.archive-panel{grid-template-columns:1fr}.archive-actions{justify-content:flex-start}.archive-grid{grid-template-columns:1fr}}
 .rem-chip{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;}
 .rem-r{background:var(--red-lt);color:var(--red);}
 .rem-y{background:var(--yellow-lt);color:#8a5c00;}
@@ -944,6 +957,20 @@ table.base tr:last-child td{border-bottom:none;}
       </div>
     </div>
     <div class="sec-body">
+      <div class="archive-panel">
+        <div>
+          <div class="archive-title">S&amp;OP 월별 보관</div>
+          <div class="archive-copy">회의가 끝나면 현재 PSI 조정값, 회의록, Action Log, 담당 의견을 월별 보관본으로 저장합니다. 새 달 시작은 현재 live 입력값만 비우고 과거 보관본은 유지합니다.</div>
+        </div>
+        <div class="archive-actions">
+          <input type="month" id="archivePeriod">
+          <button class="btn-print" onclick="archiveCurrentMeeting()">현재 월 보관</button>
+          <select id="archiveSelect"><option value="">과거 보관본</option></select>
+          <button class="btn-print" onclick="loadSelectedArchive()">조회</button>
+          <button class="btn-print" onclick="resetLiveMeetingState()">새 달 시작</button>
+        </div>
+        <div id="archiveResult" class="archive-result"></div>
+      </div>
       <div class="minutes-simple">
         <div class="quick-minutes">
           <h3>회의 메모</h3>
@@ -4882,6 +4909,118 @@ function applySharedState(state){
   });
   return true;
 }
+function htmlSafe(v){
+  return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function parseSharedJson(state,key,fallback){
+  try{return JSON.parse(state?.[key]||'');}catch(e){return fallback;}
+}
+function currentArchivePeriod(){
+  const ym=String(UPLOADED?.base_yearmonth||'').match(/(\d{4})[.\-/](\d{1,2})/);
+  if(ym) return `${ym[1]}-${String(ym[2]).padStart(2,'0')}`;
+  const now=new Date();
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+}
+function initArchiveControls(){
+  const inp=document.getElementById('archivePeriod');
+  if(inp&&!inp.value) inp.value=currentArchivePeriod();
+  loadArchiveList();
+}
+async function loadArchiveList(){
+  const sel=document.getElementById('archiveSelect');
+  if(!sel) return;
+  try{
+    const res=await fetch('/api/shared-state?archives=1',{cache:'no-store'});
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data=await res.json();
+    const archives=data?.archives||[];
+    sel.innerHTML='<option value="">과거 보관본</option>'+archives.map(a=>`<option value="${htmlSafe(a.period)}">${htmlSafe(a.label||a.period)}</option>`).join('');
+  }catch(e){
+    console.warn('archive list load failed',e);
+  }
+}
+async function archiveCurrentMeeting(){
+  const period=document.getElementById('archivePeriod')?.value||currentArchivePeriod();
+  if(!/^\d{4}-\d{2}$/.test(period)){alert('보관 월을 YYYY-MM 형식으로 선택해 주세요.');return;}
+  if(!confirm(`${period} S&OP 보관본을 저장하시겠습니까?\n현재 회의록, PSI 조정값, Action Log, 담당 의견이 보관됩니다.`)) return;
+  try{
+    const state=collectSharedState();
+    const res=await fetch('/api/shared-state',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'archive',period,label:`${period} S&OP`,state})
+    });
+    if(!res.ok) throw new Error(await res.text());
+    await loadArchiveList();
+    alert(`${period} S&OP 보관이 완료되었습니다.`);
+  }catch(e){
+    alert('보관 실패: '+(e?.message||e));
+  }
+}
+async function loadSelectedArchive(){
+  const period=document.getElementById('archiveSelect')?.value;
+  if(!period){alert('조회할 보관본을 선택해 주세요.');return;}
+  try{
+    const res=await fetch(`/api/shared-state?period=${encodeURIComponent(period)}`,{cache:'no-store'});
+    if(!res.ok) throw new Error(await res.text());
+    const data=await res.json();
+    renderArchivePreview(period,data?.state||{});
+  }catch(e){
+    alert('보관본 조회 실패: '+(e?.message||e));
+  }
+}
+function renderArchivePreview(period,state){
+  const target=document.getElementById('archiveResult');
+  if(!target) return;
+  const meeting=parseSharedJson(state,MEETING_MEMO_KEY,{});
+  const planActions=parseSharedJson(state,PLAN_KEY,[]);
+  const psiLog=parseSharedJson(state,PSI_LOG_KEY,[]);
+  const psiBuy=parseSharedJson(state,PSI_SIM_BUY_KEY,{});
+  const buyRows=[];
+  Object.entries(psiBuy||{}).forEach(([mat,months])=>{
+    Object.entries(months||{}).forEach(([mo,val])=>buyRows.push({mat,mo,val}));
+  });
+  target.classList.add('on');
+  target.innerHTML=`
+    <h4>${htmlSafe(period)} S&OP 보관본</h4>
+    <div class="archive-grid">
+      <div class="archive-box"><strong>회의 메모</strong><pre>${htmlSafe(meeting.meeting||'')}</pre></div>
+      <div class="archive-box"><strong>결정사항 요약</strong><pre>${htmlSafe(meeting.decision||'')}</pre></div>
+    </div>
+    <div class="archive-box" style="margin-bottom:10px;"><strong>PSI 입고 조정값 (${buyRows.length}건)</strong>
+      <table class="base"><thead><tr><th class="l">자재코드</th><th class="c">월</th><th class="r">조정입고</th></tr></thead><tbody>
+        ${buyRows.map(r=>`<tr><td class="l">${htmlSafe(r.mat)}</td><td class="c">${htmlSafe(r.mo)}</td><td class="r">${fmtPsiInt(r.val)}</td></tr>`).join('')||'<tr><td class="l" colspan="3">조정값 없음</td></tr>'}
+      </tbody></table>
+    </div>
+    <div class="archive-box" style="margin-bottom:10px;"><strong>PSI Action Log (${psiLog.length}건)</strong>
+      <table class="base"><thead><tr><th class="l">자재코드</th><th class="l">품목명</th><th class="c">월</th><th class="r">원래입고</th><th class="r">조정입고</th><th class="c">저장시각</th></tr></thead><tbody>
+        ${psiLog.map(a=>`<tr><td class="l">${htmlSafe(a.mat||'')}</td><td class="l">${htmlSafe(a.name||'')}</td><td class="c">${htmlSafe(a.moLabel||a.mo||'')}</td><td class="r">${fmtPsiInt(a.origBuy)}</td><td class="r">${fmtPsiInt(a.newVal)}</td><td class="c">${htmlSafe(a.ts||'')}</td></tr>`).join('')||'<tr><td class="l" colspan="6">기록 없음</td></tr>'}
+      </tbody></table>
+    </div>
+    <div class="archive-box"><strong>재고Aging/담당 의견 Action Log (${planActions.length}건)</strong>
+      <table class="base"><thead><tr><th class="l">화면</th><th class="l">구간</th><th class="l">SKU</th><th class="l">품목</th><th class="l">의견</th><th class="c">저장시각</th></tr></thead><tbody>
+        ${planActions.map(a=>`<tr><td class="l">${htmlSafe(a.screen||'')}</td><td class="l">${htmlSafe(a.bucket||'')}</td><td class="l">${htmlSafe(a.sku||'')}</td><td class="l">${htmlSafe(a.name||'')}</td><td class="l">${htmlSafe(a.plan||'')}</td><td class="c">${htmlSafe(a.ts||'')}</td></tr>`).join('')||'<tr><td class="l" colspan="6">기록 없음</td></tr>'}
+      </tbody></table>
+    </div>`;
+}
+function clearSharedLocalInputs(){
+  SHARED_STATE_FIXED_KEYS.forEach(key=>localStorage.removeItem(key));
+  const remove=[];
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(SHARED_STATE_PREFIXES.some(prefix=>key.startsWith(prefix))) remove.push(key);
+  }
+  remove.forEach(key=>localStorage.removeItem(key));
+}
+async function resetLiveMeetingState(){
+  if(!confirm('새 달 S&OP를 시작하시겠습니까?\n현재 live 회의록, PSI 조정값, Action Log, 담당 의견이 초기화됩니다. 과거 보관본은 유지됩니다.\n\n초기화 전에 현재 월 보관을 먼저 실행했는지 확인해 주세요.')) return;
+  clearSharedLocalInputs();
+  await saveSharedState();
+  loadMeetingMemo();
+  refreshSharedStateViews();
+  document.querySelectorAll('.plan-cell[data-plan-key]').forEach(cell=>{cell.textContent='';cell.classList.remove('saved');});
+  alert('새 달 live 입력값을 초기화했습니다.');
+}
 function queueSharedStateSave(){
   clearTimeout(sharedStateSaveTimer);
   sharedStateSaveTimer=setTimeout(saveSharedState,450);
@@ -4966,7 +5105,8 @@ function reconcilePsiActionLog(){
   });
   // 이미 원복돼 더 이상 활성 상태가 아닌 항목은 로그에서도 정리
   const cleaned=log.filter(a=>activeKeys.has(a.key));
-  setPsiActionLog(cleaned.slice(0,200));
+  const next=cleaned.slice(0,200);
+  if(JSON.stringify(next)!==JSON.stringify(log)) setPsiActionLog(next);
 }
 function renderPsiActionLog(){
   const body=document.getElementById('psiActionLogBody');
@@ -7037,6 +7177,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   runStep('loadFromStorage', loadFromStorage);
   runStep('seedRecoveredLocalInputs', seedRecoveredLocalInputs);
   runStep('loadSharedState', loadSharedState);
+  runStep('initArchiveControls', initArchiveControls);
   runStep('renderSnapshotUI', renderSnapshotUI);
   runStep('renderKPICards', renderKPICards);
   runStep('renderChAgingChart', renderChAgingChart);
