@@ -4,5 +4,5 @@ pages_build_output_dir = "public"
 
 [[kv_namespaces]]
 binding = "SOP_STATE"
-id = "c15a809856ea404f83a66274e3dc603c"
-preview_id = "c15a809856ea404f83a66274e3dc603c"
+id = "05ce4e26ad784fde95ecad137c60b2ee"
+preview_id = "05ce4e26ad784fde95ecad137c60b2ee"
