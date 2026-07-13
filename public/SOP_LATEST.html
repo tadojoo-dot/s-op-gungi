@@ -797,7 +797,7 @@ table.base tr:last-child td{border-bottom:none;}
     <div class="sec-head">
       <div class="sec-tw"><div class="sec-bar"></div><div>
         <div class="sec-title" id="psiTableTitle">PSI 전 품목 현황</div>
-        <div class="sec-sub" id="psiSecSub">당월부터 4개월 · 당월은 판매계획 기준 기말재고와 진척율 기준 예상 재고를 수량/재고일수로 병행 표시 &nbsp;|&nbsp; 재고일수 = 재고수량 ÷ 3개월 평균판매수량 × 30</div>
+        <div class="sec-sub" id="psiSecSub">당월부터 4개월 · 당월은 판매계획 기준 기말재고와 진척율 기준 예상 재고를 수량/재고일수로 병행 표시 &nbsp;|&nbsp; 재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30</div>
       </div></div>
       <div class="frow no-print" style="margin:0;gap:6px;">
         <select id="fp" onchange="renderPSI()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;"><option value="">전체</option><option value="red">🔴위험</option><option value="green">🟢정상</option></select>
@@ -834,7 +834,7 @@ table.base tr:last-child td{border-bottom:none;}
         기초재고 = 전체재고(BQ) − 6개월미만 재고(BS). 6개월미만은 원칙적으로 출고 불가하여 가용 기초에서 제외합니다.<br>
         당월 보조 기준은 진척율 기준으로 보며, 진척율 기준 재고수량 = 당월 기초재고 + 당월 입고계획 - 진척율 기준 예상 판매수량입니다.
         차월 이후 보조 기준은 3평판 기준으로 보며, 차월 기초는 당월 진척율 기준 예상 기말재고에서 이어지고 이후 월은 전월 3평판 기준 기말재고를 기초로 사용합니다.
-        3평판 기준 판매수량 = 평균출하 시트 I열의 3개월 평균출하 수량, 재고일수 = 재고수량 ÷ 3평판 × 30입니다. PSI 표의 수량·3평판·재고일수는 반올림 정수로 표시합니다.<br>
+        재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30입니다. 다음 월 판매계획이 없으면 재고일수는 산출불가로 표시합니다. PSI 표의 수량·재고일수는 반올림 정수로 표시합니다.<br>
         <strong>신호등 기준:</strong> 전 품목 동일 2단계 — 위험(빨강) 90일 미만 / 정상(초록) 90일 이상. 다이소 별도기준·과잉 구간은 폐지했습니다.
       </div>
     </div>
@@ -2091,11 +2091,7 @@ function parsePSISheet(ws){
     const buy6=Math.round(Number(row[14])||0);
     // 기말재고(판매계획 기준) = 기초+입고-판매 = 표의 6월 기말재고와 동일하게 계산 (원본 X열 대신)
     const ep=Math.round(inv+buy6-plan6);
-    const dp=avg3>0?Math.round(ep/avg3*30):0;
     const er=Math.round(inv+buy6-plan6*rate6);
-    const dr=avg3>0?Math.round(er/avg3*30):0;
-    const sp=avg3===0?'gray':(inv<100?'green':getPSIStockSignal(dp)); // 당월 기초재고 100개 미만은 정상 처리
-    const sr=avg3===0?'gray':(inv<100?'green':getPSIStockSignal(dr));
     let pkg=sourcePkg||'건기식';
     if(name.includes('덴티')||name.includes('구강')) pkg='구강';
     const ri=v=>Math.round(Number(v)||0);
@@ -2106,9 +2102,13 @@ function parsePSISheet(ws){
       '9월':{begin:ri(row[42]),buy:ri(row[49]),plan:ri(row[47]),end:ri(row[52])},
       '10월':{begin:ri(row[52]),buy:ri(row[59]),plan:ri(row[57]),end:ri(row[62])}
     };
-    Object.values(sourceMonthlyPsi).forEach(month=>{
-      month.days=avg3>0?Math.round(month.end/avg3*30):null;
+    Object.entries(sourceMonthlyPsi).forEach(([monthKey,month])=>{
+      month.days=psiDaysFromMonthlyPlan(sourceMonthlyPsi,monthKey,month.end);
     });
+    const dp=sourceMonthlyPsi['6월'].days;
+    const dr=psiDaysFromMonthlyPlan(sourceMonthlyPsi,'6월',er);
+    const sp=dp==null?'gray':(inv<100?'green':getPSIStockSignal(dp)); // 당월 기초재고 100개 미만은 정상 처리
+    const sr=dr==null?'gray':(inv<100?'green':getPSIStockSignal(dr));
     result.push({mat,name,pkg,avg3,inv,plan6,planAmt6,buy6,actual6,rate6,ep,dp,sp,er,dr,sr,sourceMonthlyPsi,monthRealLabels});
   });
   return result;
@@ -2364,6 +2364,25 @@ function parseDaisoPSISheet(ws){
   });
 }
 
+const PSI_COVERAGE_MONTH_KEYS=['6월','7월','8월','9월','10월'];
+function psiNextMonthKey(monthKey){
+  const idx=PSI_COVERAGE_MONTH_KEYS.indexOf(monthKey);
+  return idx>=0?PSI_COVERAGE_MONTH_KEYS[idx+1]:null;
+}
+function psiDaysByNextPlan(end,nextPlan){
+  const plan=Number(nextPlan)||0;
+  if(plan<=0) return null;
+  return Math.round((Number(end)||0)/plan*30);
+}
+function psiDaysFromMonthlyPlan(monthly,monthKey,end){
+  const nextKey=psiNextMonthKey(monthKey);
+  const nextPlan=nextKey?Number(monthly?.[nextKey]?.plan)||0:0;
+  return psiDaysByNextPlan(end,nextPlan);
+}
+function psiDaysForRow(d,monthKey,end){
+  return psiDaysFromMonthlyPlan(d?.monthlyPsi||d?.sourceMonthlyPsi||{},monthKey,end);
+}
+
 function getPSIStockSignal(days,isDaiso){
   // 2단계 신호등: 일반 90일 미만 위험(red) / 90일 이상 정상(green). 다이소 마스터 품목은 위험기준 45일.
   if(days==null||!Number.isFinite(Number(days))) return 'gray';
@@ -2479,15 +2498,16 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
         const begin=Number(src.begin)||0, plan=Number(src.plan)||0;
         const buy=supply?supplyBuyFor(supply,row.mat,mk,row.monthRealLabels,src.buy):(Number(src.buy)||0);
         const end=begin+buy-plan;
-        compMonthly[mk]={begin,buy,plan,end,days:row.avg3>0?Math.round(end/row.avg3*30):null};
+        compMonthly[mk]={begin,buy,plan,end};
       });
+      Object.entries(compMonthly).forEach(([mk,month])=>{month.days=psiDaysFromMonthlyPlan(compMonthly,mk,month.end);});
       const cur=compMonthly['6월']||{};
       const rawCur=row.sourceMonthlyPsi?.['6월']||{};
       const progressDemand6=(Number(rawCur.begin)||0)+(Number(rawCur.buy)||0)-(Number(row.er)||0);
       const ep=Number(cur.end)||0;
-      const dp=row.avg3>0?Math.round(ep/row.avg3*30):0;
+      const dp=psiDaysFromMonthlyPlan(compMonthly,'6월',ep);
       const er=(Number(cur.begin)||0)+(Number(cur.buy)||0)-progressDemand6;
-      const dr=row.avg3>0?Math.round(er/row.avg3*30):0;
+      const dr=psiDaysFromMonthlyPlan(compMonthly,'6월',er);
       return {
         ...row,
         pkg:'건기식',
@@ -2502,8 +2522,8 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
         dp:supply?dp:row.dp,
         er:supply?er:row.er,
         dr:supply?dr:row.dr,
-        sp:row.avg3===0?'gray':(row.inv<100?'green':getPSIStockSignal(supply?dp:row.dp,true)),
-        sr:row.avg3===0?'gray':(row.inv<100?'green':getPSIStockSignal(supply?dr:row.dr,true))
+        sp:(supply?dp:row.dp)==null?'gray':(row.inv<100?'green':getPSIStockSignal(supply?dp:row.dp,true)),
+        sr:(supply?dr:row.dr)==null?'gray':(row.inv<100?'green':getPSIStockSignal(supply?dr:row.dr,true))
       };
     });
   const integratedRows=matchedGroups.map(({masterGroup,group})=>{
@@ -2519,7 +2539,7 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
       month.buy=Math.round(month.buy);
       month.plan=Math.round(month.plan);
       month.end=Math.round(month.begin+month.buy-month.plan); // 입고(공급) 반영해 기말 재계산
-      month.days=agg.avg3>0?Math.round(month.end/agg.avg3*30):null;
+      month.days=psiDaysFromMonthlyPlan(monthlyPsi,monthKey,month.end);
     });
     const june=monthlyPsi['6월']||{};
     const avg3=agg.avg3;
@@ -2527,11 +2547,11 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
     const plan6=Number(june.plan)||0;
     const buy6=Number(june.buy)||0;
     const ep=Number(june.end)||0;
-    const dp=avg3>0?Math.round(ep/avg3*30):0;
+    const dp=psiDaysFromMonthlyPlan(monthlyPsi,'6월',ep);
     const er=Math.round(inv+buy6-(Number(agg.progressDemand6)||0));
-    const dr=avg3>0?Math.round(er/avg3*30):0;
-    const sp=avg3===0?'gray':(inv<100?'green':getPSIStockSignal(dp,true));
-    const sr=avg3===0?'gray':(inv<100?'green':getPSIStockSignal(dr,true));
+    const dr=psiDaysFromMonthlyPlan(monthlyPsi,'6월',er);
+    const sp=dp==null?'gray':(inv<100?'green':getPSIStockSignal(dp,true));
+    const sr=dr==null?'gray':(inv<100?'green':getPSIStockSignal(dr,true));
     return {
       mat:group.code,
       name:group.name,
@@ -2611,7 +2631,12 @@ function parsePSIRiskSheet(ws,daisoMatSet){
     const plan6=Math.round(Number(row[10])||0);
     const buy6=Math.round(Number(row[14])||0);
     const ep=Math.round(inv+buy6-plan6);
-    const days=Math.round(ep/avg3*30);
+    const nextPlan=Math.round(Number(row[26])||0);
+    const days=psiDaysByNextPlan(ep,nextPlan);
+    if(days==null){
+      summary.nodata++;
+      return;
+    }
     const threshold=daisoMatSet?.has(mat)?45:90; // 다이소 마스터 소속 품목은 위험기준 45일
     if(days<threshold) summary.short++;
     else summary.normal++; // 기준일 이상 전부 정상 (과잉 개념 제거)
@@ -4690,7 +4715,7 @@ function _psiSortKey(item,col){
         prev=r.end;
         let basisEnd=0,basisDays=null;
         if(m.progress){basisEnd=Number(d.er)||0;basisDays=d.dr;avgPrev=basisEnd;}
-        else{const ab=avgPrev==null?r.begin:avgPrev;basisEnd=ab+r.buy-(Number(d.avg3)||0);basisDays=d.avg3>0?Math.round(basisEnd/d.avg3*30):null;avgPrev=basisEnd;}
+        else{const ab=avgPrev==null?r.begin:avgPrev;basisEnd=ab+r.buy-(Number(d.avg3)||0);basisDays=psiDaysForRow(d,m.key,basisEnd);avgPrev=basisEnd;}
         if(i===moIdx) res={r,basisEnd,basisDays};
       }
       if(res){
@@ -4729,7 +4754,7 @@ function _renderPsiTbody(){
       const endCls=r.end<0?' style="color:var(--red);font-weight:900;"':'';
       let basisEnd,basisDays,basisSig;
       if(m.progress){basisEnd=Number(d.er)||0;basisDays=d.dr;basisSig=d.sr||'gray';avgPrev=basisEnd;}
-      else{const ab=avgPrev==null?r.begin:avgPrev;basisEnd=ab+r.buy-(Number(d.avg3)||0);basisDays=d.avg3>0?Math.round(basisEnd/d.avg3*30):null;basisSig=d.avg3===0?'gray':getPSIStockSignal(basisDays,isIntegrated||isDaisoComponent);avgPrev=basisEnd;}
+      else{const ab=avgPrev==null?r.begin:avgPrev;basisEnd=ab+r.buy-(Number(d.avg3)||0);basisDays=psiDaysForRow(d,m.key,basisEnd);basisSig=basisDays==null?'gray':getPSIStockSignal(basisDays,isIntegrated||isDaisoComponent);avgPrev=basisEnd;}
       const bsc=basisSig==='red'?'sig-r':basisSig==='yellow'?'sig-y':basisSig==='excess'?'sig-x':basisSig==='green'?'sig-g':'sig-gray';
       const bec=basisEnd<0?' style="color:var(--red);font-weight:900;"':' style="font-weight:800;color:var(--navy);"';
       const exact=d.monthlyPsi?.[m.key]||d.sourceMonthlyPsi?.[m.key];
@@ -4784,16 +4809,18 @@ function calcPsiMonth(d,m,prevEnd,buyOverride){
     const buy=buyOverride!=null?buyOverride:Number(exact.buy)||0;
     const plan=Number(exact.plan)||0;
     const end=begin+buy-plan;
-    const days=d.avg3>0?Math.round(end/d.avg3*30):(Number.isFinite(Number(exact.days))?Number(exact.days):null);
-    const sig=d.avg3===0?'gray':getPSIStockSignal(days,isDaisoRow);
+    const days=psiDaysForRow(d,m.key,end);
+    const sig=days==null?'gray':getPSIStockSignal(days,isDaisoRow);
     return {begin,buy,plan,end,days,sig};
   }
   const begin=prevEnd==null?d.inv:prevEnd;
   const buy=buyOverride!=null?buyOverride:Math.round((d.buy6||0)*m.buy);
   const plan=Math.round((d.plan6||0)*m.plan);
   const end=begin+buy-plan;
-  const days=d.avg3>0?Math.round(end/d.avg3*30):null;
-  const sig=d.avg3===0?'gray':getPSIStockSignal(days,isDaisoRow);
+  const idx=PSI_MONTHS.findIndex(row=>row.key===m.key);
+  const nextM=idx>=0?PSI_MONTHS[idx+1]:null;
+  const days=psiDaysByNextPlan(end,nextM?Math.round((d.plan6||0)*nextM.plan):0);
+  const sig=days==null?'gray':getPSIStockSignal(days,isDaisoRow);
   return {begin,buy,plan,end,days,sig};
 }
 const PSI_SIM_BUY_KEY='sopPsiSimBuy_v1';
@@ -4821,8 +4848,8 @@ function recalcPsiRow(mat){
     }else{
       const avgBegin=avgPrev==null?r.begin:avgPrev;
       basisEnd=avgBegin+r.buy-(Number(d.avg3)||0);
-      basisDays=d.avg3>0?Math.round(basisEnd/d.avg3*30):null;
-      basisSig=d.avg3===0?'gray':getPSIStockSignal(basisDays,isPsiIntegrated(d)||isPsiDaisoComponent(d));
+      basisDays=psiDaysForRow(d,m.key,basisEnd);
+      basisSig=basisDays==null?'gray':getPSIStockSignal(basisDays,isPsiIntegrated(d)||isPsiDaisoComponent(d));
       avgPrev=basisEnd;
     }
     return {r,basisEnd,basisDays,basisSig};
@@ -5180,7 +5207,7 @@ function updatePsiMonthTexts(firstMo,lastMo){
   const alertEl=document.getElementById('psiAlertText');
   if(alertEl) alertEl.innerHTML=`⚠ PSI는 ${range} 4개월 시계열로 봅니다. 기초재고(전체재고 − 6개월미만 재고) + 입고계획 − 판매계획 = 기말재고, 재고일수 90일 미만은 빨간 신호로 표시합니다.`;
   const subEl=document.getElementById('psiSecSub');
-  if(subEl) subEl.innerHTML=`${range} 4개월 · ${firstMo||'당월'}은 판매계획 기준 기말재고와 진척율 기준 예상 재고를 수량/재고일수로 병행 표시 &nbsp;|&nbsp; 재고일수 = 재고수량 ÷ 3개월 평균판매수량 × 30`;
+  if(subEl) subEl.innerHTML=`${range} 4개월 · ${firstMo||'당월'}은 판매계획 기준 기말재고와 진척율 기준 예상 재고를 수량/재고일수로 병행 표시 &nbsp;|&nbsp; 재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30`;
 }
 function renderPSI(){
   const fs=document.getElementById('fp')?.value||'';
@@ -5393,7 +5420,7 @@ function runSim(){
     const requiredQty=d.unitPrice>0&&planShare>0?Math.round(allocatedAmt/d.unitPrice):null;
     const share=requiredQty==null?0:(amt>=0?requiredQty:-requiredQty);
     const newEnd=currEnd-share;
-    const newDays=d.avg3>0?Math.round(newEnd/d.avg3*30):null;
+    const newDays=psiDaysForRow(d,'6월',newEnd);
     const risk=requiredQty==null||newDays==null?'nodata':(newEnd<=0||newDays<90)?'short':'normal';
     return {...d,share,requiredQty,planShare,allocatedAmt,currEnd,currDays,newEnd,newDays,risk};
   }).sort((a,b)=>(a.newDays??99999)-(b.newDays??99999));
