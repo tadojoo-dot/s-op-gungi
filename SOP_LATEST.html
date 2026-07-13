@@ -2431,7 +2431,7 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
     matchedRawMaterialCodes.add(String(row.mat||''));
     if(!aggregate.has(groupKey)){
       aggregate.set(groupKey,{
-        avg3:0,actual6:0,er:0,planAmt6:0,components:[],
+        avg3:0,actual6:0,er:0,progressDemand6:0,planAmt6:0,components:[],
         monthlyPsi:{
           '6월':{begin:0,buy:0,plan:0,end:0},
           '7월':{begin:0,buy:0,plan:0,end:0},
@@ -2445,6 +2445,13 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
     agg.avg3+=Number(row.avg3)||0;
     agg.actual6+=Number(row.actual6)||0;
     agg.er+=Number(row.er)||0;
+    {
+      const cur=row.sourceMonthlyPsi?.['6월']||{};
+      const begin=Number(cur.begin)||0;
+      const buy=Number(cur.buy)||0;
+      const er=Number(row.er)||0;
+      agg.progressDemand6+=begin+buy-er;
+    }
     agg.planAmt6+=Number(row.planAmt6)||0;
     agg.components.push(String(row.mat||''));
     const hasSupply=supply?.byMat&&Object.prototype.hasOwnProperty.call(supply.byMat,String(row.mat||''));
@@ -2474,6 +2481,13 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
         const end=begin+buy-plan;
         compMonthly[mk]={begin,buy,plan,end,days:row.avg3>0?Math.round(end/row.avg3*30):null};
       });
+      const cur=compMonthly['6월']||{};
+      const rawCur=row.sourceMonthlyPsi?.['6월']||{};
+      const progressDemand6=(Number(rawCur.begin)||0)+(Number(rawCur.buy)||0)-(Number(row.er)||0);
+      const ep=Number(cur.end)||0;
+      const dp=row.avg3>0?Math.round(ep/row.avg3*30):0;
+      const er=(Number(cur.begin)||0)+(Number(cur.buy)||0)-progressDemand6;
+      const dr=row.avg3>0?Math.round(er/row.avg3*30):0;
       return {
         ...row,
         pkg:'건기식',
@@ -2484,8 +2498,12 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
         plantValues:master.plantByMaterial.get(String(row.mat||''))?[master.plantByMaterial.get(String(row.mat||''))]:[],
         monthlyPsi:supply?compMonthly:undefined,
         buy6:supply?(Number(compMonthly['6월'].buy)||0):row.buy6,
-        sp:row.avg3===0?'gray':(row.inv<100?'green':getPSIStockSignal(row.dp,true)),
-        sr:row.avg3===0?'gray':(row.inv<100?'green':getPSIStockSignal(row.dr,true))
+        ep:supply?ep:row.ep,
+        dp:supply?dp:row.dp,
+        er:supply?er:row.er,
+        dr:supply?dr:row.dr,
+        sp:row.avg3===0?'gray':(row.inv<100?'green':getPSIStockSignal(supply?dp:row.dp,true)),
+        sr:row.avg3===0?'gray':(row.inv<100?'green':getPSIStockSignal(supply?dr:row.dr,true))
       };
     });
   const integratedRows=matchedGroups.map(({masterGroup,group})=>{
@@ -2510,7 +2528,7 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
     const buy6=Number(june.buy)||0;
     const ep=Number(june.end)||0;
     const dp=avg3>0?Math.round(ep/avg3*30):0;
-    const er=agg.er;
+    const er=Math.round(inv+buy6-(Number(agg.progressDemand6)||0));
     const dr=avg3>0?Math.round(er/avg3*30):0;
     const sp=avg3===0?'gray':(inv<100?'green':getPSIStockSignal(dp,true));
     const sr=avg3===0?'gray':(inv<100?'green':getPSIStockSignal(dr,true));
