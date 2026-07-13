@@ -20,6 +20,20 @@ Cloudflare 화면에는 아래처럼 입력하세요.
 - Root directory: 비워두기
 - Production branch: `main`
 
+## Live release
+
+Cloudflare에 로그인된 터미널에서는 아래 명령으로 운영 Pages 배포를 실행합니다.
+
+```bash
+npm run release:live
+```
+
+처음 실행하는 환경이면 먼저 Cloudflare 로그인이 필요합니다.
+
+```bash
+npx wrangler login
+```
+
 ## Shared live inputs
 
 PSI 입고수량 조정, PSI Action Log, 회의록, 담당자 조치의견은 Cloudflare Pages Function `/api/shared-state`를 통해 공용 저장할 수 있습니다.

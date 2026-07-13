@@ -1,0 +1,7 @@
+{
+  "name": "s-op-gungi",
+  "private": true,
+  "scripts": {
+    "release:live": "CLOUDFLARE_ACCOUNT_ID=14c780e41fc86dde4101283fb427b14e npx --yes wrangler@4.110.0 pages deploy public --project-name s-op-gungi --branch main --commit-dirty=true"
+  }
+}
