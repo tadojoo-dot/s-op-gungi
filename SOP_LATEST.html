@@ -487,6 +487,11 @@ table.base tr:last-child td{border-bottom:none;}
 .sku-insight.good{background:#f0faf4;border-color:#7ec99a;color:#1a4d2e;}
 .dd-table tr.clickable-row{cursor:pointer;}
 .dd-table tr.clickable-row:hover td{background:#eef3ff;}
+.admin-btn{height:28px;border:1px solid rgba(255,255,255,.35);border-radius:6px;background:rgba(255,255,255,.12);color:#fff;font-size:11px;font-weight:800;padding:0 10px;cursor:pointer;}
+.admin-btn.on{background:#E3B341;border-color:#E3B341;color:#111827;}
+.admin-lock-note{font-size:10px;color:rgba(255,255,255,.62);font-weight:700;}
+body:not(.admin-mode) .admin-editable{opacity:.68;}
+body:not(.admin-mode) .psi-buy-input,body:not(.admin-mode) textarea.action-memo,body:not(.admin-mode) #meetingMemo,body:not(.admin-mode) #decisionMemo{background:#f3f4f6!important;color:#6b7280!important;cursor:not-allowed;}
 /* PRINT */
 @page{size:A4 landscape;margin:8mm;}
 @media print{.hdr,.fbar,.tabbar,.no-print{display:none!important;}.page{display:block!important;padding:0;page-break-after:always;background:#fff;}}
@@ -526,6 +531,8 @@ table.base tr:last-child td{border-bottom:none;}
   <button class="tab" data-page="3" onclick="sw(3)"><span class="tab-kr">④ 회의록</span></button>
   <button class="tab" data-page="4" onclick="sw(4)"><span class="tab-kr">⑤ 정합성 체크</span></button>
   <div class="tab-tools">
+    <button class="admin-btn" id="adminModeBtn" onclick="toggleAdminMode()">관리자 모드</button>
+    <span class="admin-lock-note" id="adminModeNote">읽기 전용</span>
     <div class="tab-upload-btn" id="uploadCompact2"
          ondragover="event.preventDefault();this.style.borderColor='rgba(255,255,255,.7)'"
          ondragleave="this.style.borderColor=''"
@@ -1350,6 +1357,52 @@ function setAgingMode(mode,btn){
 let UPLOADED=null;
 const LS_KEY='sopDash_v11';
 const LEGACY_LS_KEYS=['sopDash_v10','sopDash_v9','sopDash_v8','sopDash_v7','sopDash_v6','sopDash_v5','sopDash_v4','sopDash_v3','sopDash_v2'];
+let ADMIN_PASSWORD=sessionStorage.getItem('sopAdminPassword')||'';
+function isAdminMode(){return !!ADMIN_PASSWORD;}
+function requireAdminMode(){
+  if(isAdminMode()) return true;
+  alert('관리자 모드에서만 수정할 수 있습니다.');
+  return false;
+}
+function updateAdminModeUI(){
+  document.body.classList.toggle('admin-mode',isAdminMode());
+  const btn=document.getElementById('adminModeBtn');
+  const note=document.getElementById('adminModeNote');
+  if(btn){
+    btn.classList.toggle('on',isAdminMode());
+    btn.textContent=isAdminMode()?'관리자 ON':'관리자 모드';
+  }
+  if(note) note.textContent=isAdminMode()?'수정 가능':'읽기 전용';
+  document.querySelectorAll('#meetingMemo,#decisionMemo,.action-memo').forEach(el=>{el.readOnly=!isAdminMode();});
+  document.querySelectorAll('.psi-buy-input').forEach(el=>{el.disabled=!isAdminMode();});
+  document.querySelectorAll('.plan-cell[data-plan-key]').forEach(el=>{
+    el.contentEditable=isAdminMode()?'true':'false';
+    el.classList.toggle('admin-editable',true);
+  });
+}
+async function toggleAdminMode(){
+  if(isAdminMode()){
+    ADMIN_PASSWORD='';
+    sessionStorage.removeItem('sopAdminPassword');
+    updateAdminModeUI();
+    return;
+  }
+  const pw=prompt('관리자 비밀번호를 입력하세요.');
+  if(!pw) return;
+  try{
+    const res=await fetch('/api/shared-state',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'verify',adminPassword:pw})
+    });
+    if(!res.ok) throw new Error('비밀번호가 맞지 않습니다.');
+    ADMIN_PASSWORD=pw;
+    sessionStorage.setItem('sopAdminPassword',pw);
+    updateAdminModeUI();
+  }catch(e){
+    alert(e?.message||'관리자 인증 실패');
+  }
+}
 
 function loadFromStorage(){
   try{
@@ -1483,6 +1536,7 @@ function setPlanActions(actions){
   queueSharedStateSave();
 }
 function savePlanAction(meta, text){
+  if(!requireAdminMode()) return;
   const val=String(text||'').trim();
   const actions=getPlanActions().filter(a=>a.key!==meta.key);
   if(val){
@@ -1524,6 +1578,7 @@ function clearPlanCell(btn){
   },'');
 }
 function clearAllPlanActions(){
+  if(!requireAdminMode()) return;
   if(!getPlanActions().length) return;
   if(!confirm('재고Aging Action Log에 저장된 모든 소진계획 메모를 삭제하시겠습니까? 되돌릴 수 없습니다.')) return;
   setPlanActions([]);
@@ -1552,6 +1607,7 @@ function renderActionLog(){
   </tr>`).join('');
 }
 function saveMeetingMemo(){
+  if(!requireAdminMode()) return;
   const data={
     meeting:document.getElementById('meetingMemo')?.value||'',
     decision:document.getElementById('decisionMemo')?.value||''
@@ -4780,6 +4836,7 @@ function _renderPsiTbody(){
   tbody.innerHTML=h;
   bindPlanCells(tbody);
   bindPsiBuyInputs();
+  updateAdminModeUI();
 }
 
 // ═══════════ PSI 공통 헬퍼 & 입고 시뮬레이션 ════════════════
@@ -4826,6 +4883,7 @@ function calcPsiMonth(d,m,prevEnd,buyOverride){
 const PSI_SIM_BUY_KEY='sopPsiSimBuy_v1';
 function getPsiSimBuy(){try{return JSON.parse(localStorage.getItem(PSI_SIM_BUY_KEY)||'{}');}catch(e){return {};}}
 function setPsiSimBuyVal(mat,moKey,val){
+  if(!requireAdminMode()) return;
   const data=getPsiSimBuy();
   if(!data[mat])data[mat]={};
   data[mat][moKey]=val;
@@ -4869,6 +4927,7 @@ function recalcPsiRow(mat){
   });
 }
 function resetPsiBuyCell(btn){
+  if(!requireAdminMode()) return;
   const inp=btn.previousElementSibling;
   if(!inp||!inp.classList.contains('psi-buy-input')) return;
   const mat=inp.dataset.mat, mo=inp.dataset.mo;
@@ -4883,6 +4942,7 @@ function resetPsiBuyCell(btn){
   renderPSIRiskChart();
 }
 function resetPsiBuyOverrides(){
+  if(!requireAdminMode()) return;
   const data=getPsiSimBuy();
   const cnt=Object.values(data).reduce((s,m)=>s+Object.keys(m||{}).length,0);
   if(!cnt){ alert('저장된 입고 조정값이 없습니다.'); return; }
@@ -4985,6 +5045,7 @@ async function loadArchiveList(){
   }
 }
 async function archiveCurrentMeeting(){
+  if(!requireAdminMode()) return;
   const period=document.getElementById('archivePeriod')?.value||currentArchivePeriod();
   if(!/^\d{4}-\d{2}$/.test(period)){alert('보관 월을 YYYY-MM 형식으로 선택해 주세요.');return;}
   if(!confirm(`${period} S&OP 보관본을 저장하시겠습니까?\n현재 회의록, PSI 조정값, Action Log, 담당 의견이 보관됩니다.`)) return;
@@ -4993,7 +5054,7 @@ async function archiveCurrentMeeting(){
     const res=await fetch('/api/shared-state',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'archive',period,label:`${period} S&OP`,state})
+      body:JSON.stringify({action:'archive',period,label:`${period} S&OP`,state,adminPassword:ADMIN_PASSWORD})
     });
     if(!res.ok) throw new Error(await res.text());
     await loadArchiveList();
@@ -5058,6 +5119,7 @@ function clearSharedLocalInputs(){
   remove.forEach(key=>localStorage.removeItem(key));
 }
 async function resetLiveMeetingState(){
+  if(!requireAdminMode()) return;
   if(!confirm('새 달 S&OP를 시작하시겠습니까?\n현재 live 회의록, PSI 조정값, Action Log, 담당 의견이 초기화됩니다. 과거 보관본은 유지됩니다.\n\n초기화 전에 현재 월 보관을 먼저 실행했는지 확인해 주세요.')) return;
   clearSharedLocalInputs();
   await saveSharedState();
@@ -5071,11 +5133,12 @@ function queueSharedStateSave(){
   sharedStateSaveTimer=setTimeout(saveSharedState,450);
 }
 async function saveSharedState(){
+  if(!isAdminMode()) return;
   try{
     const res=await fetch('/api/shared-state',{
       method:'PUT',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({state:collectSharedState()})
+      body:JSON.stringify({state:collectSharedState(),adminPassword:ADMIN_PASSWORD})
     });
     if(!res.ok){
       const detail=await res.text().catch(()=>'');
@@ -5097,6 +5160,7 @@ async function loadSharedState(){
   }catch(e){console.warn('shared state load failed',e);}
 }
 function saveSharedTextInput(el){
+  if(!requireAdminMode()) return;
   localStorage.setItem(el.dataset.memoKey,el.value);
   el.classList.toggle('saved',el.value.trim()!=='');
   queueSharedStateSave();
@@ -5124,6 +5188,7 @@ function logPsiBuyAction(mat,mo,name,origBuy,newVal){
   renderPsiActionLog();
 }
 function clearAllPsiActions(){
+  if(!requireAdminMode()) return;
   if(!getPsiActionLog().length) return;
   if(!confirm('PSI Action Log에 저장된 모든 입고 조정 기록을 삭제하시겠습니까? (조정값 자체는 유지되고 기록만 삭제됩니다) 되돌릴 수 없습니다.')) return;
   setPsiActionLog([]);
@@ -6218,6 +6283,7 @@ function renderHT(){
   }
   document.getElementById('htWrap').innerHTML=h+`</tbody></table>`;
   renderSortIndicators('ht',htSort,'htSortSummary');
+  updateAdminModeUI();
 }
 
 
@@ -7164,6 +7230,7 @@ function openPlanAdjustModal(row){
       </tbody></table>
     </div>
     <div class="sku-insight good" style="font-weight:900;">${statement}</div>`;
+  updateAdminModeUI();
   modal.style.display='flex';
   safeDestroyChart('planAdjustTrendChart');
   planAdjustModalChart=null;
@@ -7229,6 +7296,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   runStep('seedRecoveredLocalInputs', seedRecoveredLocalInputs);
   runStep('loadSharedState', loadSharedState);
   runStep('initArchiveControls', initArchiveControls);
+  runStep('updateAdminModeUI', updateAdminModeUI);
   runStep('renderSnapshotUI', renderSnapshotUI);
   runStep('renderKPICards', renderKPICards);
   runStep('renderChAgingChart', renderChAgingChart);

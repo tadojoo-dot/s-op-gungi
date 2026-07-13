@@ -13,6 +13,16 @@ function json(data, status = 200) {
   });
 }
 
+function requireAdmin(body, env) {
+  if (!env.ADMIN_PASSWORD) return;
+  const provided = String(body?.adminPassword || '');
+  if (!provided || provided !== String(env.ADMIN_PASSWORD)) {
+    const error = new Error('Admin password required.');
+    error.status = 403;
+    throw error;
+  }
+}
+
 async function ensureD1(env) {
   if (!env.DB) return false;
   await env.DB.prepare(
@@ -113,10 +123,11 @@ export async function onRequestPut({ request, env }) {
     if (!body || typeof body.state !== 'object' || Array.isArray(body.state)) {
       return json({ error: 'Expected JSON body: { "state": { ... } }' }, 400);
     }
+    requireAdmin(body, env);
     await writeState(env, body.state);
     return json({ ok: true });
   } catch (error) {
-    return json({ error: error.message || 'shared-state write failed' }, 500);
+    return json({ error: error.message || 'shared-state write failed' }, error.status || 500);
   }
 }
 
@@ -125,6 +136,10 @@ export async function onRequestPost({ request, env }) {
     const raw = await request.text();
     if (raw.length > MAX_BODY_BYTES) return json({ error: 'Request body is too large.' }, 413);
     const body = raw ? JSON.parse(raw) : {};
+    requireAdmin(body, env);
+    if (body?.action === 'verify') {
+      return json({ ok: true });
+    }
     if (body?.action === 'archive') {
       const period = String(body.period || '');
       const id = archiveId(period);
@@ -142,6 +157,6 @@ export async function onRequestPost({ request, env }) {
     }
     return onRequestPut({ request: new Request(request.url, { method: 'PUT', body: raw }), env });
   } catch (error) {
-    return json({ error: error.message || 'shared-state archive failed' }, 500);
+    return json({ error: error.message || 'shared-state archive failed' }, error.status || 500);
   }
 }
