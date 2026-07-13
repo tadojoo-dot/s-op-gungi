@@ -492,6 +492,7 @@ table.base tr:last-child td{border-bottom:none;}
 .admin-lock-note{font-size:10px;color:rgba(255,255,255,.62);font-weight:700;}
 body:not(.admin-mode) .admin-editable{opacity:.68;}
 body:not(.admin-mode) .psi-buy-input,body:not(.admin-mode) textarea.action-memo,body:not(.admin-mode) #meetingMemo,body:not(.admin-mode) #decisionMemo{background:#f3f4f6!important;color:#6b7280!important;cursor:not-allowed;}
+body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel button{opacity:.55;cursor:not-allowed;}
 /* PRINT */
 @page{size:A4 landscape;margin:8mm;}
 @media print{.hdr,.fbar,.tabbar,.no-print{display:none!important;}.page{display:block!important;padding:0;page-break-after:always;background:#fff;}}
@@ -1379,6 +1380,7 @@ function updateAdminModeUI(){
     el.contentEditable=isAdminMode()?'true':'false';
     el.classList.toggle('admin-editable',true);
   });
+  document.querySelectorAll('#snapshotSelect,.snap-panel button').forEach(el=>{el.disabled=!isAdminMode();});
 }
 async function toggleAdminMode(){
   if(isAdminMode()){
@@ -1481,8 +1483,10 @@ async function renderSnapshotUI(){
 function toggleSnapshotPanel(){
   const el=document.getElementById('snapshotPanel');
   if(el) el.classList.toggle('open');
+  updateAdminModeUI();
 }
 async function saveSnapshot(){
+  if(!requireAdminMode()) return;
   if(!UPLOADED){alert('저장할 업로드 데이터가 없습니다.');return;}
   const now=new Date();
   const record={id:'s'+now.getTime(),name:now.toLocaleString('ko-KR'),ts:now.getTime(),data:UPLOADED};
@@ -1497,6 +1501,7 @@ async function saveSnapshot(){
   await renderSnapshotUI();
 }
 async function loadSnapshot(id){
+  if(!requireAdminMode()) return;
   if(!id) return;
   try{
     const store=await snapTx('readonly');
@@ -1513,6 +1518,7 @@ async function loadSnapshot(id){
   document.getElementById('snapshotPanel')?.classList.remove('open');
 }
 async function deleteSnapshot(id){
+  if(!requireAdminMode()) return;
   if(!id) return;
   if(!confirm('이 스냅샷을 삭제할까요?')) return;
   try{
