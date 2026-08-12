@@ -416,8 +416,11 @@ table.base tr:last-child td{border-bottom:none;}
 #p2 .tile-val.red{color:var(--red);} #p2 .tile-val.terra{color:var(--terra);} #p2 .tile-val.navy{color:var(--navy);} #p2 .tile-val.green{color:var(--green);}
 #p2 .tile-sub{font-size:10px;color:var(--muted);margin-top:2px;}
 #p2 .tbl{width:100%;border-collapse:collapse;font-size:13px;}
-#p2 .tbl th{background:var(--gray-bg);color:var(--navy);font-weight:800;padding:9px 10px;text-align:center;border-bottom:2px solid var(--gray-bd);white-space:nowrap;font-size:12px;letter-spacing:0;}
-#p2 .tbl td{padding:9px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle;line-height:1.35;}
+#p2 .tbl th{background:var(--gray-bg);color:var(--navy);font-weight:800;padding:6px 8px;text-align:center;border-bottom:2px solid var(--gray-bd);white-space:nowrap;font-size:12px;letter-spacing:0;}
+#p2 .tbl td{padding:4px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle;line-height:1.35;}
+/* 행이 많아 눈이 미끄러지므로 짝수 행에 옅은 음영 + 마우스 오버 강조 */
+#p2 .ht-table tbody tr:nth-child(even):not(.ht-total-row) td{background:#fafbfd;}
+#p2 .ht-table tbody tr:not(.ht-total-row):hover td{background:#eef2ff;}
 #p2 .tbl td.r{text-align:right;} #p2 .tbl td.l{text-align:left;}
 #p2 .tbl th.r{text-align:right;} #p2 .tbl th.l{text-align:left;} #p2 .tbl th.c{text-align:center;}
 #p2 .ht-table{table-layout:fixed;}
@@ -425,11 +428,12 @@ table.base tr:last-child td{border-bottom:none;}
 #p2 .ht-table td.r,#p2 .ht-table th.r,#p2 .insight-table td.insight-num{font-variant-numeric:tabular-nums;}
 #p2 .ht-table .hit-rate-col{width:14%;padding-left:6px;padding-right:6px;text-align:center!important;}
 #p2 .ht-table td.hit-rate-col{overflow:visible;}
-#p2 .ht-table .hit-rate-wrap{display:flex;width:100%;min-height:27px;align-items:center;justify-content:center;}
+#p2 .ht-table .hit-rate-wrap{display:flex;width:100%;min-height:20px;align-items:center;justify-content:center;}
 #p2 .ht-table .hit-rate-wrap .tag{display:inline-flex;min-width:66px;align-items:center;justify-content:center;box-sizing:border-box;}
 #p2 .ht-scroll{max-height:520px;overflow:auto;position:relative;}
 #p2 .ht-table thead th{position:sticky;top:0;z-index:4;text-align:center!important;}
-#p2 .ht-table tr.ht-total-row td{position:sticky;top:39px;z-index:3;background:#eef0f9;border-top:2px solid var(--navy);border-bottom:2px solid var(--navy);}
+#p2 .ht-table tr.ht-total-row td{position:sticky;top:33px;z-index:3;background:#dfe3f5;color:var(--navy-dk);font-weight:900;border-top:2px solid var(--navy);border-bottom:2px solid var(--navy);padding-top:6px;padding-bottom:6px;}
+#p2 .ht-table tr.ht-total-row td:first-child{box-shadow:inset 4px 0 0 var(--navy);}
 #p2 .insight-table{table-layout:fixed;}
 #p2 .insight-table th,#p2 .insight-table td{box-sizing:border-box;}
 #p2 .insight-table td.insight-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -458,7 +462,11 @@ table.base tr:last-child td{border-bottom:none;}
 #p2 .analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
 #p2 .analysis-box{border:1px solid var(--border);border-radius:7px;background:#fff;padding:12px;}
 #p2 .analysis-title{font-size:13px;font-weight:900;color:var(--navy);margin-bottom:8px;}
-#p2 .action-memo{width:100%;min-height:78px;border:1px solid var(--border);border-radius:6px;padding:9px 10px;font-family:inherit;font-size:13px;resize:vertical;}
+/* 조치의견 칸이 78px였어서 모든 행이 그만큼 높아졌다. 평소엔 한 줄, 쓸 때만 펼친다. */
+#p2 .action-memo{width:100%;min-height:26px;height:26px;border:1px solid var(--border);border-radius:5px;padding:3px 7px;font-family:inherit;font-size:12px;line-height:1.5;resize:vertical;transition:height .12s;}
+#p2 .action-memo:focus{height:76px;outline:2px solid rgba(29,39,131,.16);border-color:var(--navy);}
+#p2 .action-memo.saved{height:26px;}
+#p2 .action-memo.saved:focus{height:76px;}
 .action-memo.saved{background:#eceef3!important;border-color:#a9afc4!important;}
 #p2 .tbl tr:hover td{background:#f8f9ff;}
 #p2 .tbl tr:last-child td{border-bottom:none;}
@@ -1248,6 +1256,12 @@ function formatQty(v){
   const n=Number(v);
   if(!Number.isFinite(n)) return '—';
   return Math.round(n).toLocaleString('ko-KR');
+}
+
+// SKU 상세 모달의 수량 표기용. formatQty는 차트·PSI 등에서도 쓰므로 거기엔 단위를 붙이지 않는다.
+function formatQtyEa(v){
+  const t=formatQty(v);
+  return t==='—'?t:t+'EA';
 }
 
 function safeDestroyChart(canvasId){
@@ -4246,6 +4260,11 @@ function computeSoojin(mat,qty,rem,ch,chRemMo){
   const soojinRate=qty>0?Math.min(100,Math.round(Math.max(0,qty-expectedRem)/qty*100)):0;
   const unitPrice=getUnitPrice(mat);
   const expectedRemAmt=expectedRem>0&&unitPrice>0?Math.round(expectedRem*unitPrice/1e6*10)/10:0;
+  // 잔여금액은 판매단가(SF 계획단가) 기준이라, 재고 Aging 매트릭스(원가 기준)와 기준이 다르다.
+  // 두 기준을 나란히 보여주기 위해 원가 시트의 SKU별 (순매출÷원가) 배율로 나눠 원가 환산도 같이 낸다.
+  const _costRatio=getMatRatio(mat);
+  const expectedRemAmtCost=expectedRemAmt>0&&_costRatio.ratio>0
+    ?Math.round(expectedRemAmt/_costRatio.ratio*10)/10:0;
   const base=new Date(2026,5,1);
   base.setDate(base.getDate()+validDays);
   const validEndLabel=`26/${base.getMonth()+1}/${base.getDate()}`;
@@ -4254,6 +4273,7 @@ function computeSoojin(mat,qty,rem,ch,chRemMo){
     status:mainStatus,
     mainStatus,hasChanEff,rem,validDays,chRemMo:effectiveChRemMo,moq,cumPlan,avgPlan:Math.round(avgPlan),
     expectedRem:Math.max(0,expectedRem),expectedRemAmt:Math.max(0,expectedRemAmt),
+    expectedRemAmtCost:Math.max(0,expectedRemAmtCost),costMatched:_costRatio.matched,
     soojinRate,unitPrice,validEndLabel
   };
 }
@@ -4319,8 +4339,10 @@ function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
   const noEff=soojin.hasChanEff===false;
   let insight='';
   if(mainSt==='미소진 Risk'){
-    const amtStr=soojin.expectedRemAmt>0?` (약 ${soojin.expectedRemAmt.toFixed(1)}백만원)`:'';
-    insight=`현재 판매계획 기준으로 납품 마감일 <strong>${soojin.validEndLabel}</strong>까지 약 <strong>${formatQty(soojin.expectedRem)}${amtStr}</strong>가 잔여될 것으로 예상되어 <strong>미소진 Risk</strong>가 있습니다.`;
+    const costStr=soojin.expectedRemAmtCost>0
+      ?` · 원가 ${soojin.expectedRemAmtCost.toFixed(1)}백만원${soojin.costMatched?'':'*'}`:'';
+    const amtStr=soojin.expectedRemAmt>0?` (판매 ${soojin.expectedRemAmt.toFixed(1)}백만원${costStr})`:'';
+    insight=`현재 판매계획 기준으로 납품 마감일 <strong>${soojin.validEndLabel}</strong>까지 약 <strong>${formatQtyEa(soojin.expectedRem)}${amtStr}</strong>가 잔여될 것으로 예상되어 <strong>미소진 Risk</strong>가 있습니다.`;
   }else if(mainSt==='정상소진 가능'){
     insight=`현재 판매계획 기준으로 납품 마감일 <strong>${soojin.validEndLabel}</strong> 이전에 정상 소진이 가능합니다. (소진율 <strong>${soojin.soojinRate}%</strong>)`;
   }else if(mainSt==='판매계획 없음'){
@@ -4342,13 +4364,14 @@ function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
     </div>`;
   document.getElementById('skuModalBody').innerHTML=`
     <div class="sku-info-grid">
-      <div class="sku-info-item"><div class="sku-info-lbl">현재수량</div><div class="sku-info-val">${formatQty(qty)}</div></div>
+      <div class="sku-info-item"><div class="sku-info-lbl">현재수량</div><div class="sku-info-val">${formatQtyEa(qty)}</div></div>
       <div class="sku-info-item"><div class="sku-info-lbl">${soojin.hasChanEff?'채널 잔여개월':'현재 잔여일수'}</div><div class="sku-info-val">${soojin.hasChanEff?(soojin.chRemMo>0?soojin.chRemMo+'개월':'—'):(rem!=null?rem+'일':(soojin.validDays>0?Math.round(soojin.validDays/30)+'개월(기준)':'—'))}</div></div>
       <div class="sku-info-item"><div class="sku-info-lbl">판매가능일수</div><div class="sku-info-val">${effDaysStr}</div></div>
       <div class="sku-info-item"><div class="sku-info-lbl">납품 마감일(예상)</div><div class="sku-info-val">${soojin.validEndLabel||'—'}</div></div>
-      <div class="sku-info-item"><div class="sku-info-lbl">기간 내 누적계획</div><div class="sku-info-val">${soojin.cumPlan!=null?formatQty(soojin.cumPlan):'—'}</div></div>
-      <div class="sku-info-item"><div class="sku-info-lbl">예상 잔여수량</div><div class="sku-info-val${soojin.expectedRem>0?' red':''}">${soojin.expectedRem!=null?formatQty(soojin.expectedRem):'—'}</div></div>
-      ${soojin.expectedRemAmt>0?`<div class="sku-info-item"><div class="sku-info-lbl">예상 잔여금액</div><div class="sku-info-val red">${soojin.expectedRemAmt.toFixed(1)} 백만원</div></div>`:''}
+      <div class="sku-info-item"><div class="sku-info-lbl">기간 내 누적계획</div><div class="sku-info-val">${soojin.cumPlan!=null?formatQtyEa(soojin.cumPlan):'—'}</div></div>
+      <div class="sku-info-item"><div class="sku-info-lbl">예상 잔여수량</div><div class="sku-info-val${soojin.expectedRem>0?' red':''}">${soojin.expectedRem!=null?formatQtyEa(soojin.expectedRem):'—'}</div></div>
+      ${soojin.expectedRemAmt>0?`<div class="sku-info-item"><div class="sku-info-lbl">예상 잔여금액(판매)</div><div class="sku-info-val red">${soojin.expectedRemAmt.toFixed(1)} 백만원</div></div>`:''}
+      ${soojin.expectedRemAmtCost>0?`<div class="sku-info-item"><div class="sku-info-lbl">예상 잔여금액(원가)${soojin.costMatched?'':'<span title="원가 시트에 없는 SKU · 전사 평균 배율 적용">*</span>'}</div><div class="sku-info-val red">${soojin.expectedRemAmtCost.toFixed(1)} 백만원</div></div>`:''}
       <div class="sku-info-item"><div class="sku-info-lbl">소진율</div><div class="sku-info-val">${soojin.soojinRate!=null?soojin.soojinRate+'%':'—'}</div></div>
       <div class="sku-info-item"><div class="sku-info-lbl">MOQ</div><div class="sku-info-val">${moqStr}</div></div>
     </div>
