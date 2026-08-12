@@ -13,16 +13,26 @@
 - 로컬 라이브러리: `vendor/` (xlsx.full.min.js, chart.umd.min.js, chartjs-plugin-datalabels.min.js, PretendardVariable.woff2)
 - Pages Functions: `functions/api/shared-state.js`(회의록/PSI조정 등 작은 입력값), `functions/api/dashboard-data.js`(업로드 파싱결과 전체)
 - 원본 엑셀: 매달 새 파일 업로드용 (예: `26년 7월 건기식 Aging 리포트 260708 v1.xlsx`). `.gitignore`로 커밋 제외됨.
-- 배포: `npm run release:live` (또는 `main`에 push하면 Cloudflare가 자동 배포)
-- 엑셀 → KV 업로드 CLI: `npm run publish:data -- <파일.xlsx>` (`tools/publish-data.mjs`)
+## 사용자가 "엑셀 올렸으니 배포해줘"라고 하면 → `npm run deploy`
+이게 사용자의 기본 운영 방식이다 (웹 업로드 대신 리포에 파일을 떨구는 쪽을 선호함).
 
-## ⚠️ 배포 ≠ 데이터 업로드
-사용자가 "자료 올렸으니 배포해줘"라고 해도, **배포로는 숫자가 안 바뀐다.**
-배포는 `public/` 파일만 올리고, 대시보드 숫자는 KV(`dashboard:live`)에 있다. 엑셀은 `.gitignore`로 커밋도 안 된다.
-엑셀을 받아서 반영하려면 `npm run publish:data -- <파일>`을 돌려야 한다 (관리자 비밀번호 필요:
-환경변수 `ADMIN_PASSWORD` 또는 gitignore된 `.env.local`).
-이 스크립트는 파서를 따로 구현하지 않고 `SOP_LATEST.html`의 `handleUpload()`를 vm에서 그대로 실행한다 —
-**별도 파서를 새로 쓰면 브라우저 업로드와 숫자가 반드시 어긋나므로 절대 그렇게 고치지 말 것.**
+```bash
+npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시 코드 push
+```
+
+`tools/deploy.mjs` → `tools/lib/publish.mjs`. 데이터만 하려면 `npm run publish:data`.
+관리자 비밀번호는 gitignore된 `.env.local`의 `ADMIN_PASSWORD` 또는 환경변수에서 읽는다.
+
+**⚠️ 배포 자체로는 숫자가 안 바뀐다.** 배포는 `public/` 파일만 올리고 숫자는 KV(`dashboard:live`)에 있다.
+엑셀은 `.gitignore`라 커밋도 안 된다. 그래서 `npm run deploy`가 두 가지를 다 하는 것 —
+`git push`만 하면 데이터는 그대로다.
+
+**파서를 따로 구현하지 말 것.** `tools/lib/publish.mjs`는 `vendor/xlsx.full.min.js`와
+`SOP_LATEST.html`의 인라인 스크립트를 vm에 올리고 `FileReader`를 스텁해서
+**실제 `handleUpload()`를 그대로 호출**한다. 별도 파서를 쓰면 브라우저 업로드와 숫자가 반드시 어긋난다.
+파일은 `readFileSync(p).toString('binary')`(latin1) — 브라우저 `FileReader.readAsBinaryString`와 동일.
+
+코드만 배포: `npm run deploy -- --code-only` (또는 `main`에 push → Cloudflare 자동 배포).
 
 ## 데이터가 어디 사는지 — ⚠️ 여러 사람이 보는 사이트임을 잊지 말 것
 | 저장소 | 내용 | 공유됨? |

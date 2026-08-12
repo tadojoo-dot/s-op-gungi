@@ -82,6 +82,25 @@ Action Log에만 남고 표에는 반영되지 않았음.
 - 검증: 합성 엑셀(PSI 12행)로 로컬 wrangler 상대 실전 실행 성공.
   월 라벨을 헤더에서 `8~12월`로 정확히 읽었고(PSI 시트 함정 구간), gzip 업로드 → 되받기 바이트 일치 확인.
 
+### 조치 5 — `npm run deploy` 한 방으로 통합
+
+사용자 요구: "웹에서 업로드 안 하고, 여기에 엑셀 올리고 배포하면 되게."
+조치 4의 `publish:data`는 데이터만 올리는 별도 명령이라 두 단계였음. 하나로 합침.
+
+- 공용 로직을 `tools/lib/publish.mjs`로 분리 (`parseExcel`/`publishParsed`/`findLatestExcel`/`readPassword`)
+- `tools/deploy.mjs`: ① 최신 `.xlsx` 자동 탐색 → ② 파싱·KV 반영·되받기 검증 → ③ 라이브와 코드가
+  다를 때만 `git push` 후 Cloudflare 반영까지 폴링 대기
+- **파일명을 입력할 필요 없음** — VS Code 탐색기에 드래그해서 떨구기만 하면 가장 최근 파일을 집는다
+- 비밀번호는 gitignore된 `.env.local`에 1회 등록 (`.gitignore`에 규칙 추가 확인함)
+- 대시보드 스크립트의 `console.info`가 CLI에 새던 것을 캡처해서 경고만 정리해 출력
+- 옵션: `--dry-run` / `--data-only` / `--code-only` / `--base`
+
+검증 (로컬 wrangler + KV, 합성 엑셀 PSI 12행):
+- `--dry-run` → 파싱만, 월 헤더 8~12월 정확히 읽음
+- 실제 반영 → gzip 업로드 후 되받기 바이트 일치 확인
+- 비밀번호 없을 때 스택 트레이스 대신 안내 문구 출력
+- 코드 배포 단계는 라이브와 동일하면 건너뜀
+
 ### 남은 이슈 (이번에 안 건드림)
 
 - `body{min-width:1280px}` — 좁은 화면에서 가로 스크롤/레이아웃 깨짐. 사용자가 이번엔 제외하기로 함.
