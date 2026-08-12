@@ -34,6 +34,34 @@ npm run release:live
 npx wrangler login
 ```
 
+## Shared dashboard data (엑셀 업로드 결과 공유)
+
+업로드한 엑셀 파싱 결과는 예전에는 업로드한 사람의 `localStorage`에만 저장돼서, 다른 사람이 사이트를 열면
+코드에 내장된 예시 데이터가 보였습니다(특히 PSI 탭은 월 헤더·수치가 통째로 달랐음).
+
+지금은 **관리자 모드에서 업로드하면 파싱 결과가 gzip 압축돼 Cloudflare KV에 저장**되고, 모든 열람자가 이걸 받아서 봅니다.
+
+- API: `/api/dashboard-data` (KV 키 `dashboard:live`)
+- 저장은 관리자만 가능 (`x-admin-password` 헤더, Pages secret `ADMIN_PASSWORD`)
+- 압축률은 실측 약 9.5배 (1MB JSON → 111KB)
+
+### 운영 방법
+
+1. 상단 `관리자 모드` 버튼으로 로그인
+2. 엑셀 업로드 → 상태 문구에 `🔗 공유 저장 완료 (NNN KB)` 가 뜨면 공유된 것
+3. 이미 올려둔 데이터를 재업로드 없이 공유하려면 `🔗 데이터 공유` 버튼
+
+관리자 모드가 아닌 상태로 업로드하면 `⚠ 이 브라우저에만 저장됨` 이라고 표시되고 공유되지 않습니다.
+
+열람자가 페이지를 열면 서버 공유본과 자기 localStorage 중 **`uploaded_ts`가 더 최신인 쪽**을 씁니다.
+둘 다 없으면 `⚠ 공유된 이번 달 데이터가 없습니다 · 아래 수치는 코드에 내장된 예시값입니다` 배너가 뜹니다.
+
+## 폰트
+
+`vendor/PretendardVariable.woff2` 를 self-host 합니다. 예전에는 `Apple SD Gothic Neo`/`맑은 고딕` 시스템 폰트에
+의존해서 Mac·Windows·기타 OS 열람자마다 글자폭이 달라지고 표 정렬이 틀어졌습니다.
+Chart.js 기본 폰트와 캔버스에 직접 그리는 배지 폰트(`UI_FONT_STACK`)도 같은 스택으로 통일했습니다.
+
 ## Shared live inputs
 
 PSI 입고수량 조정, PSI Action Log, 회의록, 담당자 조치의견은 Cloudflare Pages Function `/api/shared-state`를 통해 공용 저장할 수 있습니다.

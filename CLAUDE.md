@@ -4,11 +4,45 @@
 > 처음부터 다시 탐색하지 않도록, 구조·함수 위치·이번 세션에서 발견한 함정을 미리 정리해둔 지도입니다.
 > **줄 번호는 편집 때마다 바뀌므로 여기 적지 않습니다 — 함수명으로 Grep해서 찾으세요.**
 
-## 파일
-- 대시보드 본체: `dashboard\SOP_LATEST.html` (단일 파일, 인라인 script 1개)
-- 디자인 토큰(색상/타이포): `dashboard\DESIGN_SYSTEM.md` (내용/로직 없음, 스타일만)
-- 로컬 라이브러리: `dashboard\vendor\` (xlsx.full.min.js, chart.umd.min.js, chartjs-plugin-datalabels.min.js)
-- 원본 엑셀: 이 폴더(`3.건기식 S&OP회의\`)에 매달 새 파일 업로드용으로 저장됨 (예: `26년 7월 건기식 Aging 리포트 260708 v1.xlsx`)
+## 파일 (리포 루트 기준 — 예전 `dashboard\` 하위 구조 아님)
+- 대시보드 본체: `SOP_LATEST.html` (단일 파일, 인라인 script 1개)
+- **배포본: `public/SOP_LATEST.html` — 루트 파일의 별도 복사본이지 심볼릭 링크가 아님.**
+  Cloudflare Pages는 `public/`만 배포하므로 루트를 고치면 **반드시** `cp SOP_LATEST.html public/SOP_LATEST.html` 로 동기화할 것.
+  `vendor/`와 `public/vendor/`도 같은 관계.
+- 디자인 토큰(색상/타이포): `DESIGN_SYSTEM.md` (내용/로직 없음, 스타일만)
+- 로컬 라이브러리: `vendor/` (xlsx.full.min.js, chart.umd.min.js, chartjs-plugin-datalabels.min.js, PretendardVariable.woff2)
+- Pages Functions: `functions/api/shared-state.js`(회의록/PSI조정 등 작은 입력값), `functions/api/dashboard-data.js`(업로드 파싱결과 전체)
+- 원본 엑셀: 매달 새 파일 업로드용 (예: `26년 7월 건기식 Aging 리포트 260708 v1.xlsx`). `.gitignore`로 커밋 제외됨.
+- 배포: `npm run release:live`
+
+## 데이터가 어디 사는지 — ⚠️ 여러 사람이 보는 사이트임을 잊지 말 것
+| 저장소 | 내용 | 공유됨? |
+|---|---|---|
+| `localStorage['sopDash_v11']` | 엑셀 파싱 결과(`UPLOADED`) 로컬 캐시 | ❌ 브라우저 전용 |
+| KV `dashboard:live` (`/api/dashboard-data`) | 엑셀 파싱 결과 gzip — **모든 열람자가 보는 실체** | ✅ |
+| KV `live` (`/api/shared-state`) | 회의록, 담당의견, PSI 조정값, Action Log, 판매계획 셀 수정 | ✅ (256KB 상한) |
+| KV `archive:YYYY-MM` | 월별 보관본 | ✅ |
+| IndexedDB `sopDashSnapDB` | 시점 스냅샷 | ❌ 브라우저 전용 |
+
+**새 기능이 "내 화면에선 되는데 남들은 안 보인다"면 거의 항상 localStorage에만 쓰고 KV에 안 올린 것이다.**
+`UPLOADED`가 null이면 `getPSIData()`/`getMx()` 등이 코드 내장 예시 데이터(`const PSI`, `MATRIX`, `CH_AMT`, `TREND_DATA`,
+`SENS_PLAN`)로 폴백한다 — 조용히 그럴듯한 가짜 숫자가 나오므로 디버깅 때 제일 먼저 의심할 것.
+내장 `PSI`에는 `monthRealLabels`/`sourceMonthlyPsi`/다이소 품목이 없어서 PSI 탭이 특히 크게 어긋난다.
+
+## 숫자가 사람마다 달라지는 함정 두 가지 (2026-08-12에 실제로 터짐)
+1. **데이터에 따라 UI 컨트롤을 프로그램으로 바꾸는 코드는 업로드 경로에만 두면 안 된다.**
+   `chAchieveMonth`(③탭 월 선택)는 HTML 기본값이 `5월`인데 최신월 자동전환이 `handleUpload` 안에만 있어서,
+   업로드한 사람은 7월을, 나머지는 5월을 봤다. 지금은 `syncAchieveMonthToData()`로 빼서
+   업로드·`loadFromStorage`·`loadSharedDashboardData` 세 경로에서 모두 호출한다. 비슷한 걸 추가하면 같이 챙길 것.
+2. **`UPLOADED`는 항상 JSON 정규화본이어야 한다.** 업로드 직후 `UPLOADED=JSON.parse(JSON.stringify(result))`.
+   파서 원본을 그대로 잡으면 업로드한 사람만 `NaN`/`Infinity`/`undefined`를 보고,
+   JSON을 거쳐 받는 다른 열람자는 `null`/키 소실을 봐서 숫자가 갈린다 (0으로 나누는 `rate6`/`dp`/`dr`이 실제 위험 지점).
+
+## 폰트 — 열람자 OS별 편차 방지
+`vendor/PretendardVariable.woff2` self-host. 새로 텍스트를 그릴 때:
+- CSS는 `body` 스택 상속을 쓸 것
+- **캔버스 `ctx.font`와 Chart.js 폰트는 반드시 `UI_FONT_STACK` 상수를 쓸 것.**
+  `Arial`이나 `'Apple SD Gothic Neo'`를 직접 박으면 한글이 OS 폴백으로 갈려 열람자마다 글자폭이 달라진다.
 
 ## 전체 흐름
 1. 사용자가 엑셀 업로드 → `handleUpload(file)` → `FileReader.readAsBinaryString` → `XLSX.read(...,{type:'binary'})`

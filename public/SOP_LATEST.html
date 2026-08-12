@@ -8,6 +8,15 @@
 <script src="vendor/chartjs-plugin-datalabels.min.js"></script>
 <script src="vendor/xlsx.full.min.js"></script>
 <style>
+/* 웹폰트 self-host: OS별 기본 한글 폰트(애플고딕/맑은고딕/기타)로 갈리면 글자폭이 달라져
+   표 정렬과 줄바꿈이 열람자마다 다르게 보인다. 외부 CDN은 쓰지 않고 vendor/에 동봉. */
+@font-face{
+  font-family:'Pretendard Variable';
+  src:url('vendor/PretendardVariable.woff2') format('woff2-variations');
+  font-weight:45 920;
+  font-style:normal;
+  font-display:swap;
+}
 :root{
   --navy:#1D2783;--navy-dk:#10145C;--terra:#C46B4D;
   --green:#33512E;--green-lt:#eaf2e8;--red:#D64545;--red-lt:#fdecea;
@@ -16,7 +25,7 @@
   --white:#ffffff;--gray-bg:#F5F5F5;--gray-bd:#E0E0E0;--gray-bar:#C9C9C9;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var(--page);color:var(--text);font-size:13px;min-width:1280px;}
+body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',sans-serif;background:var(--page);color:var(--text);font-size:13px;min-width:1280px;}
 
 /* HEADER */
 .hdr{background:var(--navy-dk);border-bottom:none;padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:300;box-shadow:0 2px 10px rgba(0,0,0,.3);}
@@ -534,6 +543,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
   <div class="tab-tools">
     <button class="admin-btn" id="adminModeBtn" onclick="toggleAdminMode()">관리자 모드</button>
     <span class="admin-lock-note" id="adminModeNote">읽기 전용</span>
+    <button class="btn-print" id="shareDataBtn" onclick="shareCurrentDataNow()" title="지금 화면의 데이터를 모든 열람자에게 공유합니다">🔗 데이터 공유</button>
     <div class="tab-upload-btn" id="uploadCompact2"
          ondragover="event.preventDefault();this.style.borderColor='rgba(255,255,255,.7)'"
          ondragleave="this.style.borderColor=''"
@@ -1219,8 +1229,11 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
 // ═══════════ CHART 헬퍼 ════════════════════════════════════
 window.ChartDataLabels = window.ChartDataLabels || {id:'noopDatalabels'};
 // ChartDataLabels는 전역 등록 안 함 — 필요한 차트에만 plugins:[ChartDataLabels] 지정
+// 캔버스에 직접 그리는 배지/라벨도 같은 폰트를 써야 OS별로 글자폭이 달라지지 않는다.
+const UI_FONT_STACK='"Pretendard Variable","Apple SD Gothic Neo","맑은 고딕",sans-serif';
 function initChartPlugins(){
-  // intentionally empty — per-chart registration only
+  // Chart.js 기본 폰트는 한글 글리프가 없는 Helvetica 계열이라 축/범례가 OS 폴백으로 갈린다.
+  if(window.Chart?.defaults?.font) Chart.defaults.font.family=UI_FONT_STACK;
 }
 
 // 억원 포맷 (소수 1자리, 소액은 2자리)
@@ -1272,7 +1285,7 @@ function stackedTotalLabelPlugin(pluginId, axis){
       const labels=chart.data.labels||[];
       const isChannelAgingTotal=String(pluginId||'').startsWith('chTotal');
       ctx.save();
-      ctx.font=(isChannelAgingTotal?'900 12px ':'900 11px ')+'"Apple SD Gothic Neo","맑은 고딕",sans-serif';
+      ctx.font=(isChannelAgingTotal?'900 12px ':'900 11px ')+UI_FONT_STACK;
       ctx.fillStyle=isChannelAgingTotal?'#D64545':'#10145C';
       ctx.textBaseline='middle';
       labels.forEach(function(_,idx){
@@ -1307,7 +1320,7 @@ function chartSummaryLabelPlugin(pluginId, lines){
       ctx.save();
       ctx.textAlign='right';
       ctx.textBaseline='top';
-      ctx.font='900 12px "Apple SD Gothic Neo","맑은 고딕",sans-serif';
+      ctx.font='900 12px '+UI_FONT_STACK;
       lines.forEach(function(line,idx){
         ctx.fillStyle=line.color||'#10145C';
         ctx.fillText(line.text,area.right-4,area.top+idx*18+4);
@@ -1320,6 +1333,12 @@ function runStep(name, fn){
   try{ fn(); }
   catch(e){ console.warn('[SOP render skipped]', name, e); }
 }
+async function runStepAsync(name, fn){
+  try{ return await fn(); }
+  catch(e){ console.warn('[SOP step skipped]', name, e); }
+}
+// 부팅 렌더가 끝나기 전에는 공유상태 콜백이 부분 렌더를 돌리지 않도록 막는다 (이중 렌더/경합 방지).
+let BOOT_RENDER_DONE=false;
 
 // ═══════════ TAB SWITCH ════════════════════════════════════
 function sw(i){
@@ -1381,6 +1400,12 @@ function updateAdminModeUI(){
     el.classList.toggle('admin-editable',true);
   });
   document.querySelectorAll('#snapshotSelect,.snap-panel button').forEach(el=>{el.disabled=!isAdminMode();});
+  const shareBtn=document.getElementById('shareDataBtn');
+  if(shareBtn){
+    shareBtn.disabled=!isAdminMode();
+    shareBtn.style.opacity=isAdminMode()?'':'0.55';
+    shareBtn.style.cursor=isAdminMode()?'':'not-allowed';
+  }
 }
 async function toggleAdminMode(){
   if(isAdminMode()){
@@ -1421,6 +1446,7 @@ function loadFromStorage(){
     }
   }catch(e){console.warn('localStorage load',e);}
   updateHdrBaseYm();
+  syncAchieveMonthToData();
 }
 function saveToStorage(data){
   try{localStorage.setItem(LS_KEY,JSON.stringify(data));}
@@ -1429,6 +1455,99 @@ function saveToStorage(data){
     const slim={...data,monthly_mx:undefined,monthly_mx_delivery:undefined};
     try{localStorage.setItem(LS_KEY,JSON.stringify(slim));}catch(e2){console.warn('localStorage save failed',e2);}
   }
+}
+
+// ═══════════ 공유 대시보드 데이터 (Cloudflare KV) ══════════════
+// 업로드 결과가 localStorage에만 있으면 다른 열람자는 코드에 내장된 데모 데이터를 보게 된다
+// (특히 PSI 탭은 monthRealLabels/sourceMonthlyPsi가 없어 월 헤더·수치가 통째로 달라짐).
+// 관리자가 업로드하면 파싱 결과를 gzip으로 압축해 /api/dashboard-data에 올리고, 모든 열람자가 이를 받아 쓴다.
+const DASHBOARD_DATA_API='/api/dashboard-data';
+function uploadedTs(data){
+  const ts=Number(data?.uploaded_ts);
+  return Number.isFinite(ts)&&ts>0?ts:0;
+}
+async function packDashboardData(obj){
+  const raw=new TextEncoder().encode(JSON.stringify(obj));
+  if(typeof CompressionStream!=='function') return {bytes:raw,enc:'raw'};
+  const stream=new Response(raw).body.pipeThrough(new CompressionStream('gzip'));
+  return {bytes:new Uint8Array(await new Response(stream).arrayBuffer()),enc:'gzip'};
+}
+async function unpackDashboardData(bytes,enc){
+  if(enc!=='gzip') return JSON.parse(new TextDecoder().decode(bytes));
+  const stream=new Response(bytes).body.pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(new TextDecoder().decode(new Uint8Array(await new Response(stream).arrayBuffer())));
+}
+async function saveDashboardData(data){
+  if(!isAdminMode()) return {ok:false,reason:'not-admin'};
+  const {bytes,enc}=await packDashboardData(data);
+  const res=await fetch(DASHBOARD_DATA_API,{
+    method:'PUT',
+    headers:{
+      'content-type':'application/octet-stream',
+      'x-admin-password':encodeURIComponent(ADMIN_PASSWORD),
+      'x-sop-enc':enc,
+      'x-sop-uploaded-ts':String(uploadedTs(data)),
+      'x-sop-uploaded-at':encodeURIComponent(data?.uploaded_at||''),
+      'x-sop-base-label':encodeURIComponent(data?.base_label||'')
+    },
+    body:bytes
+  });
+  if(!res.ok){
+    const detail=await res.text().catch(()=>'');
+    throw new Error(`HTTP ${res.status}${detail?`: ${detail.slice(0,200)}`:''}`);
+  }
+  return {ok:true,size:bytes.length,enc};
+}
+// 서버 공유본이 내 로컬본보다 최신이면 교체한다. 방금 업로드한 관리자는 로컬이 더 최신이라 유지됨.
+async function loadSharedDashboardData(){
+  try{
+    const res=await fetch(DASHBOARD_DATA_API,{cache:'no-store'});
+    if(res.status===404) return false;
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const serverTs=Number(res.headers.get('x-sop-uploaded-ts'))||0;
+    if(UPLOADED&&uploadedTs(UPLOADED)>serverTs) return false;
+    const enc=res.headers.get('x-sop-enc')||'raw';
+    const data=await unpackDashboardData(new Uint8Array(await res.arrayBuffer()),enc);
+    if(!data||typeof data!=='object'||Array.isArray(data)) return false;
+    UPLOADED=data;
+    saveToStorage(data);
+    updateHdrBaseYm();
+    syncAchieveMonthToData();
+    setUploadStatus('success',`✅ 공유 데이터 적용 · ${data.uploaded_at||'업로드 시각 미상'} · 기준일 ${data.base_label||'당월'}`);
+    return true;
+  }catch(e){console.warn('shared dashboard data load failed',e);return false;}
+}
+// 이미 로컬에만 있는 데이터를 재업로드 없이 공유로 올리는 버튼 (배포 직후 첫 공유용).
+async function shareCurrentDataNow(){
+  if(!requireAdminMode()) return;
+  if(!UPLOADED){alert('공유할 업로드 데이터가 없습니다. 먼저 엑셀을 업로드해 주세요.');return;}
+  if(!uploadedTs(UPLOADED)){UPLOADED.uploaded_ts=Date.now();saveToStorage(UPLOADED);}
+  setUploadStatus('loading','⏳ 공유 저장 중...');
+  try{
+    const r=await saveDashboardData(UPLOADED);
+    setUploadStatus('success',`✅ 공유 저장 완료 · ${UPLOADED.uploaded_at||''} · 기준일 ${UPLOADED.base_label||'당월'} (${Math.round(r.size/1024).toLocaleString('ko-KR')}KB)`);
+  }catch(e){
+    console.warn('shared dashboard data save failed',e);
+    setUploadStatus('error','❌ 공유 저장 실패: '+e.message);
+  }
+}
+// 로컬에도 공유본에도 데이터가 없으면 내장 데모 데이터가 그려진다. 그 사실을 숨기지 않는다.
+function noticeIfNoData(){
+  if(UPLOADED) return;
+  setUploadStatus('warning','⚠ 공유된 이번 달 데이터가 없습니다 · 아래 수치는 코드에 내장된 예시값입니다 (관리자가 엑셀을 업로드해야 실제 값이 표시됩니다)');
+}
+// ③ 판매계획 오차 분석 탭의 월 드롭다운을 데이터에 맞춘다.
+// HTML 기본값이 '5월'로 박혀 있어서, 이 동기화를 업로드 직후에만 하면
+// 업로드한 사람은 최신월을, 다른 열람자는 5월을 보게 된다 (같은 화면에 다른 숫자).
+// 그래서 업로드·localStorage 복원·공유본 수신 모든 경로에서 호출한다.
+function syncAchieveMonthToData(){
+  const hit=getHitData();
+  if(!hit?.byMonth) return;
+  const ALL_MO=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const latestMo=ALL_MO.filter(m=>(hit.byMonth[m]||[]).length>0).pop();
+  if(!latestMo) return;
+  const sel=document.getElementById('chAchieveMonth');
+  if(sel) sel.value=latestMo;
 }
 function renderAllScreens(){
   updateHdrBaseYm();
@@ -1904,8 +2023,11 @@ function handleUpload(file){
       }
       if(errors.length) throw new Error(errors.join(' / '));
       result.uploaded_at=new Date().toLocaleString('ko-KR');
-      UPLOADED=result;
-      saveToStorage(result);
+      result.uploaded_ts=Date.now();
+      // 업로드한 사람만 파서가 만든 원본 객체를 그대로 보면, JSON을 거쳐 받는 다른 열람자와 숫자가 갈릴 수 있다
+      // (NaN·Infinity → null, undefined 키 소실 등). 업로드 직후부터 모두 같은 JSON 정규화본을 쓰게 맞춘다.
+      UPLOADED=JSON.parse(JSON.stringify(result));
+      saveToStorage(UPLOADED);
       const missing=[];
       if(!result.monthly_ch_amt) missing.push('현재고');
       if(!result.trend_data||!Object.keys(result.trend_data).length) missing.push('현황');
@@ -1918,16 +2040,21 @@ function handleUpload(file){
         :`✅ ${result.uploaded_at} 업로드 성공 · 기준일 ${result.base_label||'당월'}`;
       setUploadStatus(missing.length?'warning':'success',statusMsg);
       if(warnings.length) console.info('[SOP upload]', warnings.join(' / '));
-      // 업로드된 오차율 데이터에서 가장 최근 월로 드롭다운 자동 전환
-      const _hitForMonth=getHitData();
-      if(_hitForMonth?.byMonth){
-        const ALL_MO=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-        const latestMo=ALL_MO.filter(m=>(_hitForMonth.byMonth[m]||[]).length>0).pop();
-        if(latestMo){
-          const _sel=document.getElementById('chAchieveMonth');
-          if(_sel) _sel.value=latestMo;
-        }
+      // 공유 저장: 관리자만 가능. 실패해도 로컬 화면은 이미 갱신되므로 상태 문구로만 알린다.
+      if(!isAdminMode()){
+        setUploadStatus('warning',`${statusMsg} · ⚠ 이 브라우저에만 저장됨 (다른 사람과 공유하려면 관리자 모드로 전환 후 다시 업로드)`);
+      }else{
+        saveDashboardData(UPLOADED)
+          .then(r=>{
+            if(!r?.ok) return;
+            setUploadStatus(missing.length?'warning':'success',`${statusMsg} · 🔗 공유 저장 완료 (${Math.round(r.size/1024).toLocaleString('ko-KR')}KB)`);
+          })
+          .catch(err=>{
+            console.warn('shared dashboard data save failed',err);
+            setUploadStatus('error',`${statusMsg} · ❌ 공유 저장 실패: ${err.message} (이 브라우저에만 저장됨)`);
+          });
       }
+      syncAchieveMonthToData();
       // 전체 리렌더
       renderAllScreens();
     }catch(err){
@@ -4612,7 +4739,7 @@ function renderSensing(months){
       ctx.save();
       ctx.textAlign='right';
       ctx.textBaseline='top';
-      ctx.font='900 11px Arial';
+      ctx.font='900 11px '+UI_FONT_STACK;
       ctx.fillStyle='rgba(80,110,220,0.95)';
       ctx.fillText(`현재 총계 ${chartTotalCurr.toFixed(1)}억`, chartArea.right+88, chartArea.top+18);
       ctx.fillStyle='#1D2783';
@@ -5172,6 +5299,7 @@ function saveSharedTextInput(el){
   queueSharedStateSave();
 }
 function refreshSharedStateViews(){
+  if(!BOOT_RENDER_DONE) return;
   renderActionLog();
   loadMeetingMemo();
   renderPSI();
@@ -5936,7 +6064,7 @@ function renderHitTrend(){
       const ctx=chart.ctx;
       ctx.save();
       ctx.fillStyle='#1D2783';
-      ctx.font='900 12px Arial';
+      ctx.font='900 12px '+UI_FONT_STACK;
       ctx.textAlign='right';
       ctx.textBaseline='middle';
       ctx.fillText('목표 50%', chart.chartArea.left-8, y);
@@ -6964,7 +7092,7 @@ function renderChAchieve(){
       ctx.save();
       ctx.textAlign='center';
       ctx.textBaseline='middle';
-      ctx.font='900 11px Arial';
+      ctx.font='900 11px '+UI_FONT_STACK;
       rows.forEach((d,i)=>{
         const meta0=chart.getDatasetMeta(0).data[i];
         const meta1=chart.getDatasetMeta(1).data[i];
@@ -7248,7 +7376,7 @@ function openPlanAdjustModal(row){
         ctx.save();
         ctx.textAlign='center';
         ctx.textBaseline='middle';
-        ctx.font='900 10px Arial';
+        ctx.font='900 10px '+UI_FONT_STACK;
         trend.forEach((d,i)=>{
           const m0=chart.getDatasetMeta(0).data[i];
           const m1=chart.getDatasetMeta(1).data[i];
@@ -7296,11 +7424,14 @@ function openPlanAdjustModal(row){
 }
 
 // ═══════════ INIT ══════════════════════════════════════════
-window.addEventListener('DOMContentLoaded',()=>{
+window.addEventListener('DOMContentLoaded',async()=>{
   runStep('initChartPlugins', initChartPlugins);
   runStep('loadFromStorage', loadFromStorage);
   runStep('seedRecoveredLocalInputs', seedRecoveredLocalInputs);
-  runStep('loadSharedState', loadSharedState);
+  // 공유본을 먼저 받아 UPLOADED를 확정한 뒤 렌더한다 (예전에는 await 없이 호출돼 데모 데이터가 먼저 그려졌음).
+  await runStepAsync('loadSharedDashboardData', loadSharedDashboardData);
+  await runStepAsync('loadSharedState', loadSharedState);
+  runStep('noticeIfNoData', noticeIfNoData);
   runStep('initArchiveControls', initArchiveControls);
   runStep('updateAdminModeUI', updateAdminModeUI);
   runStep('renderSnapshotUI', renderSnapshotUI);
@@ -7320,6 +7451,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   runStep('renderInsightTables', renderInsightTables);
   runStep('renderHT', renderHT);
   runStep('loadMeetingMemo', loadMeetingMemo);
+  BOOT_RENDER_DONE=true;
 });
 </script>
 <!-- 판매계획 보정 상세 모달 -->
