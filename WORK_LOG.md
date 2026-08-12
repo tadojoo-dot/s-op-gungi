@@ -67,6 +67,21 @@ Action Log에만 남고 표에는 반영되지 않았음.
 
 참고: `monthSlider`(Sensing M+N)는 HTML 기본값 0 = 부팅 렌더 `renderSensing(0)`이라 원래 일치했음.
 
+### 조치 4 — 엑셀 → KV 업로드 CLI (`tools/publish-data.mjs`)
+
+사용자가 "리포에 엑셀 올린 다음 배포해달라고 하겠다"고 해서 만듦.
+**배포로는 데이터가 안 올라간다** — 배포는 `public/` 파일만 올리고 숫자는 KV에 있으며, 엑셀은 `.gitignore` 대상.
+그래서 파싱 후 KV에 직접 PUT하는 CLI가 별도로 필요했음.
+
+- `npm run publish:data -- <파일.xlsx>` / `ADMIN_PASSWORD` 환경변수 또는 gitignore된 `.env.local`
+- **파서를 새로 구현하지 않았음.** `vendor/xlsx.full.min.js` + `SOP_LATEST.html`의 인라인 스크립트를
+  vm에 로드하고, `FileReader`를 스텁해서 **실제 `handleUpload()`를 그대로 호출**한다.
+  별도 파서를 짜면 브라우저 업로드와 숫자가 반드시 어긋나므로 이 구조를 유지할 것.
+- `fs.readFileSync(p).toString('binary')`(latin1) = 브라우저 `FileReader.readAsBinaryString` 출력과 동일.
+- 업로드 후 다시 GET해서 바이트 일치를 자동 검증하고, 다르면 exit 1.
+- 검증: 합성 엑셀(PSI 12행)로 로컬 wrangler 상대 실전 실행 성공.
+  월 라벨을 헤더에서 `8~12월`로 정확히 읽었고(PSI 시트 함정 구간), gzip 업로드 → 되받기 바이트 일치 확인.
+
 ### 남은 이슈 (이번에 안 건드림)
 
 - `body{min-width:1280px}` — 좁은 화면에서 가로 스크롤/레이아웃 깨짐. 사용자가 이번엔 제외하기로 함.

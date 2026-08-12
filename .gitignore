@@ -10,3 +10,6 @@ desktop.ini
 
 # Cloudflare Wrangler local cache
 .wrangler/
+
+# 관리자 비밀번호 (publish:data 용) — 절대 커밋 금지
+.env.local

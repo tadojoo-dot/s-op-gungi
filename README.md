@@ -45,11 +45,37 @@ npx wrangler login
 - 저장은 관리자만 가능 (`x-admin-password` 헤더, Pages secret `ADMIN_PASSWORD`)
 - 압축률은 실측 약 9.5배 (1MB JSON → 111KB)
 
-### 운영 방법
+### 방법 A — 브라우저에서 (권장, 30초)
 
 1. 상단 `관리자 모드` 버튼으로 로그인
 2. 엑셀 업로드 → 상태 문구에 `🔗 공유 저장 완료 (NNN KB)` 가 뜨면 공유된 것
 3. 이미 올려둔 데이터를 재업로드 없이 공유하려면 `🔗 데이터 공유` 버튼
+
+**배포는 필요 없습니다.** 데이터는 KV에 들어가는 것이고, 배포는 코드를 바꿨을 때만 합니다.
+
+### 방법 B — 터미널에서 (엑셀 파일이 이 리포에 있을 때)
+
+```bash
+npm run publish:data -- "26년 8월 건기식 Aging 리포트.xlsx"
+```
+
+브라우저와 숫자가 갈리면 안 되므로, 이 스크립트는 파서를 새로 쓰지 않고
+`SOP_LATEST.html`의 `handleUpload()`를 Node에서 그대로 실행합니다.
+올린 뒤 다시 받아서 바이트 단위로 같은지 자동 검증합니다.
+
+비밀번호는 둘 중 하나로 지정합니다.
+
+```bash
+ADMIN_PASSWORD=xxx npm run publish:data -- report.xlsx
+```
+
+또는 리포 루트에 `.env.local` 파일을 만들고 (gitignore 처리됨):
+
+```text
+ADMIN_PASSWORD=xxx
+```
+
+올리지 않고 파싱 결과만 보려면 `--dry-run`, 로컬 테스트는 `--base http://127.0.0.1:8788`.
 
 관리자 모드가 아닌 상태로 업로드하면 `⚠ 이 브라우저에만 저장됨` 이라고 표시되고 공유되지 않습니다.
 
