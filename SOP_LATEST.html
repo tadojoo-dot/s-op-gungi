@@ -3652,7 +3652,7 @@ function renderTrendChart(){
       },
       scales:{
         x:{grid:{display:false},ticks:{font:{size:12,weight:'bold'}}},
-        y:{stacked:true,grid:{color:'#f0f1f5'},ticks:{callback:v=>v+'억',font:{size:12,weight:'bold'}},border:{display:false},min:0,max:65},
+        y:{stacked:true,grid:{color:'#f0f1f5'},ticks:{callback:v=>v+'억',font:{size:12,weight:'bold'}},border:{display:false},min:0,suggestedMax:65},
         /* barThickness: 없이 barPercentage로 두께 조절 */
       },
     }
@@ -3722,7 +3722,7 @@ function renderTrendRiskChart(labels, trendSrc){
       },
       scales:{
         x:{grid:{display:false},ticks:{font:{size:12,weight:'bold'}}},
-        y:{grid:{color:'#f0f1f5'},ticks:{callback:v=>v+'억',font:{size:11},stepSize:0.5},border:{display:false},min:0,max:2},
+        y:{grid:{color:'#f0f1f5'},ticks:{callback:v=>v+'억',font:{size:11},stepSize:0.5},border:{display:false},min:0,suggestedMax:2},
       }
     }
   });
@@ -5014,12 +5014,55 @@ function calcPsiMonth(d,m,prevEnd,buyOverride){
   return {begin,buy,plan,end,days,sig};
 }
 const PSI_SIM_BUY_KEY='sopPsiSimBuy_v1';
-function getPsiSimBuy(){try{return JSON.parse(localStorage.getItem(PSI_SIM_BUY_KEY)||'{}');}catch(e){return {};}}
+// ⚠ 입고 조정값은 예전에 위치 키('6월'=첫 번째 월 블록)로 저장했다. 월 블록은 새 엑셀을 올릴 때마다
+// 한 칸씩 밀리므로, 지난달 조정값이 경고 없이 이번 달 입고로 적용되는 문제가 있었다.
+// 지금은 실제 캘린더월('2026-08')로 저장하고, 화면/계산 쪽에는 기존처럼 위치 키로 변환해 넘긴다.
+// → 호출부는 그대로 위치 키를 쓰고, 변환은 이 아래 함수들만 담당한다.
+function psiBaseYm(){
+  const m=String(UPLOADED?.base_yearmonth||'').match(/(\d{4})[.\-/](\d{1,2})/);
+  return m?{y:Number(m[1]),m:Number(m[2])}:null;
+}
+// 위치 키 → 실제 월. PSI_COVERAGE_MONTH_KEYS[0]이 기준월이고 이후 한 달씩 증가한다.
+function psiPosToYm(posKey){
+  const base=psiBaseYm();
+  const idx=PSI_COVERAGE_MONTH_KEYS.indexOf(posKey);
+  if(!base||idx<0) return null;   // 기준월을 모르면 변환하지 않고 옛 방식 그대로 둔다
+  const total=base.y*12+(base.m-1)+idx;
+  return `${Math.floor(total/12)}-${String(total%12+1).padStart(2,'0')}`;
+}
+function isPsiPosKey(k){return /^\d{1,2}월$/.test(k);}
+function psiSimBuyStoreKey(posKey){return psiPosToYm(posKey)||posKey;}
+function getPsiSimBuyRaw(){try{return JSON.parse(localStorage.getItem(PSI_SIM_BUY_KEY)||'{}');}catch(e){return {};}}
+// 화면/계산용 뷰: 저장된 실제 월을 현재 파일의 위치 키로 되돌린다.
+// 표에 없는 달(이미 지나간 달 등)의 조정값은 여기서 자동으로 빠진다.
+function getPsiSimBuy(){
+  const ymToPos={};
+  PSI_COVERAGE_MONTH_KEYS.forEach(pos=>{const ym=psiPosToYm(pos); if(ym) ymToPos[ym]=pos;});
+  const out={};
+  Object.entries(getPsiSimBuyRaw()).forEach(([mat,months])=>{
+    if(!months||typeof months!=='object') return;
+    Object.entries(months).forEach(([key,val])=>{
+      const pos=isPsiPosKey(key)?key:ymToPos[key];  // 옛 위치 키는 그대로 통과 (구버전 호환)
+      if(pos) (out[mat]=out[mat]||{})[pos]=val;
+    });
+  });
+  return out;
+}
 function setPsiSimBuyVal(mat,moKey,val){
   if(!requireAdminMode()) return;
-  const data=getPsiSimBuy();
+  const data=getPsiSimBuyRaw();
   if(!data[mat])data[mat]={};
-  data[mat][moKey]=val;
+  delete data[mat][moKey];                          // 같은 달의 옛 위치 키 잔재 제거
+  data[mat][psiSimBuyStoreKey(moKey)]=val;
+  localStorage.setItem(PSI_SIM_BUY_KEY,JSON.stringify(data));
+  queueSharedStateSave();
+}
+function deletePsiSimBuyVal(mat,moKey){
+  const data=getPsiSimBuyRaw();
+  if(!data[mat]) return;
+  delete data[mat][psiSimBuyStoreKey(moKey)];
+  delete data[mat][moKey];                          // 옛 위치 키 잔재도 같이 정리
+  if(!Object.keys(data[mat]).length) delete data[mat];
   localStorage.setItem(PSI_SIM_BUY_KEY,JSON.stringify(data));
   queueSharedStateSave();
 }
@@ -5065,8 +5108,7 @@ function resetPsiBuyCell(btn){
   if(!inp||!inp.classList.contains('psi-buy-input')) return;
   const mat=inp.dataset.mat, mo=inp.dataset.mo;
   const origBuy=Number(inp.dataset.origBuy||0);
-  const data=getPsiSimBuy();
-  if(data[mat]){ delete data[mat][mo]; if(!Object.keys(data[mat]).length) delete data[mat]; localStorage.setItem(PSI_SIM_BUY_KEY,JSON.stringify(data)); queueSharedStateSave(); }
+  deletePsiSimBuyVal(mat,mo);
   inp.value=origBuy.toLocaleString('ko-KR');
   inp.classList.remove('psi-buy-override');           // → CSS가 초기화 버튼 자동 숨김
   inp.classList.toggle('psi-buy-empty',origBuy===0);
@@ -5076,7 +5118,7 @@ function resetPsiBuyCell(btn){
 }
 function resetPsiBuyOverrides(){
   if(!requireAdminMode()) return;
-  const data=getPsiSimBuy();
+  const data=getPsiSimBuyRaw();
   const cnt=Object.values(data).reduce((s,m)=>s+Object.keys(m||{}).length,0);
   if(!cnt){ alert('저장된 입고 조정값이 없습니다.'); return; }
   if(!confirm(`직접 수정한 PSI 입고 조정값 ${cnt}건을 모두 초기화하시겠습니까?\n원본 입고계획으로 되돌아갑니다. (되돌릴 수 없음)`)) return;
@@ -5311,7 +5353,7 @@ function refreshSharedStateViews(){
 function getPsiActionLog(){try{return JSON.parse(localStorage.getItem(PSI_LOG_KEY)||'[]');}catch(e){return [];}}
 function setPsiActionLog(list){localStorage.setItem(PSI_LOG_KEY,JSON.stringify(list));queueSharedStateSave();}
 function logPsiBuyAction(mat,mo,name,origBuy,newVal){
-  const key=`${mat}|${mo}`;
+  const key=`${mat}|${psiSimBuyStoreKey(mo)}`;
   const list=getPsiActionLog().filter(a=>a.key!==key);
   if(newVal!==origBuy){
     const d=getPSIData().find(p=>String(p.mat)===String(mat));
@@ -5393,8 +5435,7 @@ function bindPsiBuyInputs(){
         inp.classList.remove('psi-buy-empty');
         inp.classList.add('psi-buy-override');
       } else {
-        const d=getPsiSimBuy();
-        if(d[mat]){delete d[mat][mo];if(!Object.keys(d[mat]).length)delete d[mat];localStorage.setItem(PSI_SIM_BUY_KEY,JSON.stringify(d));queueSharedStateSave();}
+        deletePsiSimBuyVal(mat,mo);
         inp.classList.remove('psi-buy-override');
         inp.classList.toggle('psi-buy-empty',origBuy===0);
       }
