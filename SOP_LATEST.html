@@ -978,13 +978,13 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
       <div class="archive-panel">
         <div>
           <div class="archive-title">S&amp;OP 월별 보관</div>
-          <div class="archive-copy">회의가 끝나면 현재 PSI 조정값, 회의록, Action Log, 담당 의견을 월별 보관본으로 저장합니다. 새 달 시작은 현재 live 입력값만 비우고 과거 보관본은 유지합니다.</div>
+          <div class="archive-copy">회의록·담당 의견·PSI 조정값은 입력이 멈추면 <strong>현재 기준월 보관본으로 자동 저장</strong>됩니다. 아래 드롭다운에서 월을 고르면 그 달 회의록이 바로 표시됩니다. 새 달 시작은 현재 live 입력값만 비우고 과거 보관본은 유지합니다.</div>
+          <div class="archive-copy" id="archiveAutoNote" style="margin-top:4px;font-weight:700;"></div>
         </div>
         <div class="archive-actions">
           <input type="month" id="archivePeriod">
           <button class="btn-print" onclick="archiveCurrentMeeting()">현재 월 보관</button>
-          <select id="archiveSelect"><option value="">과거 보관본</option></select>
-          <button class="btn-print" onclick="loadSelectedArchive()">조회</button>
+          <select id="archiveSelect" onchange="loadSelectedArchive()"><option value="">과거 보관본</option></select>
           <button class="btn-print" onclick="resetLiveMeetingState()">새 달 시작</button>
         </div>
         <div id="archiveResult" class="archive-result"></div>
@@ -3026,8 +3026,27 @@ function parseHitSheet(ws){
   if(nameCol<0) nameCol=matCol+1;
 
   // 판매계획/실적 컬럼 매핑: row0의 "계획"/"실적" 구분 + row1의 월 key
+  // ─── 구획(섹션) 판정 ──────────────────────────────────────────
+  // 2026-08 파일부터 월 헤더 위에 [매출금액]/[순매출]/[수량] 구획 라벨 행이 생겼다.
+  // 라벨이 없는 옛 파일은 전 구간을 금액으로 본다(무회귀).
+  // ⚠ 구획을 안 보고 "같은 월이면 첫 컬럼 우선"에만 기대면, 시트 열 순서가 바뀌는 순간
+  //    순매출이나 수량을 조용히 금액으로 읽는다. 반드시 구획 라벨을 우선 확인할 것.
+  const sectionByCol=new Array(maxCols).fill('');
+  let secRow=-1;
+  for(let r=0;r<=hdrMoRowIdx;r++){
+    if((allRows[r]||[]).some(v=>/^\s*\[.+\]\s*$/.test(String(v)))){secRow=r;break;}
+  }
+  if(secRow>=0){
+    let cur='';
+    for(let i=0;i<maxCols;i++){
+      const v=String(allRows[secRow]?.[i]||'').trim();
+      if(v) cur=v.replace(/^\[|\]$/g,'').replace(/\s/g,'');
+      sectionByCol[i]=cur;
+    }
+  }
   // 같은 월이 여러 컬럼 있으면 FIRST 우선 (금액 컬럼이 앞에 오는 경우가 일반적)
   const planColsByMo={},actualColsByMo={};
+  const qtyPlanColsByMo={},qtyActualColsByMo={};
   let lastTop='';
   for(let i=0;i<maxCols;i++){
     const top=String(row0[i]||'').trim();
@@ -3035,12 +3054,20 @@ function parseHitSheet(ws){
     if(top) lastTop=top;
     const moKey=normalizeMonthKey(moRaw);
     if(moKey&&/^\d{1,2}월$/.test(moKey)){
-      if(lastTop.includes('계획')&&!(moKey in planColsByMo)) planColsByMo[moKey]=i;
-      else if(lastTop.includes('실적')&&!(moKey in actualColsByMo)) actualColsByMo[moKey]=i;
+      const sec=sectionByCol[i]||'';
+      if(sec==='순매출') continue;                  // 순매출 구획은 화면에서 쓰지 않는다
+      const isQty=sec==='수량';
+      const P=isQty?qtyPlanColsByMo:planColsByMo;
+      const A=isQty?qtyActualColsByMo:actualColsByMo;
+      if(lastTop.includes('계획')&&!(moKey in P)) P[moKey]=i;
+      else if(lastTop.includes('실적')&&!(moKey in A)) A[moKey]=i;
     }
   }
+  console.log('[parseHitSheet] 구획행:',secRow<0?'없음(전부 금액)':`R${secRow}`);
   console.log('[parseHitSheet] planCols:',JSON.stringify(planColsByMo));
   console.log('[parseHitSheet] actualCols:',JSON.stringify(actualColsByMo));
+  console.log('[parseHitSheet] qtyPlanCols:',JSON.stringify(qtyPlanColsByMo));
+  console.log('[parseHitSheet] qtyActualCols:',JSON.stringify(qtyActualColsByMo));
 
   const allMonths=Object.keys(planColsByMo);
   if(!allMonths.length){
@@ -3070,62 +3097,81 @@ function parseHitSheet(ws){
     console.log('[parseHitSheet] 5월 actual col:',actualColsByMo['5월'],'raw합계(원):',Math.round(_rawActSum),'→ 기대값:6,946,616,015');
   }
 
-  const byMonth={};
-  let includedRows=0, skippedSummary=0, skippedEmpty=0;
   const DATA_END=959; // 사용자 지정 마지막 데이터 행 (Excel 기준 1-indexed)
   const sliceEnd=Math.min(allRows.length, DATA_END);
-  allRows.slice(dataStart, sliceEnd).forEach(row=>{
-    // 합계/총계 행 제외
-    if(_isSummaryRow(row)){skippedSummary++;return;}
-    const matRaw=String(row[matCol]||'').trim();
-    const mat=matRaw.replace(/\.0+$/,'');
-    const n=String(row[nameCol]||'').trim();
-    const ch=pickHitChannel(row);
-    let rowHasValue=false;
-    allMonths.forEach(moKey=>{
-      if(!byMonth[moKey]) byMonth[moKey]=[];
-      const plan=parseNum(row[planColsByMo[moKey]]);
-      const actual=actualColsByMo[moKey]!=null?parseNum(row[actualColsByMo[moKey]]):0;
-      if(plan===0&&actual===0) return;
-      rowHasValue=true;
-      const diff=actual-plan;
-      const hitAcc=plan>0?Math.abs(diff)/plan*100:null;
-      byMonth[moKey].push({ch,n,plan:plan/unitDiv,actual:actual/unitDiv,hitAcc,mat,
-        pkg:classifyHitPkg(n,ch),type:diff>0?'over':diff<0?'under':'match',
-        over:Math.max(diff,0)/unitDiv,under:Math.min(diff,0)/unitDiv});
+
+  // 금액/수량이 계산식은 같고 컬럼·단위만 다르므로 한 함수로 두 번 돌린다.
+  // (수량은 개 단위라 div=1, 금액은 원 → 억원이라 div=1e8)
+  const aggregate=(planCols,actCols,div,tag,qtyIndex)=>{
+    const months=Object.keys(planCols).length?Object.keys(planCols):Object.keys(actCols);
+    if(!months.length) return null;
+    const byMonth={};
+    let includedRows=0, skippedSummary=0, skippedEmpty=0;
+    allRows.slice(dataStart, sliceEnd).forEach(row=>{
+      // 합계/총계 행 제외
+      if(_isSummaryRow(row)){skippedSummary++;return;}
+      const matRaw=String(row[matCol]||'').trim();
+      const mat=matRaw.replace(/\.0+$/,'');
+      const n=String(row[nameCol]||'').trim();
+      const ch=pickHitChannel(row);
+      let rowHasValue=false;
+      months.forEach(moKey=>{
+        if(!byMonth[moKey]) byMonth[moKey]=[];
+        const plan=planCols[moKey]!=null?parseNum(row[planCols[moKey]]):0;
+        const actual=actCols[moKey]!=null?parseNum(row[actCols[moKey]]):0;
+        if(plan===0&&actual===0) return;
+        rowHasValue=true;
+        const diff=actual-plan;
+        const hitAcc=plan>0?Math.abs(diff)/plan*100:null;
+        const rec={ch,n,plan:plan/div,actual:actual/div,hitAcc,mat,
+          pkg:classifyHitPkg(n,ch),type:diff>0?'over':diff<0?'under':'match',
+          over:Math.max(diff,0)/div,under:Math.min(diff,0)/div};
+        const rq=qtyIndex?.[`${moKey}|${ch}|${mat}`];
+        if(rq){rec.qtyPlan=rq.plan;rec.qtyActual=rq.actual;}   // 실측 수량 (없으면 화면에서 단가 추정으로 폴백)
+        byMonth[moKey].push(rec);
+      });
+      if(rowHasValue) includedRows++; else skippedEmpty++;
     });
-    if(rowHasValue) includedRows++; else skippedEmpty++;
-  });
+    const hitAccByMo={};
+    months.forEach(moKey=>{
+      const moRows=byMonth[moKey]||[];
+      const tPlan=moRows.reduce((s,r)=>s+(Number(r.plan)||0),0);
+      const tOver=moRows.reduce((s,r)=>s+Math.max(Number(r.over)||0,0),0);
+      const tUnder=moRows.reduce((s,r)=>s+Math.abs(Math.min(Number(r.under)||0,0)),0);
+      hitAccByMo[moKey]=tPlan>0?(tOver+tUnder)/tPlan*100:null;
+    });
+    console.log(`[parseHitSheet] ${tag} 포함행:`,includedRows,'합계행제외:',skippedSummary,'빈행제외:',skippedEmpty);
+    months.forEach(mo=>{const rs=byMonth[mo]||[];const wa=rs.filter(r=>r.actual>0).length;
+      console.log(`[parseHitSheet] ${tag} ${mo}: ${rs.length}행 actual>0:${wa} WAPE:${hitAccByMo[mo]?.toFixed(1)??'null'}%`);});
+    // 대표 월: 실적 있는 가장 최근 월
+    const moWithData=months.filter(mo=>byMonth[mo]?.some(r=>r.actual>0));
+    const repMo=moWithData[moWithData.length-1]||months[months.length-1];
+    const repRows=byMonth[repMo]||[];
+    const over=repRows.filter(d=>(d.over||0)>0).sort((a,b)=>b.over-a.over).slice(0,10);
+    const under=repRows.filter(d=>(d.under||0)<0).sort((a,b)=>a.under-b.under).slice(0,10);
+    return{over,under,rows:repRows,byMonth,hitAccByMo,
+      summary:{hitAcc:hitAccByMo[repMo],hitCount:repRows.filter(d=>d.hitAcc!=null).length,method:'WAPE',repMo}};
+  };
 
-  console.log('[parseHitSheet] byMonth keys:',Object.keys(byMonth));
-  console.log('[parseHitSheet] 포함행:',includedRows,'합계행제외:',skippedSummary,'빈행제외:',skippedEmpty);
-  // 5월 집계 후 검증
-  if(byMonth['5월']){
-    const _p5=byMonth['5월'].reduce((s,r)=>s+r.plan,0);
-    const _a5=byMonth['5월'].reduce((s,r)=>s+r.actual,0);
-    console.log('[parseHitSheet] 5월 저장합계 plan:',Math.round(_p5*unitDiv),'원 actual:',Math.round(_a5*unitDiv),'원');}
-
-
-  const hitAccByMo={};
-  allMonths.forEach(moKey=>{
-    const moRows=byMonth[moKey]||[];
-    const tPlan=moRows.reduce((s,r)=>s+(Number(r.plan)||0),0);
-    const tOver=moRows.reduce((s,r)=>s+Math.max(Number(r.over)||0,0),0);
-    const tUnder=moRows.reduce((s,r)=>s+Math.abs(Math.min(Number(r.under)||0,0)),0);
-    hitAccByMo[moKey]=tPlan>0?(tOver+tUnder)/tPlan*100:null;
-  });
-
-  allMonths.forEach(mo=>{const rs=byMonth[mo]||[];const wa=rs.filter(r=>r.actual>0).length;console.log(`[parseHitSheet] ${mo}: ${rs.length}행 actual>0:${wa} WAPE:${hitAccByMo[mo]?.toFixed(1)||'null'}%`);});
-
-  // 대표 월: 실적 있는 가장 최근 월
-  const moWithData=allMonths.filter(mo=>byMonth[mo]?.some(r=>r.actual>0));
-  const repMo=moWithData[moWithData.length-1]||allMonths[allMonths.length-1];
-  const repRows=byMonth[repMo]||[];
-  const repHitAcc=hitAccByMo[repMo];
-  const repCount=repRows.filter(d=>d.hitAcc!=null).length;
-  const over=repRows.filter(d=>(d.over||0)>0).sort((a,b)=>b.over-a.over).slice(0,10);
-  const under=repRows.filter(d=>(d.under||0)<0).sort((a,b)=>a.under-b.under).slice(0,10);
-  return{over,under,rows:repRows,byMonth,hitAccByMo,summary:{hitAcc:repHitAcc,hitCount:repCount,method:'WAPE',repMo}};
+  // 수량은 개 단위 그대로. 판매계획이 아직 비어 있어도 실적만으로 구조는 만들어 둔다
+  // (나중에 계획 열을 채우면 코드 수정 없이 오차율이 바로 산출된다).
+  const qtyRes=aggregate(qtyPlanColsByMo,qtyActualColsByMo,1,'수량');
+  if(qtyRes){
+    qtyRes.unit='개';
+    qtyRes.hasPlan=Object.values(qtyRes.byMonth).some(rows=>(rows||[]).some(r=>(Number(r.plan)||0)>0));
+    console.log('[parseHitSheet] 수량 판매계획 존재:',qtyRes.hasPlan);
+  }
+  // 금액 행에 같은 (월·채널·자재)의 실측 수량을 붙인다.
+  // 화면의 금액/수량 토글은 원래 '금액 ÷ 단가' 추정치를 썼는데, 실측이 있으면 그쪽을 쓰기 위함.
+  const qtyIndex={};
+  if(qtyRes){
+    Object.entries(qtyRes.byMonth).forEach(([mo,rows])=>{
+      (rows||[]).forEach(r=>{qtyIndex[`${mo}|${r.ch}|${r.mat}`]={plan:r.plan,actual:r.actual};});
+    });
+  }
+  const amountRes=aggregate(planColsByMo,actualColsByMo,unitDiv,'금액',qtyIndex);
+  if(!amountRes) return _parseHitSheetDirect(allRows)||_parseHitSheetPositional(allRows)||_parseHitSheetLegacy(allRows);
+  return{...amountRes,unit:'억원',hasPlan:true,qty:qtyRes};
 }
 // ══ 위치 고정 파서 ══════════════════════════════════════════════════════
 // 월 헤더 형식을 전혀 인식하지 않음. G(6)~R(17)=1~12월 계획, S(18)~AD(29)=1~12월 실적 고정.
@@ -5240,7 +5286,9 @@ async function archiveCurrentMeeting(){
 }
 async function loadSelectedArchive(){
   const period=document.getElementById('archiveSelect')?.value;
-  if(!period){alert('조회할 보관본을 선택해 주세요.');return;}
+  const box=document.getElementById('archiveResult');
+  if(!period){ if(box){box.classList.remove('on');box.innerHTML='';} return; }
+  if(box){box.classList.add('on');box.innerHTML='<h4>불러오는 중…</h4>';}
   try{
     const res=await fetch(`/api/shared-state?period=${encodeURIComponent(period)}`,{cache:'no-store'});
     if(!res.ok) throw new Error(await res.text());
@@ -5306,6 +5354,38 @@ async function resetLiveMeetingState(){
 function queueSharedStateSave(){
   clearTimeout(sharedStateSaveTimer);
   sharedStateSaveTimer=setTimeout(saveSharedState,450);
+  queueAutoArchive();
+}
+// 회의록·의견·PSI 조정값은 live 한 벌만 있어서, '현재 월 보관' 버튼을 안 누르면
+// 다음 달에 그대로 덮어써진다. 그래서 입력이 멈추면 현재 기준월 보관본도 같이 갱신한다.
+// live 저장(450ms)보다 훨씬 길게 잡아 KV 쓰기 횟수를 억제한다.
+let autoArchiveTimer=null;
+function queueAutoArchive(){
+  clearTimeout(autoArchiveTimer);
+  autoArchiveTimer=setTimeout(autoArchiveCurrentPeriod,8000);
+}
+async function autoArchiveCurrentPeriod(){
+  if(!isAdminMode()) return;
+  const period=currentArchivePeriod();
+  if(!/^\d{4}-\d{2}$/.test(period)) return;
+  try{
+    const res=await fetch('/api/shared-state',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'archive',period,label:`${period} S&OP`,
+        state:collectSharedState(),adminPassword:ADMIN_PASSWORD})
+    });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    setArchiveAutoNote(`${period} 보관본 자동 저장됨 · ${new Date().toLocaleTimeString('ko-KR')}`);
+    loadArchiveList();
+  }catch(e){
+    console.warn('auto archive failed',e);
+    setArchiveAutoNote('⚠ 자동 보관 실패 — 「현재 월 보관」을 눌러 주세요');
+  }
+}
+function setArchiveAutoNote(text){
+  const el=document.getElementById('archiveAutoNote');
+  if(el) el.textContent=text;
 }
 async function saveSharedState(){
   if(!isAdminMode()) return;
@@ -6270,9 +6350,9 @@ function fmtAdjustAmount(row,key){
 function fmtAdjustAmountByUnit(row,key,unit){
   if(unit==='qty'){
     const qty={
-      plan:qtyFromAmountM(row,row.plan),
-      actual:qtyFromAmountM(row,row.actual),
-      diff:qtyFromAmountM(row,row.diff),
+      plan:realQty(row,'plan')??qtyFromAmountM(row,row.plan),
+      actual:realQty(row,'actual')??qtyFromAmountM(row,row.actual),
+      diff:realQty(row,'diff')??qtyFromAmountM(row,row.diff),
       nextPlanAmt:row.nextPlanQty,
       recommendedAmt:row.recommendedQty,
       recDelta:row.recommendedQty!=null&&row.nextPlanQty!=null?row.recommendedQty-row.nextPlanQty:null
@@ -6284,19 +6364,23 @@ function fmtAdjustAmountByUnit(row,key,unit){
 }
 function fmtPlanActualByUnit(row,key,unit){
   if(unit==='qty'){
+    const real=realQty(row,key);
+    if(real!=null) return Math.round(real).toLocaleString();
     const q=qtyFromAmountM(row,row[key]);
     if(q==null||!isFinite(q)) return '<span style="color:var(--muted);font-size:10px;">매칭 없음</span>';
-    return Math.round(q).toLocaleString();
+    return `<span${QTY_EST_TIP}>~${Math.round(q).toLocaleString()}</span>`;
   }
   return amountFmtEokPlain(row[key]);
 }
 function fmtHTValue(row, key){
   const val=Number(row[key])||0;
   if(htUnit==='qty'){
+    const real=realQty(row,key);
+    if(real!=null){const p=(key==='over'&&real>0)?'+':'';return p+Math.round(real).toLocaleString();}
     const q=qtyFromAmountM(row,val);
     if(q==null||!isFinite(q)) return '<span style="color:var(--muted);font-size:10px;">매칭 없음</span>';
     const prefix=(key==='over'&&q>0)?'+':'';
-    return prefix+q.toLocaleString();
+    return `<span${QTY_EST_TIP}>~${prefix}${q.toLocaleString()}</span>`;
   }
   const formatted=Math.abs(val)>=10?val.toFixed(1):val.toFixed(2);
   if(key==='over') return val>0?'+'+formatted:'—';
@@ -7243,6 +7327,21 @@ function fmtInsightAmt(vM){
   const eok=Number(vM)||0;
   return (eok===0?'0':eok.toFixed(1))+'억';
 }
+// 오차율분석 시트 [수량] 구획에서 읽은 실측 수량. 없으면 null → 호출부가 '금액 ÷ 단가' 추정으로 폴백한다.
+// 판매계획 수량 열(AU~BF)이 아직 비어 있어 plan은 0으로 들어오므로, 0은 '없음'으로 취급한다.
+function realQty(row,key){
+  const v=key==='plan'?row?.qtyPlan
+         :key==='actual'?row?.qtyActual
+         :key==='diff'&&row?.qtyActual!=null&&row?.qtyPlan!=null?row.qtyActual-row.qtyPlan
+         :key==='over'&&row?.qtyActual!=null&&row?.qtyPlan!=null?Math.max(row.qtyActual-row.qtyPlan,0)
+         :key==='under'&&row?.qtyActual!=null&&row?.qtyPlan!=null?Math.min(row.qtyActual-row.qtyPlan,0)
+         :null;
+  if(v==null||!isFinite(v)) return null;
+  if((key==='plan'||key==='actual')&&v===0) return null;
+  if((key==='diff'||key==='over'||key==='under')&&!(row?.qtyPlan>0)) return null; // 계획 없으면 차이 산출 불가
+  return v;
+}
+const QTY_EST_TIP=' title="실측 수량 없음 · 금액÷단가 추정치"';
 function qtyFromAmountM(row, vM){
   const unit=getActualUnitMap()[String(row.mat||'').trim()]?.unit||0;
   if(!unit) return null;
