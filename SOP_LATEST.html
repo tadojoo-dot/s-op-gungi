@@ -6316,11 +6316,17 @@ function aggregateHitRows(rows){
     target.plan+=Number(row.plan)||0;
     target.actual+=Number(row.actual)||0;
   });
+  // 판매계획이 0인 행(계획 없이 실적만 있는 건)은 오차 분석에서 통째로 뺀다 (2026-08-13, 사용자 결정).
+  // WAPE = Σ|실적−계획| ÷ Σ계획 인데, 이런 행은 분자에만 들어가고 분모엔 안 들어가 오차율을 부풀린다.
+  // 26/8 파일 4월이 계획0 행 198건 때문에 157.7%로 튀었다 → 118.4%.
+  // ⚠ 여기가 유일한 관문이다. KPI 타일·트렌드 차트·보정 대상 리스트·오차 기여 TOP10이 전부
+  //    aggregateHitRows를 거치므로, 조건을 호출부에 복사하지 말 것.
+  // 반대쪽(계획은 있는데 실적 0)은 그대로 둔다 — 계획 2억인데 안 팔렸으면 오차율 100%가 맞는 값이다.
   return [...grouped.values()].map(row=>{
     const diff=row.actual-row.plan;
     const hitAcc=row.plan>0?Math.abs(diff)/row.plan*100:null;
     return {...row,diff,hitAcc,type:diff>0?'over':diff<0?'under':'match',over:Math.max(diff,0),under:Math.min(diff,0)};
-  }).filter(row=>row.plan>0||row.actual>0);
+  }).filter(row=>row.plan>0);
 }
 function getDaisoCodeMap(){return UPLOADED?.daiso_code_map||null;}
 function getDaisoGroupMembers(){return UPLOADED?.daiso_group_members||null;}
