@@ -1035,13 +1035,14 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
       <div class="archive-panel">
         <div>
           <div class="archive-title">S&amp;OP 월별 보관</div>
-          <div class="archive-copy">회의록은 <strong>기준월별로 따로 저장</strong>됩니다 — 새 달 엑셀을 올리면 그 달 회의록은 빈 상태로 시작하고 지난달 것은 그대로 남습니다. 회의가 끝나면 <strong>회의 종료 · 확정 보관</strong> 하나만 누르면 됩니다 — 보관할 달은 업로드된 엑셀의 기준월을 자동으로 따릅니다(확정 후에는 자동 저장이 덮어쓰지 않습니다). 「이번 달 입력 초기화」는 이번 달 입력값만 비웁니다.</div>
+          <div class="archive-copy">회의록은 <strong>기준월별로 따로 저장</strong>됩니다 — 새 달 엑셀을 올리면 그 달 회의록은 빈 상태로 시작하고 지난달 것은 그대로 남습니다. <strong>회의 월</strong>을 고르면 그 달 회의록이 뜨고, <strong>저장</strong>을 누르면 그 달로 저장·보관됩니다. 기본값은 PSI 첫 월(현재 기준월)입니다. 자동 저장은 하지 않으므로 지난달 내용이 다른 달로 새지 않습니다. 「이 달 입력 초기화」는 선택한 달의 입력값만 비웁니다.</div>
           <div class="archive-copy" id="archiveAutoNote" style="margin-top:4px;font-weight:700;"></div>
         </div>
         <div class="archive-actions">
-          <select id="archiveSelect" onchange="loadSelectedArchive()"><option value="">과거 보관본</option></select>
-          <button class="btn-print" id="finishMeetingBtn" onclick="finishMeeting()" style="font-weight:900;">회의 종료 · 확정 보관</button>
-          <button class="btn-print" onclick="resetLiveMeetingState()">이번 달 입력 초기화</button>
+          <label style="font-size:11px;font-weight:800;color:var(--navy);">회의 월</label>
+          <select id="meetingPeriodSelect" onchange="onMeetingPeriodChange()"></select>
+          <button class="btn-print" id="saveMeetingBtn" onclick="saveMeetingPeriod()" style="font-weight:900;">저장</button>
+          <button class="btn-print" onclick="resetLiveMeetingState()">이 달 입력 초기화</button>
         </div>
         <div id="archiveResult" class="archive-result"></div>
       </div>
@@ -1715,7 +1716,6 @@ async function deleteSnapshot(id){
 
 const PLAN_KEY='sopPlanActions_v1';
 const MEETING_MEMO_KEY='sopMeetingMemo_v1';
-const MEETING_CONFIRM_KEY='sopMeetingConfirm_v1';   // {'2026-08':'ISO시각'} — 확정 후 자동 보관이 덮어쓰지 않게 한다
 function getPlanActions(){
   try{return JSON.parse(localStorage.getItem(PLAN_KEY)||'[]');}catch(e){return [];}
 }
@@ -1842,25 +1842,16 @@ function loadMeetingMemo(){
   renderActionLog();
   renderPsiActionLog();
 }
-// 제목·확정 배지는 렌더 경로에서 갱신한다. 업로드 경로에만 두면 업로드한 사람만 새 월을 보게 된다.
+// 제목은 렌더 경로에서 갱신한다. 업로드 경로에만 두면 업로드한 사람만 새 월을 보게 된다.
 function updateMeetingPeriodUI(){
-  const period=currentArchivePeriod();
-  const label=period.replace(/^(\d{4})-(\d{2})$/,(_,y,mo)=>`${y}년 ${Number(mo)}월`);
+  const period=meetingPeriod();
   const t=document.getElementById('meetingTitle');
-  if(t) t.textContent=`${label} S&OP 회의록`;
-  const confirmedAt=getMeetingConfirm()[period]||'';
+  if(t) t.textContent=`${periodLabel(period)} S&OP 회의록`;
   const cur=readMeetingStore()[period]||{};
   const written=Boolean((cur.meeting||'').trim()||(cur.decision||'').trim());
   const sub=document.getElementById('meetingSub');
-  if(sub){
-    sub.textContent=confirmedAt
-      ? `확정 보관됨 · ${new Date(confirmedAt).toLocaleString('ko-KR')}${written?' (이후 수정됨 — 다시 확정하세요)':''}`
-      : (written?'작성 중 · 회의가 끝나면 「회의 종료 · 확정 보관」을 누르세요':'Risk · Decision · Action을 화면별/SKU별로 연결 관리');
-  }
-  const btn=document.getElementById('finishMeetingBtn');
-  if(btn) btn.textContent=confirmedAt?'회의 종료 · 다시 확정':'회의 종료 · 확정 보관';
+  if(sub) sub.textContent=written?'작성된 회의록이 있습니다 · 수정하면 [저장]을 눌러 주세요':'이 달 회의록은 아직 비어 있습니다';
 }
-function getMeetingConfirm(){try{return JSON.parse(localStorage.getItem(MEETING_CONFIRM_KEY)||'{}')||{};}catch(e){return {};}}
 function downloadMeetingExcel(){
   if(typeof XLSX==='undefined'){alert('엑셀 라이브러리를 불러오지 못했습니다.');return;}
   const now=new Date();
@@ -5696,7 +5687,7 @@ function seedRecoveredLocalInputs(){
   if(!localStorage.getItem(PSI_LOG_KEY)) localStorage.setItem(PSI_LOG_KEY,JSON.stringify(RECOVERED_PSI_ACTION_LOG));
   if(!localStorage.getItem(MEETING_MEMO_KEY)) localStorage.setItem(MEETING_MEMO_KEY,JSON.stringify(RECOVERED_MEETING_MEMO));
 }
-const SHARED_STATE_FIXED_KEYS=[PLAN_KEY,MEETING_MEMO_KEY,MEETING_CONFIRM_KEY,PSI_SIM_BUY_KEY,PSI_LOG_KEY];
+const SHARED_STATE_FIXED_KEYS=[PLAN_KEY,MEETING_MEMO_KEY,PSI_SIM_BUY_KEY,PSI_LOG_KEY];
 const SHARED_STATE_PREFIXES=['hitAdjustMemo|','sopMemo_'];
 let sharedStateSaveTimer=null;
 function collectSharedState(){
@@ -5726,14 +5717,80 @@ function htmlSafe(v){
 function parseSharedJson(state,key,fallback){
   try{return JSON.parse(state?.[key]||'');}catch(e){return fallback;}
 }
-function currentArchivePeriod(){
+// 회의는 월 단위로 진행한다. 사용자가 고른 달이 곧 지금 다루는 회의 월이고,
+// 아무것도 안 고르면 PSI 첫 월(= 업로드 파일 기준월)이다.
+// ⚠ 자동 감지·자동 보관은 걷어냈다 — 8초 자동 보관이 지난달 회의록을 새 달 보관본으로
+//   복사해 버린 사고(26/8)가 있었다. 사람이 고르고 저장할 때만 쓰기가 일어난다.
+let _meetingPeriod='';
+function meetingPeriod(){
+  const sel=document.getElementById('meetingPeriodSelect')?.value;
+  return sel||_meetingPeriod||basePeriod();
+}
+function basePeriod(){
   const ym=String(UPLOADED?.base_yearmonth||'').match(/(\d{4})[.\-/](\d{1,2})/);
   if(ym) return `${ym[1]}-${String(ym[2]).padStart(2,'0')}`;
   const now=new Date();
   return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 }
+function periodLabel(p){return String(p).replace(/^(\d{4})-(\d{2})$/,(_,y,mo)=>`${y}년 ${Number(mo)}월`);}
+// 목록: 기준월 앞뒤 + 회의록이 있는 달 + 보관본이 있는 달을 합쳐 최신순
+async function buildMeetingPeriodOptions(){
+  const sel=document.getElementById('meetingPeriodSelect');
+  if(!sel) return;
+  const base=basePeriod();
+  const set=new Set([base]);
+  const bm=base.match(/^(\d{4})-(\d{2})$/);
+  if(bm){
+    for(let d=-11;d<=1;d++){
+      const dt=new Date(Number(bm[1]),Number(bm[2])-1+d,1);
+      set.add(`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`);
+    }
+  }
+  Object.keys(readMeetingStore()).forEach(k=>set.add(k));
+  try{
+    const res=await fetch('/api/shared-state?archives=1',{cache:'no-store'});
+    if(res.ok){(await res.json())?.archives?.forEach(a=>set.add(a.period));}
+  }catch(e){}
+  const periods=[...set].filter(p=>/^\d{4}-\d{2}$/.test(p)).sort().reverse();
+  const cur=meetingPeriod();
+  sel.innerHTML=periods.map(p=>`<option value="${htmlSafe(p)}">${htmlSafe(periodLabel(p))}${p===base?' · 기준월':''}</option>`).join('');
+  sel.value=periods.includes(cur)?cur:base;
+  _meetingPeriod=sel.value;
+}
+function onMeetingPeriodChange(){
+  _meetingPeriod=document.getElementById('meetingPeriodSelect')?.value||basePeriod();
+  loadMeetingMemo();
+}
+// 저장: 고른 달로 회의록을 남기고 같은 달 보관본도 갱신한다
+async function saveMeetingPeriod(){
+  if(!requireAdminMode()) return;
+  const period=meetingPeriod();
+  if(!/^\d{4}-\d{2}$/.test(period)){alert('회의 월을 골라 주세요.');return;}
+  const store=readMeetingStore();
+  store[period]={
+    meeting:document.getElementById('meetingMemo')?.value||'',
+    decision:document.getElementById('decisionMemo')?.value||''
+  };
+  localStorage.setItem(MEETING_MEMO_KEY,JSON.stringify(store));
+  try{
+    await saveSharedState();
+    const res=await fetch('/api/shared-state',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'archive',period,label:`${period} 회의록`,
+        state:collectSharedState(),adminPassword:ADMIN_PASSWORD})
+    });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    setArchiveAutoNote(`${periodLabel(period)} 저장 완료 · ${new Date().toLocaleTimeString('ko-KR')}`);
+    buildMeetingPeriodOptions();
+    updateMeetingPeriodUI();
+    alert(`${periodLabel(period)} 회의록을 저장했습니다.`);
+  }catch(e){
+    alert(`저장에 실패했습니다: ${e.message}`);
+  }
+}
+function currentArchivePeriod(){return meetingPeriod();}
 function initArchiveControls(){
-  loadArchiveList();   // 수동 월 입력은 제거됨 — 보관 월은 항상 기준월을 따른다
+  buildMeetingPeriodOptions();   // 회의 월 목록 구성 (기본 = PSI 첫 월)
 }
 async function loadArchiveList(){
   const sel=document.getElementById('archiveSelect');
@@ -5811,9 +5868,6 @@ function clearSharedLocalInputs(){
   const memo=readMeetingStore();
   delete memo[period];
   localStorage.setItem(MEETING_MEMO_KEY,JSON.stringify(memo));
-  const marks=getMeetingConfirm();
-  delete marks[period];
-  localStorage.setItem(MEETING_CONFIRM_KEY,JSON.stringify(marks));
   const buys=getPsiSimBuyRaw();
   Object.keys(buys).forEach(mat=>{
     if(buys[mat]&&typeof buys[mat]==='object'){
@@ -5831,33 +5885,6 @@ function clearSharedLocalInputs(){
   }
   remove.forEach(key=>localStorage.removeItem(key));
 }
-// 회의 종료 = 그 달 보관본을 확정한다. 보관이 성공했을 때만 확정 표시를 남긴다
-// (실패했는데 확정으로 표시하면 자동 보관까지 멈춰서 그 달이 통째로 안 남는다).
-async function finishMeeting(){
-  if(!requireAdminMode()) return;
-  const period=currentArchivePeriod();
-  if(!/^\d{4}-\d{2}$/.test(period)){alert('기준월을 알 수 없습니다. 엑셀을 먼저 올려 주세요.');return;}
-  if(!confirm(`${period} 회의록을 확정 보관합니다.\n확정 후에는 자동 저장이 이 보관본을 덮어쓰지 않습니다.`)) return;
-  try{
-    const res=await fetch('/api/shared-state',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'archive',period,label:`${period} 회의록 (확정)`,
-        state:collectSharedState(),adminPassword:ADMIN_PASSWORD})
-    });
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    const marks=getMeetingConfirm();
-    marks[period]=new Date().toISOString();
-    localStorage.setItem(MEETING_CONFIRM_KEY,JSON.stringify(marks));
-    await saveSharedState();
-    updateMeetingPeriodUI();
-    loadArchiveList();
-    setArchiveAutoNote(`${period} 확정 보관 완료 · ${new Date().toLocaleTimeString('ko-KR')}`);
-    alert(`${period} 회의록을 확정 보관했습니다.`);
-  }catch(e){
-    alert(`확정 보관에 실패했습니다: ${e.message}\n확정 표시를 남기지 않았으니 다시 시도해 주세요.`);
-  }
-}
 async function resetLiveMeetingState(){
   if(!requireAdminMode()) return;
   if(!confirm(`${currentArchivePeriod()} 입력값을 초기화합니다.\n이번 달 회의록·PSI 조정값·Action Log·담당 의견이 비워집니다.\n지난달 회의록과 과거 보관본은 그대로 남습니다.`)) return;
@@ -5871,38 +5898,11 @@ async function resetLiveMeetingState(){
 function queueSharedStateSave(){
   clearTimeout(sharedStateSaveTimer);
   sharedStateSaveTimer=setTimeout(saveSharedState,450);
-  queueAutoArchive();
+  // ⚠ 자동 보관(queueAutoArchive)은 제거했다. 8초마다 '현재 기준월' 보관본을 덮어쓰는 바람에
+  //    7월에 쓴 회의록이 8월 보관본으로 복사됐다(26/8). 보관은 사용자가 [저장]을 누를 때만 한다.
 }
-// 회의록·의견·PSI 조정값은 live 한 벌만 있어서, '현재 월 보관' 버튼을 안 누르면
-// 다음 달에 그대로 덮어써진다. 그래서 입력이 멈추면 현재 기준월 보관본도 같이 갱신한다.
-// live 저장(450ms)보다 훨씬 길게 잡아 KV 쓰기 횟수를 억제한다.
-let autoArchiveTimer=null;
-function queueAutoArchive(){
-  clearTimeout(autoArchiveTimer);
-  autoArchiveTimer=setTimeout(autoArchiveCurrentPeriod,8000);
-}
-async function autoArchiveCurrentPeriod(){
-  if(!isAdminMode()) return;
-  const period=currentArchivePeriod();
-  if(!/^\d{4}-\d{2}$/.test(period)) return;
-  // 확정 보관된 달은 건드리지 않는다. 예전엔 8초마다 무조건 덮어써서 '확정' 개념이 없었고,
-  // 그 탓에 지난달 회의록이 새 달 보관본으로 복사되기도 했다.
-  if(getMeetingConfirm()[period]){setArchiveAutoNote(`${period} 확정 보관됨 — 자동 저장은 건너뜁니다`);return;}
-  try{
-    const res=await fetch('/api/shared-state',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'archive',period,label:`${period} 회의록`,
-        state:collectSharedState(),adminPassword:ADMIN_PASSWORD})
-    });
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    setArchiveAutoNote(`${period} 보관본 자동 저장됨 · ${new Date().toLocaleTimeString('ko-KR')}`);
-    loadArchiveList();
-  }catch(e){
-    console.warn('auto archive failed',e);
-    setArchiveAutoNote('⚠ 자동 보관 실패 — 「현재 월 보관」을 눌러 주세요');
-  }
-}
+// 자동 보관은 제거했다 — 8초마다 '현재 기준월' 보관본을 덮어써서 7월 회의록이 8월 보관본으로
+// 복사되는 사고가 났다(26/8). 보관은 회의 월을 고르고 [저장]을 누를 때만 일어난다.
 function setArchiveAutoNote(text){
   const el=document.getElementById('archiveAutoNote');
   if(el) el.textContent=text;
