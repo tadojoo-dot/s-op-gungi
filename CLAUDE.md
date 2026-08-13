@@ -116,12 +116,35 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 | 📡 Aging Sensing (M+N 예측) | `renderSensing`, `projectSensingInventory`, `computeSensInbound`(PSI 입고, 원가단가 기준) |
 | SKU 상세 팝업(라인차트, 실적vs계획) | `renderSkuDetailModal` — 배지: `diffVal`/`diffPos` 3번째 dataset |
 | ② PSI 시뮬레이션 탭 | `renderPSI`, `_renderPsiTbody`, `calcPsiMonth` (건드리지 말 것 — 사용자가 최소화 지시) |
-| ② PSI 표 필터 (0건 진단 포함) | `PSI_FILTERS`, `applyPsiFilters`, `diagnosePsiEmpty` — 필터 조건은 **`applyPsiFilters` 한 곳에만** 있어야 함. 인라인으로 복사하면 0건 진단이 실제 화면과 어긋난다 |
+| ② PSI 표 필터 (0건 진단 포함) | `PSI_FILTERS`, `applyPsiFilters`, `psiViewRows`, `diagnosePsiEmpty` — 필터 조건은 **`applyPsiFilters` 한 곳에만** 있어야 함. 인라인으로 복사하면 0건 진단이 실제 화면과 어긋난다 |
+| ② PSI 다이소 플랜트별 분해 | `buildPlantScopedPsiRows`, `decorateDaisoComponentRows`, `psiIntegratedSigByMonth` — 아래 "플랜트 분해 규칙" 참고 |
 | ② PSI 표 수량/원가/매출 토글 | `psiUnitMode`, `getPsiPriceMap`, `fmtPsiCell`, `setPsiUnitMode` |
 | ③ 월별 판매계획 대비 실적(탭에 박힌 바차트) | `renderChAchieve` (canvas id `chAcc`) — 배지: `monthDiffLabelPlugin` |
 | ③ 오차 기여 TOP10 / 판매계획 보정 대상 리스트 | `renderInsightTables`, `renderHT` |
 | 보정 대상 리스트 → 품목클릭 팝업(바차트) | `openPlanAdjustModal` (canvas id `planAdjustTrendChart`) — 배지: `modalDiffLabelPlugin`. **SKU상세팝업과 다른 별도 모달**임에 유의 |
 | 정렬 토글(오름↔내림) 공통 로직 | `nextSortState`, `sortValue`, `compareSortRows` — 여러 표(오차TOP10, 보정리스트)가 공유 |
+
+## 다이소 플랜트 분해 규칙 (2026-08-13 확립)
+
+**판매계획·3평판은 통합코드에만 있다.** 하위 코드 중 향남(`7302xxx`)이 실적을 다 갖고,
+횡성(`9401xxx`)은 **재고만 있고 계획·실적·3평판·입고가 전부 0**이다(2번째 생산처로 나중에 붙은 코드).
+그래서 플랜트별로는 재고일수의 분모가 없다.
+
+채택한 규칙 — **분자만 플랜트 몫으로 바꾸고 분모는 통합 수요를 그대로 쓴다:**
+```
+플랜트 재고일수 = 플랜트 기말재고 ÷ 통합 다음달 판매계획 × 30
+```
+- 배분 계수가 없어서 자의성이 없고, **플랜트별 재고일수의 합 = 통합 재고일수**가 정확히 성립(26/8 파일 전건 검증)
+- ⚠ **3평판을 재고 비율로 배분하는 방식은 쓰지 말 것.** 분자·분모가 같은 비율로 줄어 모든 플랜트의
+  재고일수가 통합과 똑같아진다 — 정보량이 0이 된다. (한 번 검토했다가 기각한 안)
+- ⚠ **신호등을 플랜트 단위로 걸지 말 것.** 마그네슘이 향남 46일 / 횡성 103일이라 각각은 기준 미달인데
+  합치면 149일로 정상이다. 판정은 항상 통합 기준(`sigByMonth`)으로 한다.
+- 진척율·3평판 기준 **보조 열은 플랜트 분해에서 `—`로 비운다** (당월실적·3평판이 통합에만 있어 나눌 수 없음)
+- 입고 조정 input은 플랜트 분해에서 잠근다 (조정값을 어느 하위 코드에 귀속할지 정의되지 않음)
+
+구현 통로 두 개 (평소엔 `undefined`라 기존 동작 무영향):
+- `d.daysPlanSource` → `psiDaysForRow`가 분모를 다른 행에서 가져오게 함
+- `d.sigByMonth` → `calcPsiMonth`가 신호등을 통합 기준으로 판정하게 함
 
 ## 확립된 시각 패턴
 - **차이(diff) 배지**: 초록(`#33512E`)/빨강(`#D64545`) 배경 + 흰 텍스트 + `ctx.roundRect`로 둥근 모서리. `▲+`/`▼` 접두사. Chart.js `afterDraw` 플러그인으로 캔버스에 직접 그림 (Chart.js datalabels의 `backgroundColor`+`borderRadius` 조합도 동일 효과, `renderSkuDetailModal`의 3번째 dataset 참고).

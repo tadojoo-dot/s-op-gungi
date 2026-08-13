@@ -2591,8 +2591,11 @@ function psiDaysFromMonthlyPlan(monthly,monthKey,end){
   const nextPlan=nextKey?Number(monthly?.[nextKey]?.plan)||0:0;
   return psiDaysByNextPlan(end,nextPlan);
 }
+// daysPlanSource: 재고일수의 분모(다음 달 판매계획)를 이 행이 아닌 다른 행에서 가져오게 하는 통로.
+// 다이소 플랜트 분해에서만 쓴다 — 판매계획이 통합코드에 몰려 있어 플랜트 행에는 분모가 없기 때문.
+// 평소에는 undefined라 기존 동작 그대로다.
 function psiDaysForRow(d,monthKey,end){
-  return psiDaysFromMonthlyPlan(d?.monthlyPsi||d?.sourceMonthlyPsi||{},monthKey,end);
+  return psiDaysFromMonthlyPlan(d?.daysPlanSource||d?.monthlyPsi||d?.sourceMonthlyPsi||{},monthKey,end);
 }
 
 function getPSIStockSignal(days,isDaiso){
@@ -5026,20 +5029,33 @@ function _renderPsiTbody(){
       prev=r.end;
       const sig=r.sig==='red'?'sig-r':r.sig==='yellow'?'sig-y':r.sig==='excess'?'sig-x':r.sig==='green'?'sig-g':'sig-gray';
       const endCls=r.end<0?' style="color:var(--red);font-weight:900;"':'';
+      // 보조 기준(진척율/3평판) 열은 플랜트로 쪼갤 수 없다 — 당월실적·3평판이 통합코드에만 있고,
+      // 재고 비율로 나누면 자의적 배분이 된다. 플랜트 분해에서는 '—'로 비운다.
       let basisEnd,basisDays,basisSig;
-      if(m.progress){basisEnd=Number(d.er)||0;basisDays=d.dr;basisSig=d.sr||'gray';avgPrev=basisEnd;}
+      if(d._plantScoped){basisEnd=null;basisDays=null;basisSig='gray';}
+      else if(m.progress){basisEnd=Number(d.er)||0;basisDays=d.dr;basisSig=d.sr||'gray';avgPrev=basisEnd;}
       else{const ab=avgPrev==null?r.begin:avgPrev;basisEnd=ab+r.buy-(Number(d.avg3)||0);basisDays=psiDaysForRow(d,m.key,basisEnd);basisSig=basisDays==null?'gray':getPSIStockSignal(basisDays,isIntegrated||isDaisoComponent);avgPrev=basisEnd;}
       const bsc=basisSig==='red'?'sig-r':basisSig==='yellow'?'sig-y':basisSig==='excess'?'sig-x':basisSig==='green'?'sig-g':'sig-gray';
-      const bec=basisEnd<0?' style="color:var(--red);font-weight:900;"':' style="font-weight:800;color:var(--navy);"';
+      const bec=(basisEnd!=null&&basisEnd<0)?' style="color:var(--red);font-weight:900;"':' style="font-weight:800;color:var(--navy);"';
+      const basisCells=basisEnd==null
+        ?`<td class="r" style="color:var(--muted);" title="진척율·3평판 기준은 통합코드에만 있는 값이라 플랜트별로 나누지 않습니다">—</td><td class="c month-end" style="color:var(--muted);">—</td>`
+        :`<td class="r"${bec}${psiCellTitle(basisEnd,d.mat)}>${fmtPsiCell(basisEnd,d.mat)}</td><td class="c month-end"><span class="sig-dot ${bsc}"></span> ${psiDaysHtml(basisDays,basisSig)}</td>`;
       const exact=d.monthlyPsi?.[m.key]||d.sourceMonthlyPsi?.[m.key];
       const origBuy=exact?(Number(exact.buy)||0):Math.round((d.buy6||0)*m.buy);
       const buyOvOn=rowOv[m.key]!=null;
       const buyCls=buyOvOn?'psi-buy-override':origBuy===0?'psi-buy-empty':'';
-      // 금액 모드에서는 입고 조정 입력을 읽기전용 텍스트로 대체한다 (금액→수량 역산 시 반올림 오차가 생기므로)
-      const buyCell=psiUnitMode==='qty'
+      // 입고 조정 입력은 수량 모드 + 통합(전체 플랜트)에서만 연다.
+      // 금액 모드는 금액→수량 역산 반올림 오차, 플랜트 분해는 조정값을 어느 하위 코드에 귀속할지가
+      // 정의되지 않아서다(조정은 통합 기준으로만 한다).
+      const buyLocked=psiUnitMode!=='qty'||d._plantScoped;
+      const lockWhy=d._plantScoped?'입고 조정은 플랜트 전체(통합) 기준에서만 가능합니다':'입고 조정은 수량 모드에서만 가능합니다';
+      const buyCell=!buyLocked
         ?`<td class="r"><input type="text" class="psi-buy-input${buyCls?' '+buyCls:''}" onclick="event.stopPropagation()" data-mat="${d.mat}" data-mo="${m.key}" data-orig-buy="${origBuy}" value="${r.buy.toLocaleString('ko-KR')}"><button type="button" class="psi-buy-reset" title="이 입고 조정을 원래값(${fmtPsiInt(origBuy)})으로 초기화" onclick="event.stopPropagation();resetPsiBuyCell(this)">↺</button></td>`
-        :`<td class="r"${buyOvOn?' style="color:#8a5c00;font-weight:900;"':''} title="수량 ${fmtPsiInt(r.buy)}개${buyOvOn?' · 직접 조정한 값':''} · 입고 조정은 수량 모드에서만 가능합니다">${fmtPsiCell(r.buy,d.mat)}</td>`;
-      return `<td class="r month-start"${psiCellTitle(r.begin,d.mat)}>${fmtPsiCell(r.begin,d.mat)}</td>${buyCell}<td class="r"${psiCellTitle(r.plan,d.mat)}>${fmtPsiCell(r.plan,d.mat)}</td><td class="r"${endCls}${psiCellTitle(r.end,d.mat)}>${fmtPsiCell(r.end,d.mat)}</td><td class="c"><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}</td><td class="r"${bec}${psiCellTitle(basisEnd,d.mat)}>${fmtPsiCell(basisEnd,d.mat)}</td><td class="c month-end"><span class="sig-dot ${bsc}"></span> ${psiDaysHtml(basisDays,basisSig)}</td>`;
+        :`<td class="r"${buyOvOn?' style="color:#8a5c00;font-weight:900;"':''} title="수량 ${fmtPsiInt(r.buy)}개${buyOvOn?' · 직접 조정한 값':''} · ${lockWhy}">${fmtPsiCell(r.buy,d.mat)}</td>`;
+      const daysTitle=d._plantScoped
+        ? ` title="${d._plantOf} 몫 기말재고 ${fmtPsiInt(r.end)}개 ÷ 통합 다음달 판매계획 × 30 · 신호등은 통합 기준 판정"`
+        : (d._sharedDemand?` title="자체 판매계획이 없어 소속 통합코드(${d._sharedFrom})의 수요를 분모로 산출"`:'');
+      return `<td class="r month-start"${psiCellTitle(r.begin,d.mat)}>${fmtPsiCell(r.begin,d.mat)}</td>${buyCell}<td class="r"${psiCellTitle(r.plan,d.mat)}>${fmtPsiCell(r.plan,d.mat)}</td><td class="r"${endCls}${psiCellTitle(r.end,d.mat)}>${fmtPsiCell(r.end,d.mat)}</td><td class="c"${daysTitle}><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}</td>${basisCells}`;
     }).join('');
     const sCls=_psiSoojinCls[soojinStatus]||'gray';
     const sLbl=_psiSoojinLabel[soojinStatus]||'판단필요';
@@ -5047,9 +5063,9 @@ function _renderPsiTbody(){
       <td class="l" style="font-size:11px;color:var(--muted);font-weight:800;cursor:text;user-select:all;-webkit-user-select:all;" onclick="event.stopPropagation()" title="클릭하면 자재코드 전체 선택 → Ctrl+C로 복사">${d.mat||'—'}</td>
       <td class="l"><strong>${d.name}</strong></td>
       <td class="l" style="font-size:11px;color:var(--muted);">${d.pkg==='구강'?'구강':'건기식'}</td>
-      <td class="l" style="font-size:11px;font-weight:800;color:${isIntegrated?'#0f766e':isDaisoComponent?'#b45309':'var(--muted)'};">${isIntegrated?'다이소 통합':isDaisoComponent?'다이소 원본':'일반'}</td>
+      <td class="l" style="font-size:11px;font-weight:800;color:${isIntegrated?'#0f766e':isDaisoComponent?'#b45309':'var(--muted)'};">${d._plantScoped?`다이소 통합 <span style="color:#b45309;">· ${d._plantOf} 몫</span>`:isIntegrated?'다이소 통합':isDaisoComponent?'다이소 원본':'일반'}</td>
       <td class="l" style="font-size:11px;color:var(--muted);font-weight:700;">${d.plant||''}</td>
-      <td class="r">${fmtPsiInt(d.avg3)}</td>
+      <td class="r"${(d._plantScoped||d._sharedAvg3)?' title="3평판(수요)은 통합코드 단위라 플랜트가 나눠 쓰는 값입니다 — 플랜트별로 더하면 안 됩니다"':''}>${fmtPsiInt(d.avg3)}${(d._plantScoped||d._sharedAvg3)?'<span style="color:#b45309;font-size:9px;font-weight:900;"> 통합</span>':''}</td>
       <td class="c" onclick="event.stopPropagation();openSkuDetail('${d.mat}','${escapeSensingText(d.name||'')}','${escapeSensingText(d.pkg||'')}',${d.inv||0},null,0)"><span class="tag ${sCls}" style="font-size:10px;padding:2px 6px;cursor:pointer;">${sLbl}</span></td>
       ${cells}
       <td class="l plan-cell" contenteditable="true" onclick="event.stopPropagation()" data-plan-key="PSI|${d.mat}" data-screen="PSI 전 품목 현황" data-bucket="${d.sp||''}" data-channel="${d.pkg||''}" data-sku="${d.mat||''}" data-name="${String(d.name||'').replace(/"/g,'&quot;')}"></td>
@@ -5141,6 +5157,84 @@ function setPsiUnitMode(mode,btn){
 }
 function isPsiIntegrated(d){return Boolean(d.isDaisoIntegrated)||d.pkg==='다이소 통합';}
 function isPsiDaisoComponent(d){return Boolean(d.isDaisoComponent);}
+
+// ═══════════ 다이소 플랜트별 분해 ═══════════════════════════
+// 판매계획·3평판이 통합코드(실질적으로 향남 코드)에 몰려 있어 플랜트별로는 분모가 없다.
+// 배분 계수를 만들지 않고 분자만 플랜트 몫으로 바꾸고 분모는 통합 수요를 그대로 쓴다:
+//     플랜트 재고일수 = 플랜트 기말재고 ÷ 통합 다음달 판매계획 × 30
+// 이러면 플랜트별 재고일수의 합이 통합 재고일수와 정확히 일치한다 (26/8 파일 14/14 검증).
+// 3평판을 재고 비율로 배분하는 방식은 쓰지 않았다 — 그렇게 하면 모든 플랜트의 재고일수가
+// 통합과 똑같아져서(분자·분모가 같은 비율로 줄어듦) 정보가 0이 된다.
+const PSI_MONTH_KEYS=['6월','7월','8월','9월','10월'];
+function psiPlantsOf(d){
+  return (Array.isArray(d?.plantValues)&&d.plantValues.length)?d.plantValues:(d?.plant?[d.plant]:[]);
+}
+function psiMonthOf(row,key){return (row?.monthlyPsi?.[key])||(row?.sourceMonthlyPsi?.[key])||{};}
+// 통합 행의 월별 신호등 — 플랜트 행이 그대로 물려받는다
+function psiIntegratedSigByMonth(g){
+  const src=g.monthlyPsi||g.sourceMonthlyPsi||{};
+  const out={};
+  PSI_MONTH_KEYS.forEach(k=>{
+    const days=psiDaysFromMonthlyPlan(src,k,Number(psiMonthOf(g,k).end)||0);
+    out[k]=days==null?'gray':getPSIStockSignal(days,true);
+  });
+  return out;
+}
+// 통합 SKU를 해당 플랜트 몫으로 좁힌 행들. 그 플랜트에 하위 코드가 없는 통합 SKU는 제외된다.
+function buildPlantScopedPsiRows(plant){
+  const comps=UPLOADED?.daiso_components||[];
+  if(!plant||!comps.length) return [];
+  const out=[];
+  (getPSIData()||[]).forEach(g=>{
+    if(!isPsiIntegrated(g)) return;
+    const kids=comps.filter(c=>String(c.integratedCode||'')===String(g.mat)&&psiPlantsOf(c).includes(plant));
+    if(!kids.length) return;
+    const monthly={};
+    PSI_MONTH_KEYS.forEach(k=>{
+      let begin=0,buy=0,plan=0;
+      kids.forEach(c=>{const s=psiMonthOf(c,k);begin+=Number(s.begin)||0;buy+=Number(s.buy)||0;plan+=Number(s.plan)||0;});
+      monthly[k]={begin:Math.round(begin),buy:Math.round(buy),plan:Math.round(plan),end:Math.round(begin+buy-plan)};
+    });
+    const first=monthly[PSI_MONTH_KEYS[0]]||{};
+    out.push({...g,
+      monthlyPsi:monthly,
+      sourceMonthlyPsi:monthly,
+      daysPlanSource:g.monthlyPsi||g.sourceMonthlyPsi||{},  // 분모 = 통합 판매계획
+      sigByMonth:psiIntegratedSigByMonth(g),                 // 판정 = 통합 기준
+      inv:Number(first.begin)||0,
+      buy6:Number(first.buy)||0,
+      plan6:Number(first.plan)||0,
+      plant,plantValues:[plant],
+      _plantScoped:true,
+      _plantOf:plant,
+      _integratedInv:Number(g.inv)||0,
+      _plantCodes:kids.map(c=>String(c.mat||'')).filter(Boolean)
+    });
+  });
+  return out;
+}
+// 다이소 원본(개별 코드) 뷰 보정: 횡성처럼 자체 판매계획·3평판이 0인 코드는 재고일수가 산출불가로 뜬다.
+// 소속 통합코드의 수요를 분모로 물려줘서 실제 값이 나오게 한다. 자체 값이 있는 코드는 건드리지 않는다.
+function decorateDaisoComponentRows(rows){
+  const integrated={};
+  (getPSIData()||[]).forEach(g=>{if(isPsiIntegrated(g)) integrated[String(g.mat)]=g;});
+  return (rows||[]).map(c=>{
+    const g=integrated[String(c.integratedCode||'')];
+    if(!g) return c;
+    const ownPlan=PSI_MONTH_KEYS.reduce((s,k)=>s+(Number(psiMonthOf(c,k).plan)||0),0);
+    if(ownPlan>0) return c;   // 자체 판매계획이 있는 코드는 그대로
+    // 자체 3평판이 있으면 그 값을 유지한다 — 통합값으로 덮으면 자기 실적이 있는 코드의 숫자가 부풀려진다.
+    // 3평판까지 0인 코드(횡성 등)만 통합 수요를 빌려 온다. 안 그러면 3평판 필터에 전멸한다.
+    const ownAvg3=Number(c.avg3)||0;
+    return {...c,
+      daysPlanSource:g.monthlyPsi||g.sourceMonthlyPsi||{},
+      sigByMonth:psiIntegratedSigByMonth(g),
+      avg3:ownAvg3>0?ownAvg3:(Number(g.avg3)||0),
+      _sharedDemand:true,
+      _sharedAvg3:ownAvg3<=0,
+      _sharedFrom:`${g.mat} ${g.name}`};
+  });
+}
 function psiDaysHtml(days,sig){
   if(days==null)return `<span class="days-gray">산출불가</span>`;
   if(days<=0)return `<span style="color:var(--red);font-weight:900;">품절!</span>`;
@@ -5159,7 +5253,9 @@ function calcPsiMonth(d,m,prevEnd,buyOverride){
     const plan=Number(exact.plan)||0;
     const end=begin+buy-plan;
     const days=psiDaysForRow(d,m.key,end);
-    const sig=days==null?'gray':getPSIStockSignal(days,isDaisoRow);
+    // sigByMonth: 신호등을 이 행이 아닌 통합 행 기준으로 판정하게 하는 통로 (플랜트 분해 전용).
+    // 플랜트별로 90일 기준을 걸면 향남 48일/횡성 77일이 각각 '위험'이 되는데 합치면 125일로 정상이다.
+    const sig=d?.sigByMonth?.[m.key]||(days==null?'gray':getPSIStockSignal(days,isDaisoRow));
     return {begin,buy,plan,end,days,sig};
   }
   const begin=prevEnd==null?d.inv:prevEnd;
@@ -5676,8 +5772,18 @@ function psiFilterValueLabel(f,v){
   const opt=el&&el.options?[...el.options].find(o=>o.value===String(v[f.key])):null;
   return opt?opt.textContent.trim():String(v[f.key]||'');
 }
+// 플랜트를 고르면 다이소 통합 행이 그 플랜트 몫으로 바뀐다(재고는 플랜트 몫, 재고일수 분모는 통합 수요).
+// 통합 SKU가 아닌 품목은 플랜트 값 자체가 없어 어차피 플랜트 필터에서 걸러지므로 그대로 둔다.
+function psiViewRows(v){
+  if(v.fdaiso==='all') return decorateDaisoComponentRows(UPLOADED?.daiso_components||[]);
+  const all=getPSIData()||[];
+  if(!v.fplant) return all;
+  const scoped=buildPlantScopedPsiRows(v.fplant);
+  const scopedMats=new Set(scoped.map(r=>String(r.mat)));
+  return [...all.filter(d=>!isPsiIntegrated(d)||!scopedMats.has(String(d.mat))),...scoped];
+}
 function applyPsiFilters(v){
-  const viewData=v.fdaiso==='all'?(UPLOADED?.daiso_components||[]):getPSIData();
+  const viewData=psiViewRows(v);
   const fq=String(v.fq||'').toLowerCase();
   return (viewData||[]).filter(d=>{
     const pkgMatch=!v.fpkg||
@@ -5757,6 +5863,13 @@ function renderPSI(){
   let h=`<div style="padding:7px 12px;background:#f7f8fb;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:700;">
     표시 ${data.length.toLocaleString()}개 / ${fdaiso==='all'?'다이소 마스터 원본':`전체 ${allData.length.toLocaleString()}개 SKU`}${psiUnitMode==='qty'?'':` &nbsp;|&nbsp; <span style="color:var(--terra);">기초·입고·판매·기말 = ${psiUnitLabel()} 환산 (백만원)</span>`}
   </div>`;
+  if(fv.fplant&&fdaiso!=='all'&&data.some(d=>d._plantScoped)){
+    h+=`<div style="padding:8px 12px;background:#fff8e8;border-bottom:1px solid #f0c36d;color:#8a5c00;font-size:11px;font-weight:700;">
+      🏭 <strong>${fv.fplant} 몫</strong>으로 봅니다 — 기초·입고·판매·기말은 ${fv.fplant} 하위 코드 합계,
+      <strong>재고일수는 통합 수요를 분모</strong>로 산출합니다(플랜트별 재고일수를 더하면 통합 재고일수가 됩니다).
+      신호등과 3평판은 <strong>통합 기준</strong>이며, 진척율·3평판 기준 보조 열은 플랜트로 나눌 수 없어 <strong>—</strong>로 둡니다.
+    </div>`;
+  }
   if(fdaiso==='integrated'&&integratedCount===0){
     h+=`<div style="margin:14px;padding:14px 16px;border:1px solid #f0c36d;background:#fff8e8;color:#8a5c00;font-size:12px;font-weight:800;border-radius:5px;">
       다이소 통합품목 데이터가 없습니다. 이전 업로드 데이터가 저장되어 있을 수 있으므로 통합코드를 반영한 최신 엑셀을 다시 업로드해 주세요.
