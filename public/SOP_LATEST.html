@@ -5950,7 +5950,43 @@ function refreshSharedStateViews(){
   const slider=document.getElementById('monthSlider');
   if(slider) renderSensing(parseInt(slider.value)||0);
 }
-function getPsiActionLog(){try{return JSON.parse(localStorage.getItem(PSI_LOG_KEY)||'[]');}catch(e){return [];}}
+// Action Log는 예전에 key를 위치 키('DAI-35|6월')로 만들었다. 위치 키는 매달 다른 실제 월을 가리켜서
+// 지난달 기록과 이번 달 기록이 같은 key가 되고, logPsiBuyAction의 중복 제거에 서로 덮어써진다
+// (26/8에 7월 조정 3건이 실제로 사라졌다). 읽을 때 실제 캘린더월 키로 바꿔 둔다 —
+// 서버에서 고쳐도 열려 있던 브라우저가 옛 값을 다시 올려 되돌아가므로, 변환은 클라이언트에서 해야 한다.
+// 기록 당시의 실제 월은 moLabel('8월')에 남아 있으니 그것으로 복원한다.
+function migratePsiActionLogKeys(list){
+  const baseM=String(UPLOADED?.base_yearmonth||'').match(/(\d{4})[.\-/](\d{1,2})/);
+  if(!baseM) return {list,changed:false};
+  const baseY=Number(baseM[1]), baseMo=Number(baseM[2]);
+  let changed=false;
+  const seen=new Set();
+  const out=[];
+  list.forEach(r=>{
+    let key=String(r?.key||'');
+    const posMatch=key.match(/^(.*)\|(\d{1,2})월$/);
+    const labMo=Number(String(r?.moLabel||'').replace(/[^\d]/g,''));
+    if(posMatch&&labMo>=1&&labMo<=12){
+      // 연말·연초를 넘나드는 경우 보정 (12월 기록을 1월 파일에서 읽는 등)
+      let y=baseY;
+      if(labMo-baseMo>6) y-=1; else if(baseMo-labMo>6) y+=1;
+      key=`${posMatch[1]}|${y}-${String(labMo).padStart(2,'0')}`;
+      changed=true;
+    }
+    if(seen.has(key)) return;      // 변환 후 겹치면 최신 것(앞쪽)만 남긴다
+    seen.add(key);
+    out.push(changed?{...r,key}:r);
+  });
+  return {list:out,changed:changed||out.length!==list.length};
+}
+function getPsiActionLog(){
+  let raw=[];
+  try{raw=JSON.parse(localStorage.getItem(PSI_LOG_KEY)||'[]');}catch(e){raw=[];}
+  if(!Array.isArray(raw)) return [];
+  const {list,changed}=migratePsiActionLogKeys(raw);
+  if(changed) localStorage.setItem(PSI_LOG_KEY,JSON.stringify(list));
+  return list;
+}
 function setPsiActionLog(list){localStorage.setItem(PSI_LOG_KEY,JSON.stringify(list));queueSharedStateSave();}
 function logPsiBuyAction(mat,mo,name,origBuy,newVal){
   const key=`${mat}|${psiSimBuyStoreKey(mo)}`;
