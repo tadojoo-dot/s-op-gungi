@@ -226,7 +226,7 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 
 /* PSI TABLE */
 .psi-tbl{width:100%;border-collapse:collapse;font-size:12px;}
-.psi-tbl th{background:var(--navy-dk);color:#fff;padding:7px 10px;font-weight:700;font-size:11px;border:1px solid #343B6B;white-space:nowrap;}
+.psi-tbl th{background:var(--navy-dk);color:#EDF0F8;padding:7px 10px;font-weight:700;font-size:11.5px;letter-spacing:.2px;border:1px solid #3E4680;white-space:nowrap;}
 /* 헤더 음영은 두 가지뿐이고 의미가 있다:
    잉크 네이비(--navy-dk #10145C)=품목을 식별하는 고정 열(자재코드~3평판·소진판단·소진계획),
    한 톤 밝은 네이비(#262E63)=월별 데이터 열(plan-hd). 새 열을 넣을 때 이 규칙을 지킬 것 —
@@ -241,7 +241,7 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .psi-scroll{overflow:auto;max-width:100%;max-height:74vh;-webkit-overflow-scrolling:touch;}
 .psi-scroll .psi-tbl.monthly thead{position:sticky;top:0;z-index:3;}
 .psi-tbl.monthly{min-width:2320px;font-size:11.5px;}
-.psi-tbl.monthly th{padding:7px 8px;font-size:11px;}
+.psi-tbl.monthly th{padding:7px 8px;font-size:12px;}
 .psi-tbl.monthly td{padding:6px 8px;}
 /* 월 구분선은 헤더와 본문이 같은 색이어야 세로선이 끊기지 않고 이어진다.
    월 그룹 헤더 아래 테라코타 2px는 브랜드 액센트 겸 '여기부터 월 데이터'라는 경계 표시. */
@@ -258,7 +258,7 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 /* 소계 행은 thead 안에 있어서 헤더용 격자선(#343B6B)과 월 구분선을 물려받는다.
    배경이 밝아서 그대로 두면 본문 표(격자 var(--border) / 월 구분 #8d95c9)와 선 색이 따로 논다.
    → 격자선은 본문과 같게 맞추고, 위아래만 헤더/본문과의 경계로 남긴다. */
-.psi-tbl.monthly th.psi-sub{background:#eef1f8;color:var(--navy);font-weight:900;font-size:11.5px;white-space:nowrap;
+.psi-tbl.monthly th.psi-sub{background:#eef1f8;color:var(--navy);font-weight:900;font-size:11.5px;letter-spacing:0;white-space:nowrap;
   border:1px solid var(--border);border-top:2px solid #262E63;border-bottom:2px solid #8d95c9;}
 .psi-tbl.monthly th.psi-sub.month-start{border-left:3px solid #8d95c9;}
 .psi-tbl.monthly th.psi-sub.month-end{border-right:3px solid #8d95c9;}
