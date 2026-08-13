@@ -521,7 +521,10 @@ table.base tr:last-child td{border-bottom:none;}
 .sku-info-lbl{font-size:10px;color:var(--muted);font-weight:600;margin-bottom:3px;}
 .sku-info-val{font-size:14px;font-weight:800;color:var(--navy);}
 .sku-info-val.red{color:var(--red);}
-.sku-memo-box{margin-top:12px;border-top:1px solid var(--border);padding-top:10px;}
+/* 팝업(.sku-modal)이 스크롤되는데 의견란이 240px 차트 아래라 저장 버튼이 화면 밖에 있었다.
+   바닥에 고정해 스크롤 위치와 무관하게 항상 보이게 한다. */
+.sku-memo-box{margin-top:12px;border-top:2px solid var(--border);padding:10px 0 2px;
+  position:sticky;bottom:0;background:#fff;box-shadow:0 -6px 12px -8px rgba(0,0,0,.25);}
 .sku-memo-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:900;color:var(--navy);margin-bottom:6px;}
 .sku-memo-state{font-size:11px;font-weight:700;color:var(--muted);}
 .sku-memo-box textarea{width:100%;min-height:74px;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:12px;line-height:1.5;resize:vertical;}
