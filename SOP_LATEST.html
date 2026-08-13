@@ -521,6 +521,12 @@ table.base tr:last-child td{border-bottom:none;}
 .sku-info-lbl{font-size:10px;color:var(--muted);font-weight:600;margin-bottom:3px;}
 .sku-info-val{font-size:14px;font-weight:800;color:var(--navy);}
 .sku-info-val.red{color:var(--red);}
+.sku-memo-box{margin-top:12px;border-top:1px solid var(--border);padding-top:10px;}
+.sku-memo-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:900;color:var(--navy);margin-bottom:6px;}
+.sku-memo-state{font-size:11px;font-weight:700;color:var(--muted);}
+.sku-memo-box textarea{width:100%;min-height:74px;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:12px;line-height:1.5;resize:vertical;}
+.sku-memo-box textarea:focus{outline:2px solid #b9c2ea;}
+.sku-memo-actions{display:flex;justify-content:flex-end;margin-top:6px;}
 .sku-insight{background:#fff8f0;border:1px solid #f5c98a;border-radius:7px;padding:12px 14px;font-size:12px;line-height:1.7;color:#5a3000;margin-top:12px;}
 .sku-insight.good{background:#f0faf4;border-color:#7ec99a;color:#1a4d2e;}
 .dd-table tr.clickable-row{cursor:pointer;}
@@ -1029,12 +1035,10 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
       <div class="archive-panel">
         <div>
           <div class="archive-title">S&amp;OP 월별 보관</div>
-          <div class="archive-copy">회의록은 <strong>기준월별로 따로 저장</strong>됩니다 — 새 달 엑셀을 올리면 그 달 회의록은 빈 상태로 시작하고 지난달 것은 그대로 남습니다. 회의가 끝나면 <strong>회의 종료 · 확정 보관</strong>을 눌러 그 달 보관본을 확정하세요(확정 후에는 자동 저장이 덮어쓰지 않습니다). 「이번 달 입력 초기화」는 이번 달 입력값만 비웁니다.</div>
+          <div class="archive-copy">회의록은 <strong>기준월별로 따로 저장</strong>됩니다 — 새 달 엑셀을 올리면 그 달 회의록은 빈 상태로 시작하고 지난달 것은 그대로 남습니다. 회의가 끝나면 <strong>회의 종료 · 확정 보관</strong> 하나만 누르면 됩니다 — 보관할 달은 업로드된 엑셀의 기준월을 자동으로 따릅니다(확정 후에는 자동 저장이 덮어쓰지 않습니다). 「이번 달 입력 초기화」는 이번 달 입력값만 비웁니다.</div>
           <div class="archive-copy" id="archiveAutoNote" style="margin-top:4px;font-weight:700;"></div>
         </div>
         <div class="archive-actions">
-          <input type="month" id="archivePeriod">
-          <button class="btn-print" onclick="archiveCurrentMeeting()">현재 월 보관</button>
           <select id="archiveSelect" onchange="loadSelectedArchive()"><option value="">과거 보관본</option></select>
           <button class="btn-print" id="finishMeetingBtn" onclick="finishMeeting()" style="font-weight:900;">회의 종료 · 확정 보관</button>
           <button class="btn-print" onclick="resetLiveMeetingState()">이번 달 입력 초기화</button>
@@ -4481,6 +4485,27 @@ function closeSkuDetail(){
   safeDestroyChart('skuDetailChart');
   skuDetailChart=null;
 }
+// SKU별 담당 의견. 공유 상태 프리픽스('sopMemo_')를 그대로 써서 KV로 같이 올라간다.
+// ⚠ 지울 때 removeItem을 쓰면 안 된다 — applySharedState는 payload에 있는 키만 처리해서,
+//   키를 빼면 다른 사람 브라우저에 남아 있던 옛 값이 다음 저장 때 되살아난다. 빈 문자열로 저장한다.
+function skuMemoKey(mat){return 'sopMemo_SKU|'+String(mat||'').trim();}
+function loadSkuMemo(mat){
+  const ta=document.getElementById('skuMemoInput');
+  if(!ta) return;
+  ta.value=localStorage.getItem(skuMemoKey(mat))||'';
+  ta.readOnly=!isAdminMode();
+  const st=document.getElementById('skuMemoState');
+  if(st) st.textContent=isAdminMode()?(ta.value.trim()?'저장됨':''):'읽기 전용 (관리자 모드에서 수정)';
+}
+function saveSkuMemo(mat){
+  if(!requireAdminMode()) return;
+  const ta=document.getElementById('skuMemoInput');
+  if(!ta) return;
+  localStorage.setItem(skuMemoKey(mat),ta.value);   // 빈 값도 그대로 저장 = 삭제가 공유된다
+  queueSharedStateSave();
+  const st=document.getElementById('skuMemoState');
+  if(st) st.textContent=ta.value.trim()?`저장됨 · ${new Date().toLocaleTimeString('ko-KR')}`:`비웠습니다 · ${new Date().toLocaleTimeString('ko-KR')}`;
+}
 function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
   const soojin=computeSoojin(mat,qty,rem,ch,chRemMo||0);
   const skuSp=getSalesPlanData()?.[mat];
@@ -4554,7 +4579,18 @@ function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
     <div style="position:relative;height:240px;margin:14px 0 4px;">
       <canvas id="skuDetailChart"></canvas>
     </div>
-    <div class="sku-insight${soojin.status==='정상소진 가능'?' good':''}">${insight}</div>`;
+    <div class="sku-insight${soojin.status==='정상소진 가능'?' good':''}">${insight}</div>
+    <div class="sku-memo-box">
+      <div class="sku-memo-head">
+        <span>담당 의견</span>
+        <span class="sku-memo-state" id="skuMemoState"></span>
+      </div>
+      <textarea id="skuMemoInput" placeholder="이 품목에 대한 의견·조치 방향을 적고 저장하세요"></textarea>
+      <div class="sku-memo-actions">
+        <button class="btn-print" onclick="saveSkuMemo('${String(mat).replace(/'/g,"\\'")}')">저장</button>
+      </div>
+    </div>`;
+  loadSkuMemo(mat);
   safeDestroyChart('skuDetailChart');
   skuDetailChart=null;
   const canvas=document.getElementById('skuDetailChart');
@@ -5697,9 +5733,7 @@ function currentArchivePeriod(){
   return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 }
 function initArchiveControls(){
-  const inp=document.getElementById('archivePeriod');
-  if(inp&&!inp.value) inp.value=currentArchivePeriod();
-  loadArchiveList();
+  loadArchiveList();   // 수동 월 입력은 제거됨 — 보관 월은 항상 기준월을 따른다
 }
 async function loadArchiveList(){
   const sel=document.getElementById('archiveSelect');
@@ -5709,30 +5743,18 @@ async function loadArchiveList(){
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const data=await res.json();
     const archives=data?.archives||[];
-    sel.innerHTML='<option value="">과거 보관본</option>'+archives.map(a=>`<option value="${htmlSafe(a.period)}">${htmlSafe(a.label||a.period)}</option>`).join('');
+    // 라벨은 저장 당시 문자열('2026-08 S&OP')이 남아 있어 제각각이다 → 기간에서 다시 만든다.
+    const nice=p=>String(p).replace(/^(\d{4})-(\d{2})$/,(_,y,mo)=>`${y}년 ${Number(mo)}월 회의록`);
+    sel.innerHTML='<option value="">과거 보관본</option>'+archives.map(a=>{
+      const confirmed=/확정/.test(String(a.label||''));
+      return `<option value="${htmlSafe(a.period)}">${htmlSafe(nice(a.period))}${confirmed?' · 확정':''}</option>`;
+    }).join('');
   }catch(e){
     console.warn('archive list load failed',e);
   }
 }
-async function archiveCurrentMeeting(){
-  if(!requireAdminMode()) return;
-  const period=document.getElementById('archivePeriod')?.value||currentArchivePeriod();
-  if(!/^\d{4}-\d{2}$/.test(period)){alert('보관 월을 YYYY-MM 형식으로 선택해 주세요.');return;}
-  if(!confirm(`${period} S&OP 보관본을 저장하시겠습니까?\n현재 회의록, PSI 조정값, Action Log, 담당 의견이 보관됩니다.`)) return;
-  try{
-    const state=collectSharedState();
-    const res=await fetch('/api/shared-state',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'archive',period,label:`${period} S&OP`,state,adminPassword:ADMIN_PASSWORD})
-    });
-    if(!res.ok) throw new Error(await res.text());
-    await loadArchiveList();
-    alert(`${period} S&OP 보관이 완료되었습니다.`);
-  }catch(e){
-    alert('보관 실패: '+(e?.message||e));
-  }
-}
+// archiveCurrentMeeting()은 제거했다 — 수동으로 달을 골라 보관하면 8월 데이터를 7월 보관본에
+// 덮어쓰는 사고가 난다. 보관은 '회의 종료 · 확정 보관'(기준월 자동) 하나로만 한다.
 async function loadSelectedArchive(){
   const period=document.getElementById('archiveSelect')?.value;
   const box=document.getElementById('archiveResult');
@@ -5820,7 +5842,7 @@ async function finishMeeting(){
     const res=await fetch('/api/shared-state',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'archive',period,label:`${period} S&OP (확정)`,
+      body:JSON.stringify({action:'archive',period,label:`${period} 회의록 (확정)`,
         state:collectSharedState(),adminPassword:ADMIN_PASSWORD})
     });
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -5870,7 +5892,7 @@ async function autoArchiveCurrentPeriod(){
     const res=await fetch('/api/shared-state',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'archive',period,label:`${period} S&OP`,
+      body:JSON.stringify({action:'archive',period,label:`${period} 회의록`,
         state:collectSharedState(),adminPassword:ADMIN_PASSWORD})
     });
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
