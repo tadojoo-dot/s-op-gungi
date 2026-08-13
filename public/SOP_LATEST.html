@@ -64,8 +64,11 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .tab-upload-btn{display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 12px;border:1.5px dashed rgba(255,255,255,.3);border-radius:6px;font-size:11px;font-weight:600;color:rgba(255,255,255,.7);white-space:nowrap;transition:border-color .15s;flex-shrink:1;min-width:0;max-width:340px;overflow:hidden;}
 .tab-upload-btn #uploadStatus{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tab-upload-btn:hover{border-color:rgba(255,255,255,.65);}
-.btn-print{height:30px;background:rgba(255,255,255,.13);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:0 14px;font-size:11px;font-weight:700;cursor:pointer;}
-.btn-print:hover{background:rgba(255,255,255,.25);}
+/* ⚠ 이 규칙은 어두운 상단 탭바 전용이다. 예전엔 스코프 없는 `.btn-print`라 48행의 남색 버튼 스타일을
+   덮어써서, 흰 배경(팝업·패널) 위 버튼이 전부 '흰 글자 + 투명 배경' = 보이지 않는 상태였다.
+   회의록 저장·SKU 의견 저장 버튼이 안 보인다는 문의가 여기서 나왔다. 반드시 .tab-tools 안으로 한정할 것. */
+.tab-tools .btn-print{height:30px;background:rgba(255,255,255,.13);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:0 14px;font-size:11px;font-weight:700;cursor:pointer;}
+.tab-tools .btn-print:hover{background:rgba(255,255,255,.25);}
 .snap-wrap{position:relative;}
 .snap-panel{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px;gap:8px;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,.18);flex-direction:column;min-width:230px;}
 .snap-panel.open{display:flex;}
@@ -523,6 +526,8 @@ table.base tr:last-child td{border-bottom:none;}
 .sku-info-val.red{color:var(--red);}
 /* 팝업(.sku-modal)이 스크롤되는데 의견란이 240px 차트 아래라 저장 버튼이 화면 밖에 있었다.
    바닥에 고정해 스크롤 위치와 무관하게 항상 보이게 한다. */
+.meeting-save-bar{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+.meeting-save-state{font-size:11.5px;font-weight:700;color:var(--muted);}
 .sku-memo-box{margin-top:12px;border-top:2px solid var(--border);padding:10px 0 2px;
   position:sticky;bottom:0;background:#fff;box-shadow:0 -6px 12px -8px rgba(0,0,0,.25);}
 .sku-memo-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:900;color:var(--navy);margin-bottom:6px;}
@@ -1044,7 +1049,6 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
         <div class="archive-actions">
           <label style="font-size:11px;font-weight:800;color:var(--navy);">회의 월</label>
           <select id="meetingPeriodSelect" onchange="onMeetingPeriodChange()"></select>
-          <button class="btn-print" id="saveMeetingBtn" onclick="saveMeetingPeriod()" style="font-weight:900;">저장</button>
           <button class="btn-print" onclick="resetLiveMeetingState()">이 달 입력 초기화</button>
         </div>
         <div id="archiveResult" class="archive-result"></div>
@@ -1052,14 +1056,18 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
       <div class="minutes-simple">
         <div class="quick-minutes">
           <h3>회의 메모</h3>
-          <textarea id="meetingMemo" oninput="saveMeetingMemo()" placeholder="회의 중 논의 내용, 대표 지시사항, 채널별 실행 방향을 자유롭게 입력"></textarea>
-          <div class="minutes-note">자동저장됩니다. 브라우저 localStorage 기준이라 같은 PC/브라우저에서 유지됩니다.</div>
+          <textarea id="meetingMemo" placeholder="회의 중 논의 내용, 대표 지시사항, 채널별 실행 방향을 자유롭게 입력"></textarea>
+          <div class="minutes-note">작성 후 아래 <strong>저장</strong>을 눌러야 반영됩니다.</div>
         </div>
         <div class="quick-minutes">
           <h3>결정사항 요약</h3>
-          <textarea id="decisionMemo" oninput="saveMeetingMemo()" placeholder="확정된 의사결정만 간단히 정리&#10;예) 다이소 판매 증감 시뮬레이션 결과 검토 / 6개월 미만 신규진입 SKU 소진계획 확정"></textarea>
+          <textarea id="decisionMemo" placeholder="확정된 의사결정만 간단히 정리&#10;예) 다이소 판매 증감 시뮬레이션 결과 검토 / 6개월 미만 신규진입 SKU 소진계획 확정"></textarea>
           <div class="minutes-note">Sensing/AGING 드릴다운의 소진계획은 재고Aging Action Log에, PSI 입고수량 조정은 PSI Action Log에 자동 연동됩니다.</div>
         </div>
+      </div>
+      <div class="meeting-save-bar">
+        <span class="meeting-save-state" id="meetingSaveState"></span>
+        <button class="btn-print" id="saveMeetingBtn" onclick="saveMeetingPeriod()" style="font-weight:900;height:36px;padding:0 22px;">저장</button>
       </div>
       <div class="sec-card" style="margin-top:14px;">
         <div class="sec-head"><div class="sec-tw"><div class="sec-bar"></div><div class="sec-title">재고Aging Action Log</div></div><button class="btn-print" onclick="clearAllPlanActions()">전체 초기화</button></div>
