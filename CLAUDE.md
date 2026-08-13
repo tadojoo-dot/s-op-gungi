@@ -119,6 +119,7 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 | ② PSI 표 필터 (0건 진단 포함) | `PSI_FILTERS`, `applyPsiFilters`, `psiViewRows`, `diagnosePsiEmpty` — 필터 조건은 **`applyPsiFilters` 한 곳에만** 있어야 함. 인라인으로 복사하면 0건 진단이 실제 화면과 어긋난다 |
 | ② PSI 다이소 플랜트별 분해 | `buildPlantScopedPsiRows`, `decorateDaisoComponentRows`, `psiIntegratedSigByMonth` — 아래 "플랜트 분해 규칙" 참고 |
 | ② PSI 표 수량/원가/매출 토글 | `psiUnitMode`, `getPsiPriceMap`, `fmtPsiCell`, `setPsiUnitMode` |
+| ② PSI 표 월 블록 폭 (당월 7칸 / 이후 5칸) | `psiMonthSpan`, `psiMonthCellOffset`, `psiTotalCols` — 보조 기준 열은 **당월(진척율 기준)에만** 있다(차월 이후 3평판 기준은 2026-08-13에 제거). ⚠ 셀 인덱스를 세는 코드(`recalcPsiRow`)는 반드시 `psiMonthCellOffset(mi)`를 쓸 것. `7+mi*7` 같은 고정식은 두 번째 달부터 어긋나 입고 조정 결과가 엉뚱한 칸에 박힌다 |
 | ③ 월별 판매계획 대비 실적(탭에 박힌 바차트) | `renderChAchieve` (canvas id `chAcc`) — 배지: `monthDiffLabelPlugin` |
 | ③ 오차 기여 TOP10 / 판매계획 보정 대상 리스트 | `renderInsightTables`, `renderHT` |
 | 보정 대상 리스트 → 품목클릭 팝업(바차트) | `openPlanAdjustModal` (canvas id `planAdjustTrendChart`) — 배지: `modalDiffLabelPlugin`. **SKU상세팝업과 다른 별도 모달**임에 유의 |

@@ -863,8 +863,8 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
       <div class="remark-box" style="margin:10px 16px 14px;">
         <strong>비고 · PSI 보조 기준 산식</strong><br>
         기초재고 = 전체재고(BQ) − 6개월미만 재고(BS). 6개월미만은 원칙적으로 출고 불가하여 가용 기초에서 제외합니다.<br>
-        당월 보조 기준은 진척율 기준으로 보며, 진척율 기준 재고수량 = 당월 기초재고 + 당월 입고계획 - 진척율 기준 예상 판매수량입니다.
-        차월 이후 보조 기준은 3평판 기준으로 보며, 차월 기초는 당월 진척율 기준 예상 기말재고에서 이어지고 이후 월은 전월 3평판 기준 기말재고를 기초로 사용합니다.
+        보조 기준은 <strong>당월에만</strong> 진척율 기준으로 병행 표시하며, 진척율 기준 재고수량 = 당월 기초재고 + 당월 입고계획 - 진척율 기준 예상 판매수량입니다.
+        차월 이후는 판매계획 기준 기말재고만 표시합니다.
         재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30입니다. 다음 월 판매계획이 없으면 재고일수는 산출불가로 표시합니다. PSI 표의 수량·재고일수는 반올림 정수로 표시합니다.<br>
         <strong>신호등 기준:</strong> 전 품목 동일 2단계 — 위험(빨강) 90일 미만 / 정상(초록) 90일 이상. 다이소 별도기준·과잉 구간은 폐지했습니다.<br>
         <strong>수량/원가/매출 토글:</strong> 기초·입고·판매·기말 4개 열만 단가를 곱해 백만원으로 환산합니다(3평판·재고일수·신호등은 항상 수량·일수 기준, 판정 결과도 동일).
@@ -4978,15 +4978,13 @@ function _psiSortKey(item,col){
     const moIdx=PSI_MONTHS.findIndex(m=>m.key===parts[0]);
     if(moIdx>=0){
       const rowOv=getPsiSimBuy()[d.mat]||{};
-      let prev=null,avgPrev=null,res=null;
+      let prev=null,res=null;
       for(let i=0;i<=moIdx;i++){
         const m=PSI_MONTHS[i];
         const r=calcPsiMonth(d,m,prev,rowOv[m.key]!=null?rowOv[m.key]:null);
         prev=r.end;
-        let basisEnd=0,basisDays=null;
-        if(m.progress){basisEnd=Number(d.er)||0;basisDays=d.dr;avgPrev=basisEnd;}
-        else{const ab=avgPrev==null?r.begin:avgPrev;basisEnd=ab+r.buy-(Number(d.avg3)||0);basisDays=psiDaysForRow(d,m.key,basisEnd);avgPrev=basisEnd;}
-        if(i===moIdx) res={r,basisEnd,basisDays};
+        // 보조 기준(진척율)은 당월에만 있다 — 차월 이후는 basis 정렬 헤더 자체가 없다
+        if(i===moIdx) res={r,basisEnd:m.progress?(Number(d.er)||0):0,basisDays:m.progress?d.dr:null};
       }
       if(res){
         const f=parts[1];
@@ -5014,7 +5012,7 @@ function _renderPsiTbody(){
   const tbody=document.getElementById('psiTbody');
   if(!tbody) return;
   if(!_psiState.data.length){
-    tbody.innerHTML=`<tr><td colspan="36" style="text-align:center;padding:20px;color:var(--muted);">해당 조건 없음</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="${psiTotalCols()}" style="text-align:center;padding:20px;color:var(--muted);">해당 조건 없음</td></tr>`;
     return;
   }
   const sorted=_applySort(_psiState.data,_psiSort,_psiSortKey);
@@ -5023,23 +5021,25 @@ function _renderPsiTbody(){
   sorted.forEach(item=>{
     const{d,soojinStatus,isIntegrated,isDaisoComponent}=item;
     const rowOv=overrides[d.mat]||{};
-    let prev=null,avgPrev=null;
+    let prev=null;
     const cells=PSI_MONTHS.map(m=>{
       const r=calcPsiMonth(d,m,prev,rowOv[m.key]!=null?rowOv[m.key]:null);
       prev=r.end;
       const sig=r.sig==='red'?'sig-r':r.sig==='yellow'?'sig-y':r.sig==='excess'?'sig-x':r.sig==='green'?'sig-g':'sig-gray';
       const endCls=r.end<0?' style="color:var(--red);font-weight:900;"':'';
-      // 보조 기준(진척율/3평판) 열은 플랜트로 쪼갤 수 없다 — 당월실적·3평판이 통합코드에만 있고,
-      // 재고 비율로 나누면 자의적 배분이 된다. 플랜트 분해에서는 '—'로 비운다.
-      let basisEnd,basisDays,basisSig;
-      if(d._plantScoped){basisEnd=null;basisDays=null;basisSig='gray';}
-      else if(m.progress){basisEnd=Number(d.er)||0;basisDays=d.dr;basisSig=d.sr||'gray';avgPrev=basisEnd;}
-      else{const ab=avgPrev==null?r.begin:avgPrev;basisEnd=ab+r.buy-(Number(d.avg3)||0);basisDays=psiDaysForRow(d,m.key,basisEnd);basisSig=basisDays==null?'gray':getPSIStockSignal(basisDays,isIntegrated||isDaisoComponent);avgPrev=basisEnd;}
-      const bsc=basisSig==='red'?'sig-r':basisSig==='yellow'?'sig-y':basisSig==='excess'?'sig-x':basisSig==='green'?'sig-g':'sig-gray';
-      const bec=(basisEnd!=null&&basisEnd<0)?' style="color:var(--red);font-weight:900;"':' style="font-weight:800;color:var(--navy);"';
-      const basisCells=basisEnd==null
-        ?`<td class="r" style="color:var(--muted);" title="진척율·3평판 기준은 통합코드에만 있는 값이라 플랜트별로 나누지 않습니다">—</td><td class="c month-end" style="color:var(--muted);">—</td>`
-        :`<td class="r"${bec}${psiCellTitle(basisEnd,d.mat)}>${fmtPsiCell(basisEnd,d.mat)}</td><td class="c month-end"><span class="sig-dot ${bsc}"></span> ${psiDaysHtml(basisDays,basisSig)}</td>`;
+      // 보조 기준(진척율) 열은 당월에만 있다. 게다가 플랜트로 쪼갤 수도 없어서
+      // (당월실적이 통합코드에만 있고 재고 비율로 나누면 자의적 배분) 플랜트 분해에서는 '—'로 비운다.
+      let basisCells='';
+      if(m.progress){
+        const basisEnd=d._plantScoped?null:(Number(d.er)||0);
+        const basisDays=d._plantScoped?null:d.dr;
+        const basisSig=d._plantScoped?'gray':(d.sr||'gray');
+        const bsc=basisSig==='red'?'sig-r':basisSig==='yellow'?'sig-y':basisSig==='excess'?'sig-x':basisSig==='green'?'sig-g':'sig-gray';
+        const bec=(basisEnd!=null&&basisEnd<0)?' style="color:var(--red);font-weight:900;"':' style="font-weight:800;color:var(--navy);"';
+        basisCells=basisEnd==null
+          ?`<td class="r" style="color:var(--muted);" title="진척율 기준은 통합코드에만 있는 값이라 플랜트별로 나누지 않습니다">—</td><td class="c month-end" style="color:var(--muted);">—</td>`
+          :`<td class="r"${bec}${psiCellTitle(basisEnd,d.mat)}>${fmtPsiCell(basisEnd,d.mat)}</td><td class="c month-end"><span class="sig-dot ${bsc}"></span> ${psiDaysHtml(basisDays,basisSig)}</td>`;
+      }
       const exact=d.monthlyPsi?.[m.key]||d.sourceMonthlyPsi?.[m.key];
       const origBuy=exact?(Number(exact.buy)||0):Math.round((d.buy6||0)*m.buy);
       const buyOvOn=rowOv[m.key]!=null;
@@ -5055,7 +5055,7 @@ function _renderPsiTbody(){
       const daysTitle=d._plantScoped
         ? ` title="${d._plantOf} 몫 기말재고 ${fmtPsiInt(r.end)}개 ÷ 통합 다음달 판매계획 × 30 · 신호등은 통합 기준 판정"`
         : (d._sharedDemand?` title="자체 판매계획이 없어 소속 통합코드(${d._sharedFrom})의 수요를 분모로 산출"`:'');
-      return `<td class="r month-start"${psiCellTitle(r.begin,d.mat)}>${fmtPsiCell(r.begin,d.mat)}</td>${buyCell}<td class="r"${psiCellTitle(r.plan,d.mat)}>${fmtPsiCell(r.plan,d.mat)}</td><td class="r"${endCls}${psiCellTitle(r.end,d.mat)}>${fmtPsiCell(r.end,d.mat)}</td><td class="c"${daysTitle}><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}</td>${basisCells}`;
+      return `<td class="r month-start"${psiCellTitle(r.begin,d.mat)}>${fmtPsiCell(r.begin,d.mat)}</td>${buyCell}<td class="r"${psiCellTitle(r.plan,d.mat)}>${fmtPsiCell(r.plan,d.mat)}</td><td class="r"${endCls}${psiCellTitle(r.end,d.mat)}>${fmtPsiCell(r.end,d.mat)}</td><td class="c${m.progress?'':' month-end'}"${daysTitle}><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}</td>${basisCells}`;
     }).join('');
     const sCls=_psiSoojinCls[soojinStatus]||'gray';
     const sLbl=_psiSoojinLabel[soojinStatus]||'판단필요';
@@ -5084,6 +5084,13 @@ const PSI_MONTHS=[
   {key:'8월',buy:0.70,plan:1.06},
   {key:'9월',buy:0.60,plan:1.06},
 ];
+// 보조 기준 열(기말재고 오른쪽 2칸)은 당월(진척율 기준)에만 둔다 — 차월 이후 3평판 기준은 제거함.
+// ⚠ 그래서 월 블록 폭이 당월 7칸 / 이후 5칸으로 다르다. 셀 인덱스를 직접 세는 코드(recalcPsiRow)는
+//   반드시 psiMonthCellOffset()을 쓸 것. `7+mi*7` 같은 고정식은 두 번째 달부터 어긋난다.
+const psiMonthSpan=m=>m.progress?7:5;
+const PSI_FIXED_COLS=7;                                   // 자재코드~소진판단
+const psiMonthCellOffset=mi=>PSI_MONTHS.slice(0,mi).reduce((s,m)=>s+psiMonthSpan(m),PSI_FIXED_COLS);
+const psiTotalCols=()=>PSI_FIXED_COLS+PSI_MONTHS.reduce((s,m)=>s+psiMonthSpan(m),0)+1; // +1 = 소진계획
 const fmtPsiInt=v=>Math.round(Number(v)||0).toLocaleString('ko-KR');
 
 // ═══════════ PSI 금액 환산 (수량 / 원가 / 매출 토글) ═══════════
@@ -5327,34 +5334,21 @@ function recalcPsiRow(mat){
   const d=getPSIData().find(p=>String(p.mat)===String(mat));
   if(!d)return;
   const rowOv=getPsiSimBuy()[mat]||{};
-  let prev=null,avgPrev=null;
+  let prev=null;
   const results=PSI_MONTHS.map(m=>{
     const r=calcPsiMonth(d,m,prev,rowOv[m.key]!=null?rowOv[m.key]:null);
     prev=r.end;
-    let basisEnd,basisDays,basisSig;
-    if(m.progress){
-      basisEnd=Number(d.er)||0;basisDays=d.dr;basisSig=d.sr||'gray';avgPrev=basisEnd;
-    }else{
-      const avgBegin=avgPrev==null?r.begin:avgPrev;
-      basisEnd=avgBegin+r.buy-(Number(d.avg3)||0);
-      basisDays=psiDaysForRow(d,m.key,basisEnd);
-      basisSig=basisDays==null?'gray':getPSIStockSignal(basisDays,isPsiIntegrated(d)||isPsiDaisoComponent(d));
-      avgPrev=basisEnd;
-    }
-    return {r,basisEnd,basisDays,basisSig};
+    // 보조 기준은 당월(진척율)만 남았고, 그 값은 입고 조정과 무관한 실적 기반이라 다시 계산할 게 없다.
+    return {r,progress:!!m.progress};
   });
   const tds=tr.querySelectorAll('td');
-  results.forEach(({r,basisEnd,basisDays,basisSig},mi)=>{
-    const bi=7+mi*7;
+  results.forEach(({r},mi)=>{
+    const bi=psiMonthCellOffset(mi);   // 월 블록 폭이 다르므로(당월 7칸 / 이후 5칸) 고정식 금지
     const sig=r.sig==='red'?'sig-r':r.sig==='yellow'?'sig-y':r.sig==='excess'?'sig-x':r.sig==='green'?'sig-g':'sig-gray';
-    const bsc=basisSig==='red'?'sig-r':basisSig==='yellow'?'sig-y':basisSig==='excess'?'sig-x':basisSig==='green'?'sig-g':'sig-gray';
     tds[bi].textContent=fmtPsiInt(r.begin);
     const ec=r.end<0?'color:var(--red);font-weight:900;':'';
     tds[bi+3].setAttribute('style',ec);tds[bi+3].textContent=fmtPsiInt(r.end);
     tds[bi+4].innerHTML=`<span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}`;
-    const bec=basisEnd<0?'color:var(--red);font-weight:900;':'font-weight:800;color:var(--navy);';
-    tds[bi+5].setAttribute('style',bec);tds[bi+5].textContent=fmtPsiInt(basisEnd);
-    tds[bi+6].innerHTML=`<span class="sig-dot ${bsc}"></span> ${psiDaysHtml(basisDays,basisSig)}`;
   });
 }
 function resetPsiBuyCell(btn){
@@ -5867,7 +5861,7 @@ function renderPSI(){
     h+=`<div style="padding:8px 12px;background:#fff8e8;border-bottom:1px solid #f0c36d;color:#8a5c00;font-size:11px;font-weight:700;">
       🏭 <strong>${fv.fplant} 몫</strong>으로 봅니다 — 기초·입고·판매·기말은 ${fv.fplant} 하위 코드 합계,
       <strong>재고일수는 통합 수요를 분모</strong>로 산출합니다(플랜트별 재고일수를 더하면 통합 재고일수가 됩니다).
-      신호등과 3평판은 <strong>통합 기준</strong>이며, 진척율·3평판 기준 보조 열은 플랜트로 나눌 수 없어 <strong>—</strong>로 둡니다.
+      신호등과 3평판은 <strong>통합 기준</strong>이며, 당월 진척율 기준 보조 열은 플랜트로 나눌 수 없어 <strong>—</strong>로 둡니다.
     </div>`;
   }
   if(fdaiso==='integrated'&&integratedCount===0){
@@ -5907,14 +5901,14 @@ function renderPSI(){
         <th rowspan="3" class="l" style="min-width:110px;cursor:pointer;" onclick="sortPsiCol('plant')" data-scol="plant">플랜트 ${si('plant')}</th>
         <th rowspan="3" class="r" style="cursor:pointer;" onclick="sortPsiCol('avg3')" data-scol="avg3">3평판 ${si('avg3')}</th>
         <th rowspan="3" class="c plan-hd" style="min-width:74px;cursor:pointer;" onclick="sortPsiCol('soojin')" data-scol="soojin">소진판단 ${si('soojin')}</th>
-        ${months.map(m=>`<th colspan="7" class="plan-hd month-group" style="text-align:center;">${moLabel(m)}</th>`).join('')}
+        ${months.map(m=>`<th colspan="${psiMonthSpan(m)}" class="plan-hd month-group" style="text-align:center;">${moLabel(m)}</th>`).join('')}
         <th rowspan="3" class="l plan-hd" style="min-width:130px;">소진계획</th>
       </tr>
       <tr>
-        ${months.map(m=>`<th rowspan="2" class="plan-hd r month-start" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-begin')" data-scol="${m.key}-begin">기초 ${si(m.key+'-begin')}</th><th rowspan="2" class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-buy')" data-scol="${m.key}-buy">입고 ${si(m.key+'-buy')}</th><th rowspan="2" class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-plan')" data-scol="${m.key}-plan">판매 ${si(m.key+'-plan')}</th><th colspan="2" class="plan-hd c">기말재고</th><th colspan="2" class="plan-hd c month-end">${m.progress?'진척율 기준':'3평판 기준'}</th>`).join('')}
+        ${months.map(m=>`<th rowspan="2" class="plan-hd r month-start" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-begin')" data-scol="${m.key}-begin">기초 ${si(m.key+'-begin')}</th><th rowspan="2" class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-buy')" data-scol="${m.key}-buy">입고 ${si(m.key+'-buy')}</th><th rowspan="2" class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-plan')" data-scol="${m.key}-plan">판매 ${si(m.key+'-plan')}</th><th colspan="2" class="plan-hd c${m.progress?'':' month-end'}">기말재고</th>${m.progress?'<th colspan="2" class="plan-hd c month-end">진척율 기준</th>':''}`).join('')}
       </tr>
       <tr>
-        ${months.map(m=>`<th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-end')" data-scol="${m.key}-end">${unitHd} ${si(m.key+'-end')}</th><th class="plan-hd c" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-days')" data-scol="${m.key}-days">재고일수 ${si(m.key+'-days')}</th><th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisEnd')" data-scol="${m.key}-basisEnd">${unitHd} ${si(m.key+'-basisEnd')}</th><th class="plan-hd c month-end" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisDays')" data-scol="${m.key}-basisDays">재고일수 ${si(m.key+'-basisDays')}</th>`).join('')}
+        ${months.map(m=>`<th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-end')" data-scol="${m.key}-end">${unitHd} ${si(m.key+'-end')}</th><th class="plan-hd c${m.progress?'':' month-end'}" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-days')" data-scol="${m.key}-days">재고일수 ${si(m.key+'-days')}</th>${m.progress?`<th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisEnd')" data-scol="${m.key}-basisEnd">${unitHd} ${si(m.key+'-basisEnd')}</th><th class="plan-hd c month-end" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisDays')" data-scol="${m.key}-basisDays">재고일수 ${si(m.key+'-basisDays')}</th>`:''}`).join('')}
       </tr>
     </thead><tbody id="psiTbody"></tbody></table></div>`;
 
