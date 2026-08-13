@@ -5940,6 +5940,29 @@ function currentHitSummary(){
   return {acc:wape,count:rows.length||312,method:'WAPE'};
 }
 
+// 오차율 트렌드 막대: 오차율분석 시트의 월별 실측 WAPE(Σ|실적-계획| / Σ계획).
+// 판매계획이 비어 있는 달(26/8 파일의 7월)은 산출 자체가 불가하므로 막대를 그리지 않는다
+// — 0%로 그리면 "오차 없음"으로 읽혀서 완전히 반대 의미가 된다.
+// 채널 필터(fhc)를 그대로 태우므로 필터를 바꾸면 전 구간이 같이 반응한다.
+function buildHitTrend(){
+  const hit=getHitData();
+  if(!hit?.byMonth) return null;
+  const fhc=document.getElementById('fhc')?.value||'';
+  const out=[];
+  Object.keys(hit.byMonth)
+    .map(key=>({key,no:monthNoFromKey(key)}))
+    .filter(x=>x.no!=null)
+    .sort((a,b)=>a.no-b.no)
+    .forEach(({key,no})=>{
+      const rows=aggregateHitRows((hit.byMonth[key]||[]).map(remapHitRowDaiso))
+        .filter(r=>!fhc||r.ch===fhc);
+      const tPlan=rows.reduce((s,r)=>s+(Number(r.plan)||0),0);
+      if(!(tPlan>0)) return;
+      out.push({m:`${no}월`,acc:rows.reduce((s,r)=>s+Math.abs(Number(r.diff)||0),0)/tPlan*100});
+    });
+  return out.length?out:null;
+}
+
 const HIT_MONTHS=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 function monthNoFromKey(mo){
   const m=normalizeMonthKey(mo);
@@ -6287,8 +6310,9 @@ function renderHitTrend(){
   const canvas=document.getElementById('hitTrendChart');
   if(!canvas) return;
   if(!hasChart()){markChartOffline('hitTrendChart','Chart.js가 차단되어 오차율 트렌드 차트를 표시할 수 없습니다.');return;}
+  // 업로드 데이터가 있으면 실측 월별 WAPE, 없으면 기존 예시 상수(마지막 막대만 현재 요약값)
   const s=currentHitSummary();
-  const trend=HIT_TREND_DEFAULT.map((d,i)=>i===HIT_TREND_DEFAULT.length-1?{...d,acc:s.acc}:d);
+  const trend=buildHitTrend()||HIT_TREND_DEFAULT.map((d,i)=>i===HIT_TREND_DEFAULT.length-1?{...d,acc:s.acc}:d);
   const hitTarget=50;
   const hitTargetLabelPlugin={
     id:'hitTargetLabel',
@@ -6310,7 +6334,7 @@ function renderHitTrend(){
     type:'bar',
     plugins:[ChartDataLabels,hitTargetLabelPlugin],
     data:{labels:trend.map(d=>d.m),datasets:[
-      {label:'판매계획 오차율 (MAPE)',data:trend.map(d=>d.acc),borderColor:'#C46B4D',backgroundColor:'#C46B4D',
+      {label:'판매계획 오차율 (WAPE)',data:trend.map(d=>d.acc),borderColor:'#C46B4D',backgroundColor:'#C46B4D',
        borderWidth:0,borderRadius:5,borderSkipped:false,barPercentage:.42,categoryPercentage:.55,maxBarThickness:34,
        datalabels:{anchor:'end',align:'top',offset:4,color:'#C46B4D',font:{size:12,weight:'900'},formatter:v=>v.toFixed(1)+'%'}},
       {type:'line',label:'목표 50%',data:trend.map(()=>hitTarget),borderColor:'#1D2783',borderWidth:4,borderDash:[8,4],pointRadius:0,
@@ -6318,7 +6342,8 @@ function renderHitTrend(){
     ]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20,left:56}},
       plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}%`}}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:12,weight:'bold'}}},y:{grid:{color:'#f0f1f5'},ticks:{callback:v=>v+'%',font:{size:11}},border:{display:false},min:0,max:100}}
+      // max:100으로 고정하면 100%를 넘는 달(26/8 파일의 4월 159%)이 잘려서 안 보인다
+      scales:{x:{grid:{display:false},ticks:{font:{size:12,weight:'bold'}}},y:{grid:{color:'#f0f1f5'},ticks:{callback:v=>v+'%',font:{size:11}},border:{display:false},min:0,suggestedMax:100}}
     }
   });
 }
