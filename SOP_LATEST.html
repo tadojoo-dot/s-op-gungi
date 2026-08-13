@@ -245,6 +245,11 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .psi-tbl.monthly th.month-end{border-right:3px solid #fff;}
 .psi-tbl.monthly td.month-start{border-left:3px solid #8d95c9;}
 .psi-tbl.monthly td.month-end{border-right:3px solid #8d95c9;}
+/* 수량/원가/매출 토글을 눌러도 열 너비가 흔들리지 않게 고정한다.
+   auto 레이아웃이라 내용이 폭을 넘으면 그 열만 늘어난다 → 가장 긴 값(소계 행의 4,310,275)이
+   들어가는 78px로 잡아 어느 모드에서도 내용이 폭을 넘지 않게 했다. 입고는 input+초기화 버튼이 들어간다. */
+.psi-tbl.monthly th.psi-col{min-width:78px;width:78px;}
+.psi-tbl.monthly th.psi-col-buy{min-width:100px;width:100px;}
 .psi-tbl.monthly th.psi-sub{background:#e9edfb;color:#1D2783;font-weight:900;font-size:11.5px;border-top:2px solid #1D2783;border-bottom:2px solid #1D2783;white-space:nowrap;}
 .psi-tbl.monthly th.psi-sub.l{text-align:left;}
 .psi-tbl.monthly th.psi-sub.r{text-align:right;}
@@ -1883,10 +1888,7 @@ function parseNum(v){
 }
 function inventoryStatsText(stats){
   if(!stats) return '';
-  const std=stats.stdMissing!=null
-    ? `, 표준원가 적용 ${stats.stdApplied.toLocaleString()}행 / 미매칭 ${stats.stdMissing.toLocaleString()}행(${(stats.stdMissingQty||0).toLocaleString()}개는 시트 금액 사용)`
-    : '';
-  return `총 ${stats.totalRows.toLocaleString()}행 중 반영 ${stats.usedRows.toLocaleString()}행, 채널 공백 ${stats.skippedNoChannel.toLocaleString()}행, AGING 공백 ${stats.skippedNoAging.toLocaleString()}행, 금액 0/비숫자 ${stats.skippedNoAmount.toLocaleString()}행${std}`;
+  return `총 ${stats.totalRows.toLocaleString()}행 중 반영 ${stats.usedRows.toLocaleString()}행, 채널 공백 ${stats.skippedNoChannel.toLocaleString()}행, AGING 공백 ${stats.skippedNoAging.toLocaleString()}행, 금액 0/비숫자 ${stats.skippedNoAmount.toLocaleString()}행`;
 }
 function parseBaseLabel(ws){
   const cell=ws?.['AM2'];
@@ -1976,20 +1978,9 @@ function handleUpload(file){
         result.trend_data=h.trend||{};
         result.hyunhwang_current_label=h.latestLabel||'당월';
         if(h.latestChAmt&&Object.keys(h.latestChAmt).length){
-          // 당월 금액은 원장(현재고) 파싱이 성공했으면 원장 기준으로 통일한다.
-          // 현황 시트는 총계 스냅샷이라 품목별 표준원가를 적용할 수 없어서, 예전처럼 덮어쓰면
-          // 같은 화면에 매트릭스 87.95억 / KPI 80.43억이 동시에 뜬다(둘 다 같은 재고인데).
-          // 과거 월 추이(trend_data)는 현황 시트 그대로 쓴다 — 원장 스냅샷이 그 달치는 없기 때문.
-          // ⚠ sumNestedAging은 채널×구간 2단 맵을 받는다. monthly_ch_amt는 월 키가 하나 더 있는
-          //   3단이라 그대로 넘기면 항상 0이 나온다(그러면 조건이 늘 거짓이라 조용히 옛 동작으로 돌아감).
-          const ledgerOk=sumNestedAging(result.monthly_ch_amt?.[CURRENT_DETAIL_MONTH])>0;
-          if(ledgerOk){
-            warnings.push(`${trendSheet}: 당월 금액은 현재고 원장(표준원가) 기준을 사용 · 현황 스냅샷은 과거 추이에만 반영`);
-          }else{
-            result.monthly_ch_amt={...(result.monthly_ch_amt||{}),[CURRENT_DETAIL_MONTH]:h.latestChAmt};
-            result.kpi_curr=h.latestKpi||result.kpi_curr;
-            warnings.push(`${trendSheet}: ${h.latestLabel} 당월 채널별 AGING 반영`);
-          }
+          result.monthly_ch_amt={...(result.monthly_ch_amt||{}),[CURRENT_DETAIL_MONTH]:h.latestChAmt};
+          result.kpi_curr=h.latestKpi||result.kpi_curr;
+          warnings.push(`${trendSheet}: ${h.latestLabel} 당월 채널별 AGING 반영`);
         }
         warnings.push(`${trendSheet}: ${Object.keys(result.trend_data||{}).length}개 현황 스냅샷 반영`);
       }
@@ -2145,7 +2136,7 @@ function parseInventory(ws){
            AVAIL:8,AVAIL_AMT:9,QC:10,QC_AMT:11,HOLD:13,HOLD_AMT:14};
   const ch_amt={},ch_delivery={},matrix={},matrix_delivery={};
   const kpi={'계':0,'환입':0,'6개월 미만':0,'7개월 미만':0,'9개월 미만':0,'12개월 미만':0,'유효기간 초과':0};
-  const stats={totalRows:data.length,usedRows:0,skippedNoChannel:0,skippedNoAging:0,skippedNoAmount:0,stdApplied:0,stdMissing:0,stdMissingQty:0};
+  const stats={totalRows:data.length,usedRows:0,skippedNoChannel:0,skippedNoAging:0,skippedNoAmount:0};
   data.forEach(row=>{
     const mat=row[C.MAT]; if(!mat) return;
     const name=String(row[C.NAME]||'');
@@ -2153,12 +2144,10 @@ function parseInventory(ws){
     const qc=Math.round(parseNum(row[C.QC]));      // 품질검사 (K열)
     const hd=Math.round(parseNum(row[C.HOLD]));    // 보류재고 (N열)
     const qty=av+qc+hd;                            // 리포트 수량 = 가용+품질+보류 합산
-    // 금액: 표준원가가 있으면 수량 × 표준원가. 없으면 기존대로 금액 열 합산(가용+검사+보류).
-    // 보류재고는 금액 열이 항상 0이라, 표준원가 없이는 그 수량만큼 금액이 통째로 빠진다.
-    const std=getStdCost(mat);
-    const sheetAmt=(parseNum(row[C.AVAIL_AMT])+parseNum(row[C.QC_AMT])+parseNum(row[C.HOLD_AMT]))/1e8;
-    if(std>0) stats.stdApplied++; else {stats.stdMissing++; stats.stdMissingQty+=qty;}
-    const amt=std>0?qty*std/1e8:sheetAmt;
+    // 금액 = 가용+검사+보류 금액 열 합산. ⚠ 표준원가로 재평가하지 않는다 —
+    // Aging 리포트는 현재고 시트 금액을 그대로 쓰는 게 업무 기준이다(2026-08-13 사용자 결정).
+    // 표준원가/단가 정정표는 PSI 원가 환산(getPsiPriceMap)에서만 쓴다.
+    const amt=(parseNum(row[C.AVAIL_AMT])+parseNum(row[C.QC_AMT])+parseNum(row[C.HOLD_AMT]))/1e8;
     const aoType=normalizeAgingBucket(row[C.AO]);
     const matType=String(row[C.AP]||'');
     const ch=String(row[C.CHANNEL]||'');
@@ -5302,10 +5291,20 @@ function getPsiPriceMap(){
     const mat=String(d.mat||''); if(!mat||map[mat]) return;
     const ov=getPriceOverride(mat);
     const sales=ov?.sales>0?ov.sales:(Number(getUnitPrice(mat))||0);
-    let cost=Number(costMap[mat])||0,src=cost>0?'현재고':'';
+    // ① 단가 정정표 → ② 결산 표준원가 (둘 다 getStdCost가 처리) → ③ 현재고 재고금액÷수량
+    //   → ④ 다이소 통합은 하위품목 가중평균 → ⑤ 매출단가 ÷ 원가시트 배율 역산
+    // ①②를 앞에 둔 이유: ③은 보류재고가 금액 0으로 들어와 단가가 심하게 희석된다(와다다곰 21원).
+    let cost=getStdCost(mat),src=cost>0?(getPriceOverride(mat)?.cost>0?'단가 정정표':'결산 표준원가'):'';
+    if(!cost){cost=Number(costMap[mat])||0;src=cost>0?'현재고':'';}
     if(!cost&&Array.isArray(d.componentCodes)&&d.componentCodes.length){
+      // 통합코드(DAI-xx)는 표준원가에 없다. 하위품목 재고로 가중평균하되 단가는 하위품목의 표준원가를 쓴다
+      // — 현재고 금액을 그대로 쓰면 하위품목의 보류 희석이 통합 단가로 그대로 옮겨온다.
       let q=0,a=0;
-      d.componentCodes.forEach(code=>{const v=invByMat[String(code)]; if(v&&v.q>0){q+=v.q;a+=v.a;}});
+      d.componentCodes.forEach(code=>{
+        const v=invByMat[String(code)]; if(!v||!(v.q>0)) return;
+        const cs=getStdCost(code);
+        q+=v.q; a+=cs>0?v.q*cs/1e6:v.a;      // a 단위: 백만원
+      });
       if(q>0){cost=a*1e6/q;src='통합 하위품목 가중평균';}
     }
     if(!cost&&sales>0){
@@ -6126,10 +6125,10 @@ function renderPSI(){
         <th rowspan="3" class="l plan-hd" style="min-width:130px;">소진계획</th>
       </tr>
       <tr>
-        ${months.map(m=>`<th rowspan="2" class="plan-hd r month-start" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-begin')" data-scol="${m.key}-begin">기초 ${si(m.key+'-begin')}</th><th rowspan="2" class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-buy')" data-scol="${m.key}-buy">입고 ${si(m.key+'-buy')}</th><th rowspan="2" class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-plan')" data-scol="${m.key}-plan">판매 ${si(m.key+'-plan')}</th><th colspan="2" class="plan-hd c${m.progress?'':' month-end'}">기말재고</th>${m.progress?'<th colspan="2" class="plan-hd c month-end">진척율 기준</th>':''}`).join('')}
+        ${months.map(m=>`<th rowspan="2" class="plan-hd r month-start psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-begin')" data-scol="${m.key}-begin">기초 ${si(m.key+'-begin')}</th><th rowspan="2" class="plan-hd r psi-col-buy" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-buy')" data-scol="${m.key}-buy">입고 ${si(m.key+'-buy')}</th><th rowspan="2" class="plan-hd r psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-plan')" data-scol="${m.key}-plan">판매 ${si(m.key+'-plan')}</th><th colspan="2" class="plan-hd c${m.progress?'':' month-end'}">기말재고</th>${m.progress?'<th colspan="2" class="plan-hd c month-end">진척율 기준</th>':''}`).join('')}
       </tr>
       <tr>
-        ${months.map(m=>`<th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-end')" data-scol="${m.key}-end">${unitHd} ${si(m.key+'-end')}</th><th class="plan-hd c${m.progress?'':' month-end'}" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-days')" data-scol="${m.key}-days">재고일수 ${si(m.key+'-days')}</th>${m.progress?`<th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisEnd')" data-scol="${m.key}-basisEnd">${unitHd} ${si(m.key+'-basisEnd')}</th><th class="plan-hd c month-end" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisDays')" data-scol="${m.key}-basisDays">재고일수 ${si(m.key+'-basisDays')}</th>`:''}`).join('')}
+        ${months.map(m=>`<th class="plan-hd r psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-end')" data-scol="${m.key}-end">${unitHd} ${si(m.key+'-end')}</th><th class="plan-hd c psi-col${m.progress?'':' month-end'}" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-days')" data-scol="${m.key}-days">재고일수 ${si(m.key+'-days')}</th>${m.progress?`<th class="plan-hd r psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisEnd')" data-scol="${m.key}-basisEnd">${unitHd} ${si(m.key+'-basisEnd')}</th><th class="plan-hd c month-end psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisDays')" data-scol="${m.key}-basisDays">재고일수 ${si(m.key+'-basisDays')}</th>`:''}`).join('')}
       </tr>
       <tr id="psiSubtotalRow"></tr>
     </thead><tbody id="psiTbody"></tbody></table></div>`;
