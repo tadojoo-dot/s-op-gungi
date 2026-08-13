@@ -116,6 +116,8 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 | 📡 Aging Sensing (M+N 예측) | `renderSensing`, `projectSensingInventory`, `computeSensInbound`(PSI 입고, 원가단가 기준) |
 | SKU 상세 팝업(라인차트, 실적vs계획) | `renderSkuDetailModal` — 배지: `diffVal`/`diffPos` 3번째 dataset |
 | ② PSI 시뮬레이션 탭 | `renderPSI`, `_renderPsiTbody`, `calcPsiMonth` (건드리지 말 것 — 사용자가 최소화 지시) |
+| ② PSI 표 필터 (0건 진단 포함) | `PSI_FILTERS`, `applyPsiFilters`, `diagnosePsiEmpty` — 필터 조건은 **`applyPsiFilters` 한 곳에만** 있어야 함. 인라인으로 복사하면 0건 진단이 실제 화면과 어긋난다 |
+| ② PSI 표 수량/원가/매출 토글 | `psiUnitMode`, `getPsiPriceMap`, `fmtPsiCell`, `setPsiUnitMode` |
 | ③ 월별 판매계획 대비 실적(탭에 박힌 바차트) | `renderChAchieve` (canvas id `chAcc`) — 배지: `monthDiffLabelPlugin` |
 | ③ 오차 기여 TOP10 / 판매계획 보정 대상 리스트 | `renderInsightTables`, `renderHT` |
 | 보정 대상 리스트 → 품목클릭 팝업(바차트) | `openPlanAdjustModal` (canvas id `planAdjustTrendChart`) — 배지: `modalDiffLabelPlugin`. **SKU상세팝업과 다른 별도 모달**임에 유의 |

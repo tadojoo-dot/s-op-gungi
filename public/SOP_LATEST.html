@@ -5648,22 +5648,86 @@ function updatePsiMonthTexts(firstMo,lastMo){
   const subEl=document.getElementById('psiSecSub');
   if(subEl) subEl.innerHTML=`${range} 4개월 · ${firstMo||'당월'}은 판매계획 기준 기말재고와 진척율 기준 예상 재고를 수량/재고일수로 병행 표시 &nbsp;|&nbsp; 재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30`;
 }
+// 필터 정의를 한 곳에 모아둔 이유: 결과가 0건일 때 "어느 필터가 범인인지"를 세려면
+// 필터를 하나씩 빼고 다시 돌려봐야 한다(leave-one-out). 그러려면 필터 로직이 renderPSI 안에
+// 인라인으로 박혀 있으면 안 되고, 값 묶음을 받아 결과를 내는 순수 함수여야 한다.
+// off  = 그 필터를 '해제'했을 때의 값
+// dflt = 페이지가 처음 열렸을 때의 값. favg3만 'positive'(3평판 있는 품목만)로 시작한다.
+//        dflt 상태인 필터는 사용자가 고른 게 아니라 못 보고 지나친 것이므로 0건 진단에서 먼저 보여준다.
+const PSI_FILTERS=[
+  {key:'fs',     el:'fp',      off:'', dflt:'',         label:'신호등'},
+  {key:'fpkg',   el:'fpkg',    off:'', dflt:'',         label:'품목군'},
+  {key:'fdaiso', el:'fdaiso',  off:'', dflt:'',         label:'다이소 구분'},
+  {key:'fplant', el:'fplant',  off:'', dflt:'',         label:'플랜트'},
+  {key:'favg3',  el:'favg3',   off:'', dflt:'positive', label:'3평판'},
+  {key:'fMinInv',el:'fMinInv', off:'', dflt:'',         label:'기초재고'},
+  {key:'fq',     el:'fpq',     off:'', dflt:'',         label:'검색어'}
+];
+function readPsiFilters(){
+  const v={};
+  PSI_FILTERS.forEach(f=>{v[f.key]=document.getElementById(f.el)?.value||'';});
+  v.fq=String(v.fq||'').toLowerCase();
+  return v;
+}
+// 현재 화면에서 값이 걸려 있는(=무언가를 거르고 있는) 필터만 추린다
+function activePsiFilters(v){return PSI_FILTERS.filter(f=>String(v[f.key]||'')!==f.off);}
+function psiFilterValueLabel(f,v){
+  const el=document.getElementById(f.el);
+  const opt=el&&el.options?[...el.options].find(o=>o.value===String(v[f.key])):null;
+  return opt?opt.textContent.trim():String(v[f.key]||'');
+}
+function applyPsiFilters(v){
+  const viewData=v.fdaiso==='all'?(UPLOADED?.daiso_components||[]):getPSIData();
+  const fq=String(v.fq||'').toLowerCase();
+  return (viewData||[]).filter(d=>{
+    const pkgMatch=!v.fpkg||
+      (v.fpkg==='건기식' ? d.pkg!=='구강' : d.pkg==='구강');
+    const daisoMatch=!v.fdaiso||
+      (v.fdaiso==='all'&&isPsiDaisoComponent(d))||
+      (v.fdaiso==='integrated'&&isPsiIntegrated(d));
+    const plantMatch=!v.fplant||
+      (Array.isArray(d.plantValues)&&d.plantValues.includes(v.fplant))||
+      d.plant===v.fplant;
+    return (
+    (!v.fs||d.sp===v.fs)&&
+    pkgMatch&&
+    daisoMatch&&
+    plantMatch&&
+    (v.favg3!=='positive'||Number(d.avg3)>0)&&
+    (v.favg3!=='zero'||Number(d.avg3)<=0)&&
+    (v.fMinInv!=='1'||Number(d.inv)>=100)&&
+    (!fq||String(d.mat||'').toLowerCase().includes(fq)||d.name.toLowerCase().includes(fq))
+    );
+  });
+}
+// 0건일 때: 필터를 하나씩만 풀어봤을 때 결과가 살아나는 필터를 찾아 알려준다.
+// 사용자가 고른 값을 코드가 말없이 되돌리지 않고, 왜 0건인지만 설명하는 게 목적이다.
+// 건수가 많은 순으로 세우면 사용자가 방금 직접 고른 필터가 맨 위에 오는데(횡성 해제 → 47건),
+// 정작 범인인 기본값 필터는 아래 묻힌다. 기본값 상태인 필터를 먼저 세운다.
+function diagnosePsiEmpty(v){
+  return activePsiFilters(v)
+    .map(f=>({f,n:applyPsiFilters({...v,[f.key]:f.off}).length,isDefault:String(v[f.key]||'')===f.dflt}))
+    .filter(x=>x.n>0)
+    .sort((a,b)=>(b.isDefault-a.isDefault)||(b.n-a.n));
+}
+function clearPsiFilter(elId){
+  const el=document.getElementById(elId);
+  const def=PSI_FILTERS.find(f=>f.el===elId);
+  if(el) el.value=def?def.off:'';
+  renderPSI();
+}
+function resetPsiFilters(){
+  PSI_FILTERS.forEach(f=>{const el=document.getElementById(f.el); if(el) el.value=f.off;});
+  renderPSI();
+}
 function renderPSI(){
-  const fs=document.getElementById('fp')?.value||'';
-  const fpkg=document.getElementById('fpkg')?.value||'';
-  const fdaiso=document.getElementById('fdaiso')?.value||'';
+  const fv=readPsiFilters();
+  const fdaiso=fv.fdaiso;
   const plantSelect=document.getElementById('fplant');
-  const fplant=plantSelect?.value||'';
-  const favg3=document.getElementById('favg3')?.value||'';
-  const fMinInv=document.getElementById('fMinInv')?.value==='1';
-  const fq=(document.getElementById('fpq')?.value||'').toLowerCase();
   const allData=getPSIData();
   const psiTableTitle=document.getElementById('psiTableTitle');
   if(psiTableTitle) psiTableTitle.textContent=`PSI 전 품목 현황 (${allData.length.toLocaleString()}개 SKU 기준)`;
-  const isIntegrated=isPsiIntegrated;
-  const isDaisoComponent=isPsiDaisoComponent;
-  const integratedCount=allData.filter(isIntegrated).length;
-  const viewData=fdaiso==='all'?(UPLOADED?.daiso_components||[]):allData;
+  const integratedCount=allData.filter(isPsiIntegrated).length;
   const plantOptions=[...new Set(
     [...allData,...(UPLOADED?.daiso_components||[])]
       .flatMap(d=>Array.isArray(d.plantValues)&&d.plantValues.length?d.plantValues:(d.plant?[d.plant]:[]))
@@ -5674,27 +5738,9 @@ function renderPSI(){
     const current=plantSelect.value;
     plantSelect.innerHTML=`<option value="">전체 플랜트</option>${plantOptions.map(value=>`<option value="${value}">${value}</option>`).join('')}`;
     plantSelect.value=plantOptions.includes(current)?current:'';
+    fv.fplant=plantSelect.value;   // 플랜트 목록이 갱신되며 선택이 풀렸을 수 있으므로 되읽는다
   }
-  const data=viewData.filter(d=>{
-    const pkgMatch=!fpkg||
-      (fpkg==='건기식' ? d.pkg!=='구강' : d.pkg==='구강');
-    const daisoMatch=!fdaiso||
-      (fdaiso==='all'&&isDaisoComponent(d))||
-      (fdaiso==='integrated'&&isIntegrated(d));
-    const plantMatch=!fplant||
-      (Array.isArray(d.plantValues)&&d.plantValues.includes(fplant))||
-      d.plant===fplant;
-    return (
-    (!fs||d.sp===fs)&&
-    pkgMatch&&
-    daisoMatch&&
-    plantMatch&&
-    (favg3!=='positive'||Number(d.avg3)>0)&&
-    (favg3!=='zero'||Number(d.avg3)<=0)&&
-    (!fMinInv||Number(d.inv)>=100)&&
-    (!fq||String(d.mat||'').toLowerCase().includes(fq)||d.name.toLowerCase().includes(fq))
-    );
-  }).sort((a,b)=>{
+  const data=applyPsiFilters(fv).sort((a,b)=>{
     const order={gray:-1,red:0,yellow:1,excess:2,green:3};
     return (order[a.sp]??3)-(order[b.sp]??3)||a.dp-b.dp;
   });
@@ -5720,9 +5766,22 @@ function renderPSI(){
       다이소 마스터 원본 품목 데이터가 없습니다. 최신 엑셀을 다시 업로드해 주세요.
     </div>`;
   }else if(!data.length){
-    h+=`<div style="margin:14px;padding:14px 16px;border:1px solid var(--border);background:#f7f8fb;color:var(--muted);font-size:12px;font-weight:700;border-radius:5px;">
-      선택한 필터 조건에 해당하는 품목이 없습니다. 품목군·다이소 구분·3평판 필터를 확인해 주세요.
-    </div>`;
+    // 어느 필터가 결과를 0건으로 만들었는지 짚어준다.
+    // 예: 플랜트=횡성 + 다이소 전체는 14건이 있는데도 '3평판 있는 품목만'(기본값)에 전멸한다
+    // — 횡성 코드는 재고만 있고 3평판이 0이기 때문. 안내가 없으면 데이터가 없는 걸로 오해하게 된다.
+    const culprits=diagnosePsiEmpty(fv);
+    const btn=(elId,text)=>`<button onclick="clearPsiFilter('${elId}')" style="height:24px;border:1px solid var(--navy);background:#fff;color:var(--navy);border-radius:4px;padding:0 9px;font-size:11px;font-weight:800;cursor:pointer;margin-left:6px;">${text}</button>`;
+    if(culprits.length){
+      h+=`<div style="margin:14px;padding:14px 16px;border:1px solid #f0c36d;background:#fff8e8;color:#8a5c00;font-size:12px;font-weight:700;border-radius:5px;">
+        <div style="font-weight:900;margin-bottom:8px;">필터 때문에 0건입니다 — 데이터가 없는 게 아닙니다.</div>
+        ${culprits.map(({f,n,isDefault})=>`<div style="margin:4px 0;">· <strong>${f.label}</strong> 필터(<strong>${psiFilterValueLabel(f,fv)}</strong>)만 해제하면 <strong>${n.toLocaleString()}건</strong>이 나옵니다${isDefault?' <span style="font-weight:800;color:#b45309;">— 직접 고른 게 아니라 화면 기본값입니다</span>':''}${btn(f.el,`${f.label} 해제`)}</div>`).join('')}
+      </div>`;
+    }else{
+      h+=`<div style="margin:14px;padding:14px 16px;border:1px solid var(--border);background:#f7f8fb;color:var(--muted);font-size:12px;font-weight:700;border-radius:5px;">
+        선택한 필터 조건에 해당하는 품목이 없습니다. 하나만 풀어서는 결과가 나오지 않아 조건을 여러 개 완화해야 합니다.
+        <button onclick="resetPsiFilters()" style="height:24px;border:1px solid var(--navy);background:#fff;color:var(--navy);border-radius:4px;padding:0 9px;font-size:11px;font-weight:800;cursor:pointer;margin-left:6px;">필터 전체 초기화</button>
+      </div>`;
+    }
   }
   const si=col=>`${_sortIcon(_psiSort,col)}`;
   h+=`<div class="psi-scroll"><table class="psi-tbl monthly">
