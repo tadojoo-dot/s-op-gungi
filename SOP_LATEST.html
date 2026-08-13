@@ -237,7 +237,7 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 /* PSI 표 전용 스크롤 박스: 높이 제한으로 가로 스크롤바를 항상 접근 가능하게 + 월 헤더 고정 */
 .psi-scroll{overflow:auto;max-width:100%;max-height:74vh;-webkit-overflow-scrolling:touch;}
 .psi-scroll .psi-tbl.monthly thead{position:sticky;top:0;z-index:3;}
-.psi-tbl.monthly{min-width:2700px;font-size:11.5px;}
+.psi-tbl.monthly{min-width:2320px;font-size:11.5px;}
 .psi-tbl.monthly th{padding:7px 8px;font-size:11px;}
 .psi-tbl.monthly td{padding:6px 8px;}
 .psi-tbl.monthly th.month-group{border-left:3px solid #fff;border-right:3px solid #fff;}
@@ -5906,13 +5906,13 @@ function renderPSI(){
   h+=`<div class="psi-scroll"><table class="psi-tbl monthly">
     <thead>
       <tr>
-        <th rowspan="3" class="l" style="min-width:86px;cursor:pointer;" onclick="sortPsiCol('mat')" data-scol="mat">자재코드 ${si('mat')}</th>
-        <th rowspan="3" class="l" style="min-width:210px;cursor:pointer;" onclick="sortPsiCol('name')" data-scol="name">품목명 ${si('name')}</th>
-        <th rowspan="3" class="l" style="min-width:72px;cursor:pointer;" onclick="sortPsiCol('pkg')" data-scol="pkg">품목군 ${si('pkg')}</th>
-        <th rowspan="3" class="l" style="min-width:96px;cursor:pointer;" onclick="sortPsiCol('type')" data-scol="type">구분 ${si('type')}</th>
-        <th rowspan="3" class="l" style="min-width:110px;cursor:pointer;" onclick="sortPsiCol('plant')" data-scol="plant">플랜트 ${si('plant')}</th>
+        <th rowspan="3" class="l" style="min-width:72px;cursor:pointer;" onclick="sortPsiCol('mat')" data-scol="mat">자재코드 ${si('mat')}</th>
+        <th rowspan="3" class="l" style="min-width:178px;cursor:pointer;" onclick="sortPsiCol('name')" data-scol="name">품목명 ${si('name')}</th>
+        <th rowspan="3" class="l" style="min-width:54px;cursor:pointer;" onclick="sortPsiCol('pkg')" data-scol="pkg">품목군 ${si('pkg')}</th>
+        <th rowspan="3" class="l" style="min-width:76px;cursor:pointer;" onclick="sortPsiCol('type')" data-scol="type">구분 ${si('type')}</th>
+        <th rowspan="3" class="l" style="min-width:74px;cursor:pointer;" onclick="sortPsiCol('plant')" data-scol="plant">플랜트 ${si('plant')}</th>
         <th rowspan="3" class="r" style="cursor:pointer;" onclick="sortPsiCol('avg3')" data-scol="avg3">3평판 ${si('avg3')}</th>
-        <th rowspan="3" class="c plan-hd" style="min-width:74px;cursor:pointer;" onclick="sortPsiCol('soojin')" data-scol="soojin">소진판단 ${si('soojin')}</th>
+        <th rowspan="3" class="c plan-hd" style="min-width:60px;cursor:pointer;" onclick="sortPsiCol('soojin')" data-scol="soojin">소진판단 ${si('soojin')}</th>
         ${months.map(m=>`<th colspan="${psiMonthSpan(m)}" class="plan-hd month-group" style="text-align:center;">${moLabel(m)}</th>`).join('')}
         <th rowspan="3" class="l plan-hd" style="min-width:130px;">소진계획</th>
       </tr>
