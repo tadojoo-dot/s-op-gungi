@@ -227,8 +227,11 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 /* PSI TABLE */
 .psi-tbl{width:100%;border-collapse:collapse;font-size:12px;}
 .psi-tbl th{background:#1D2783;color:#fff;padding:7px 10px;font-weight:700;font-size:11px;border:1px solid #2d3a9a;white-space:nowrap;}
+/* 헤더 음영은 두 가지뿐이고 의미가 있다:
+   진남색(#1D2783)=품목을 식별하는 고정 열(자재코드~3평판·소진판단·소진계획),
+   밝은남색(#2d3a9a)=월별 데이터 열(plan-hd). 새 열을 넣을 때 이 규칙을 지킬 것 —
+   고정 열에 plan-hd를 붙이면 색 경계가 열 성격과 어긋나 표가 얼룩덜룩해 보인다. */
 .psi-tbl th.plan-hd{background:#2d3a9a;}
-.psi-tbl th.rate-hd{background:#10145C;}
 .psi-tbl td{padding:6px 10px;border:1px solid var(--border);vertical-align:middle;}
 .psi-tbl td.l{text-align:left;}
 .psi-tbl td.r{text-align:right;}
@@ -6126,9 +6129,9 @@ function renderPSI(){
         <th rowspan="3" class="l" style="min-width:76px;cursor:pointer;" onclick="sortPsiCol('type')" data-scol="type">구분 ${si('type')}</th>
         <th rowspan="3" class="l" style="min-width:74px;cursor:pointer;" onclick="sortPsiCol('plant')" data-scol="plant">플랜트 ${si('plant')}</th>
         <th rowspan="3" class="r" style="cursor:pointer;" onclick="sortPsiCol('avg3')" data-scol="avg3">3평판 ${si('avg3')}</th>
-        <th rowspan="3" class="c plan-hd" style="min-width:60px;cursor:pointer;" onclick="sortPsiCol('soojin')" data-scol="soojin">소진판단 ${si('soojin')}</th>
+        <th rowspan="3" class="c" style="min-width:60px;cursor:pointer;" onclick="sortPsiCol('soojin')" data-scol="soojin">소진판단 ${si('soojin')}</th>
         ${months.map(m=>`<th colspan="${psiMonthSpan(m)}" class="plan-hd month-group" style="text-align:center;">${moLabel(m)}</th>`).join('')}
-        <th rowspan="3" class="l plan-hd" style="min-width:130px;">소진계획</th>
+        <th rowspan="3" class="l" style="min-width:130px;">소진계획</th>
       </tr>
       <tr>
         ${months.map(m=>`<th rowspan="2" class="plan-hd r month-start psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-begin')" data-scol="${m.key}-begin">기초 ${si(m.key+'-begin')}</th><th rowspan="2" class="plan-hd r psi-col-buy" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-buy')" data-scol="${m.key}-buy">입고 ${si(m.key+'-buy')}</th><th rowspan="2" class="plan-hd r psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-plan')" data-scol="${m.key}-plan">판매 ${si(m.key+'-plan')}</th><th colspan="2" class="plan-hd c${m.progress?'':' month-end'}">기말재고</th>${m.progress?'<th colspan="2" class="plan-hd c month-end">진척율 기준</th>':''}`).join('')}
