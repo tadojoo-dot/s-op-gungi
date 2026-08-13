@@ -826,6 +826,11 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
         <div class="sec-sub" id="psiSecSub">당월부터 4개월 · 당월은 판매계획 기준 기말재고와 진척율 기준 예상 재고를 수량/재고일수로 병행 표시 &nbsp;|&nbsp; 재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30</div>
       </div></div>
       <div class="frow no-print" style="margin:0;gap:6px;">
+        <span style="display:inline-flex;gap:4px;margin-right:4px;">
+          <button id="psiUnitQtyBtn" class="aging-mode-btn on" onclick="setPsiUnitMode('qty',this)" title="수량(개) 기준">수량</button>
+          <button id="psiUnitCostBtn" class="aging-mode-btn" onclick="setPsiUnitMode('cost',this)" title="원가단가 환산 (백만원)">원가</button>
+          <button id="psiUnitSalesBtn" class="aging-mode-btn" onclick="setPsiUnitMode('sales',this)" title="판매(매출)단가 환산 (백만원)">매출</button>
+        </span>
         <select id="fp" onchange="renderPSI()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;"><option value="">전체</option><option value="red">🔴위험</option><option value="green">🟢정상</option></select>
         <select id="fpkg" onchange="renderPSI()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;">
           <option value="">전체 품목군</option>
@@ -861,7 +866,11 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
         당월 보조 기준은 진척율 기준으로 보며, 진척율 기준 재고수량 = 당월 기초재고 + 당월 입고계획 - 진척율 기준 예상 판매수량입니다.
         차월 이후 보조 기준은 3평판 기준으로 보며, 차월 기초는 당월 진척율 기준 예상 기말재고에서 이어지고 이후 월은 전월 3평판 기준 기말재고를 기초로 사용합니다.
         재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30입니다. 다음 월 판매계획이 없으면 재고일수는 산출불가로 표시합니다. PSI 표의 수량·재고일수는 반올림 정수로 표시합니다.<br>
-        <strong>신호등 기준:</strong> 전 품목 동일 2단계 — 위험(빨강) 90일 미만 / 정상(초록) 90일 이상. 다이소 별도기준·과잉 구간은 폐지했습니다.
+        <strong>신호등 기준:</strong> 전 품목 동일 2단계 — 위험(빨강) 90일 미만 / 정상(초록) 90일 이상. 다이소 별도기준·과잉 구간은 폐지했습니다.<br>
+        <strong>수량/원가/매출 토글:</strong> 기초·입고·판매·기말 4개 열만 단가를 곱해 백만원으로 환산합니다(3평판·재고일수·신호등은 항상 수량·일수 기준, 판정 결과도 동일).
+        <strong>매출단가</strong>는 판매계획(SF) 계획단가, 없으면 PSI 계획금액÷계획수량입니다.
+        <strong>원가단가</strong>는 ① 현재고 재고금액÷재고수량 → ② 다이소 통합코드는 하위 품목의 재고 가중평균 → ③ 원가 시트 배율 역산 순으로 찾습니다(셀에 마우스를 올리면 적용된 단가와 출처가 보입니다).
+        단가를 못 찾은 품목은 <strong>—</strong>로 표시하며, 금액 모드에서는 입고 조정 입력이 잠깁니다(수량 모드에서 조정하세요).
       </div>
     </div>
   </div>
@@ -4978,12 +4987,19 @@ function _psiSortKey(item,col){
       }
       if(res){
         const f=parts[1];
-        if(f==='begin') return Number(res.r.begin)||0;
-        if(f==='buy') return Number(res.r.buy)||0;
-        if(f==='plan') return Number(res.r.plan)||0;
-        if(f==='end') return Number(res.r.end)||0;
+        // 금액 모드에서는 화면에 보이는 금액 기준으로 정렬해야 순서가 표와 맞는다 (재고일수는 항상 일수 기준)
+        const qty=v=>{
+          const n=Number(v)||0;
+          if(psiUnitMode==='qty') return n;
+          const amt=psiAmtFromQty(n,d.mat);
+          return amt==null?-Infinity:amt;
+        };
+        if(f==='begin') return qty(res.r.begin);
+        if(f==='buy') return qty(res.r.buy);
+        if(f==='plan') return qty(res.r.plan);
+        if(f==='end') return qty(res.r.end);
         if(f==='days') return Number(res.r.days)||0;
-        if(f==='basisEnd') return Number(res.basisEnd)||0;
+        if(f==='basisEnd') return qty(res.basisEnd);
         if(f==='basisDays') return Number(res.basisDays)||0;
       }
     }
@@ -5019,7 +5035,11 @@ function _renderPsiTbody(){
       const origBuy=exact?(Number(exact.buy)||0):Math.round((d.buy6||0)*m.buy);
       const buyOvOn=rowOv[m.key]!=null;
       const buyCls=buyOvOn?'psi-buy-override':origBuy===0?'psi-buy-empty':'';
-      return `<td class="r month-start">${fmtPsiInt(r.begin)}</td><td class="r"><input type="text" class="psi-buy-input${buyCls?' '+buyCls:''}" onclick="event.stopPropagation()" data-mat="${d.mat}" data-mo="${m.key}" data-orig-buy="${origBuy}" value="${r.buy.toLocaleString('ko-KR')}"><button type="button" class="psi-buy-reset" title="이 입고 조정을 원래값(${fmtPsiInt(origBuy)})으로 초기화" onclick="event.stopPropagation();resetPsiBuyCell(this)">↺</button></td><td class="r">${fmtPsiInt(r.plan)}</td><td class="r"${endCls}>${fmtPsiInt(r.end)}</td><td class="c"><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}</td><td class="r"${bec}>${fmtPsiInt(basisEnd)}</td><td class="c month-end"><span class="sig-dot ${bsc}"></span> ${psiDaysHtml(basisDays,basisSig)}</td>`;
+      // 금액 모드에서는 입고 조정 입력을 읽기전용 텍스트로 대체한다 (금액→수량 역산 시 반올림 오차가 생기므로)
+      const buyCell=psiUnitMode==='qty'
+        ?`<td class="r"><input type="text" class="psi-buy-input${buyCls?' '+buyCls:''}" onclick="event.stopPropagation()" data-mat="${d.mat}" data-mo="${m.key}" data-orig-buy="${origBuy}" value="${r.buy.toLocaleString('ko-KR')}"><button type="button" class="psi-buy-reset" title="이 입고 조정을 원래값(${fmtPsiInt(origBuy)})으로 초기화" onclick="event.stopPropagation();resetPsiBuyCell(this)">↺</button></td>`
+        :`<td class="r"${buyOvOn?' style="color:#8a5c00;font-weight:900;"':''} title="수량 ${fmtPsiInt(r.buy)}개${buyOvOn?' · 직접 조정한 값':''} · 입고 조정은 수량 모드에서만 가능합니다">${fmtPsiCell(r.buy,d.mat)}</td>`;
+      return `<td class="r month-start"${psiCellTitle(r.begin,d.mat)}>${fmtPsiCell(r.begin,d.mat)}</td>${buyCell}<td class="r"${psiCellTitle(r.plan,d.mat)}>${fmtPsiCell(r.plan,d.mat)}</td><td class="r"${endCls}${psiCellTitle(r.end,d.mat)}>${fmtPsiCell(r.end,d.mat)}</td><td class="c"><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}</td><td class="r"${bec}${psiCellTitle(basisEnd,d.mat)}>${fmtPsiCell(basisEnd,d.mat)}</td><td class="c month-end"><span class="sig-dot ${bsc}"></span> ${psiDaysHtml(basisDays,basisSig)}</td>`;
     }).join('');
     const sCls=_psiSoojinCls[soojinStatus]||'gray';
     const sLbl=_psiSoojinLabel[soojinStatus]||'판단필요';
@@ -5049,6 +5069,76 @@ const PSI_MONTHS=[
   {key:'9월',buy:0.60,plan:1.06},
 ];
 const fmtPsiInt=v=>Math.round(Number(v)||0).toLocaleString('ko-KR');
+
+// ═══════════ PSI 금액 환산 (수량 / 원가 / 매출 토글) ═══════════
+// 원가단가 3단 폴백: ① 현재고 재고금액÷재고수량 → ② 다이소 통합 SKU는 하위 componentCodes의 재고 가중평균
+//   → ③ 매출단가 ÷ 원가시트 배율(getMatRatio) 역산
+// ②가 없으면 통합 SKU(DAI-xx)는 현재고 시트에 그 코드가 없어 원가단가가 전부 0이 된다.
+// 통합 SKU가 재고 대부분(26/8 기준 326만개)을 차지하므로 ②를 빼면 원가 커버리지가 수량 기준 24%로 떨어진다.
+// 매출단가는 기존 getUnitPrice()(SF 계획단가 → PSI planAmt6/plan6) 그대로 사용.
+// 26/8 파일 검증: 재고>0인 103 SKU 중 원가 103건(100%) / 매출 93건(90%, 수량가중 87%). 단가 없으면 '—'.
+let psiUnitMode='qty';
+let _psiPriceCache=null;
+function getPsiPriceMap(){
+  if(_psiPriceCache&&_psiPriceCache.src===UPLOADED) return _psiPriceCache.map;
+  const costMap=getMaterialCostMap();
+  const invByMat={};
+  getSensingBaseInventory().forEach(row=>{
+    const mat=String(row.m||''); if(!mat) return;
+    if(!invByMat[mat]) invByMat[mat]={q:0,a:0};
+    invByMat[mat].q+=Number(row.q)||0;
+    invByMat[mat].a+=Number(row.a)||0;   // 백만원 단위
+  });
+  const map={};
+  [...(getPSIData()||[]),...(UPLOADED?.daiso_components||[])].forEach(d=>{
+    const mat=String(d.mat||''); if(!mat||map[mat]) return;
+    const sales=Number(getUnitPrice(mat))||0;
+    let cost=Number(costMap[mat])||0,src=cost>0?'현재고':'';
+    if(!cost&&Array.isArray(d.componentCodes)&&d.componentCodes.length){
+      let q=0,a=0;
+      d.componentCodes.forEach(code=>{const v=invByMat[String(code)]; if(v&&v.q>0){q+=v.q;a+=v.a;}});
+      if(q>0){cost=a*1e6/q;src='통합 하위품목 가중평균';}
+    }
+    if(!cost&&sales>0){
+      const rt=getMatRatio(mat);
+      if(rt.ratio>0){cost=sales/rt.ratio;src=`원가시트 배율 역산(${rt.matched?'직접':'전사평균'})`;}
+    }
+    map[mat]={cost,sales,costSrc:src};
+  });
+  _psiPriceCache={src:UPLOADED,map};
+  return map;
+}
+function psiUnitPriceFor(mat){
+  const rec=getPsiPriceMap()[String(mat)];
+  if(!rec) return 0;
+  return psiUnitMode==='cost'?rec.cost:psiUnitMode==='sales'?rec.sales:0;
+}
+// 수량 → 백만원. 단가를 못 찾으면 null(화면에 '—')
+function psiAmtFromQty(qty,mat){
+  const price=psiUnitPriceFor(mat);
+  if(!(price>0)) return null;
+  return (Number(qty)||0)*price/1e6;
+}
+const fmtPsiAmt=v=>v==null?'—':(Math.abs(v)>=100?Math.round(v).toLocaleString('ko-KR'):(Math.round(v*10)/10).toLocaleString('ko-KR'));
+// 표 셀 공통 포맷: 수량 모드면 정수 수량, 금액 모드면 백만원
+function fmtPsiCell(qty,mat){
+  return psiUnitMode==='qty'?fmtPsiInt(qty):fmtPsiAmt(psiAmtFromQty(qty,mat));
+}
+function psiUnitLabel(){return psiUnitMode==='cost'?'원가':psiUnitMode==='sales'?'매출':'수량';}
+function psiCellTitle(qty,mat){
+  if(psiUnitMode==='qty') return '';
+  const rec=getPsiPriceMap()[String(mat)]||{};
+  const price=psiUnitMode==='cost'?rec.cost:rec.sales;
+  if(!(price>0)) return ` title="${psiUnitLabel()}단가를 찾지 못해 환산할 수 없습니다 (수량 ${fmtPsiInt(qty)}개)"`;
+  const src=psiUnitMode==='cost'?(rec.costSrc||''):'SF 계획단가';
+  return ` title="수량 ${fmtPsiInt(qty)}개 × ${psiUnitLabel()}단가 ${Math.round(price).toLocaleString('ko-KR')}원${src?` (${src})`:''}"`;
+}
+function setPsiUnitMode(mode,btn){
+  psiUnitMode=mode;
+  document.querySelectorAll('#psiUnitQtyBtn,#psiUnitCostBtn,#psiUnitSalesBtn').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  renderPSI();
+}
 function isPsiIntegrated(d){return Boolean(d.isDaisoIntegrated)||d.pkg==='다이소 통합';}
 function isPsiDaisoComponent(d){return Boolean(d.isDaisoComponent);}
 function psiDaysHtml(days,sig){
@@ -5617,8 +5707,9 @@ function renderPSI(){
   const lastMo=moLabel(months[months.length-1]);
   updatePsiMonthTexts(firstMo,lastMo);
 
+  const unitHd=psiUnitMode==='qty'?'수량':'금액';
   let h=`<div style="padding:7px 12px;background:#f7f8fb;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:700;">
-    표시 ${data.length.toLocaleString()}개 / ${fdaiso==='all'?'다이소 마스터 원본':`전체 ${allData.length.toLocaleString()}개 SKU`}
+    표시 ${data.length.toLocaleString()}개 / ${fdaiso==='all'?'다이소 마스터 원본':`전체 ${allData.length.toLocaleString()}개 SKU`}${psiUnitMode==='qty'?'':` &nbsp;|&nbsp; <span style="color:var(--terra);">기초·입고·판매·기말 = ${psiUnitLabel()} 환산 (백만원)</span>`}
   </div>`;
   if(fdaiso==='integrated'&&integratedCount===0){
     h+=`<div style="margin:14px;padding:14px 16px;border:1px solid #f0c36d;background:#fff8e8;color:#8a5c00;font-size:12px;font-weight:800;border-radius:5px;">
@@ -5651,7 +5742,7 @@ function renderPSI(){
         ${months.map(m=>`<th rowspan="2" class="plan-hd r month-start" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-begin')" data-scol="${m.key}-begin">기초 ${si(m.key+'-begin')}</th><th rowspan="2" class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-buy')" data-scol="${m.key}-buy">입고 ${si(m.key+'-buy')}</th><th rowspan="2" class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-plan')" data-scol="${m.key}-plan">판매 ${si(m.key+'-plan')}</th><th colspan="2" class="plan-hd c">기말재고</th><th colspan="2" class="plan-hd c month-end">${m.progress?'진척율 기준':'3평판 기준'}</th>`).join('')}
       </tr>
       <tr>
-        ${months.map(m=>`<th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-end')" data-scol="${m.key}-end">수량 ${si(m.key+'-end')}</th><th class="plan-hd c" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-days')" data-scol="${m.key}-days">재고일수 ${si(m.key+'-days')}</th><th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisEnd')" data-scol="${m.key}-basisEnd">수량 ${si(m.key+'-basisEnd')}</th><th class="plan-hd c month-end" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisDays')" data-scol="${m.key}-basisDays">재고일수 ${si(m.key+'-basisDays')}</th>`).join('')}
+        ${months.map(m=>`<th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-end')" data-scol="${m.key}-end">${unitHd} ${si(m.key+'-end')}</th><th class="plan-hd c" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-days')" data-scol="${m.key}-days">재고일수 ${si(m.key+'-days')}</th><th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisEnd')" data-scol="${m.key}-basisEnd">${unitHd} ${si(m.key+'-basisEnd')}</th><th class="plan-hd c month-end" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisDays')" data-scol="${m.key}-basisDays">재고일수 ${si(m.key+'-basisDays')}</th>`).join('')}
       </tr>
     </thead><tbody id="psiTbody"></tbody></table></div>`;
 
