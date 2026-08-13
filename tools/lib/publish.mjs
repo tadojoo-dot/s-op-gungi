@@ -21,7 +21,7 @@ export function readPassword() {
 }
 
 // 리포 안에서 가장 최근에 수정된 엑셀을 찾는다 (드래그해서 떨군 파일을 자동으로 집기 위함)
-export function findLatestExcel(dir = ROOT) {
+function listExcels(dir = ROOT) {
   const skip = new Set(['node_modules', '.git', '.wrangler', 'public', 'vendor', 'tools']);
   const hits = [];
   (function walk(d, depth) {
@@ -31,11 +31,59 @@ export function findLatestExcel(dir = ROOT) {
       const full = path.join(d, e.name);
       if (e.isDirectory()) walk(full, depth + 1);
       else if (/\.xlsx?$/i.test(e.name) && !e.name.startsWith('~$')) {
-        hits.push({ path: full, mtime: fs.statSync(full).mtimeMs });
+        hits.push({ path: full, name: e.name, mtime: fs.statSync(full).mtimeMs });
       }
     }
   })(dir, 0);
-  return hits.sort((a, b) => b.mtime - a.mtime)[0] || null;
+  return hits.sort((a, b) => b.mtime - a.mtime);
+}
+
+// ⚠ 예전에는 "가장 최근 .xlsx"를 그냥 집었는데, 리포에 결산 파일·점검 파일을 같이 올려두면
+//    엉뚱한 파일을 월간 데이터로 파싱해 대시보드가 통째로 깨진다. 이제 이름으로 종류를 가린다.
+const AGING_RE = /aging|재고\s*aging|건기식/i;
+const STDCOST_RE = /재고자산\s*결산|자재수불/i;
+const OVERRIDE_RE = /이관\s*점검|횡성공장/i;
+
+export function findLatestExcel(dir = ROOT) {
+  const all = listExcels(dir);
+  return all.find(f => AGING_RE.test(f.name) && !STDCOST_RE.test(f.name) && !OVERRIDE_RE.test(f.name)) || null;
+}
+
+// 표준원가 원본(재고자산 결산 파일). 없으면 null → 기존 재고금액 방식으로 폴백한다.
+export function findStdCostExcel(dir = ROOT) {
+  return listExcels(dir).find(f => STDCOST_RE.test(f.name)) || null;
+}
+
+// 품목별 단가 정정표(횡성공장 이관 점검 파일). 없으면 null → 표준원가만 쓴다.
+export function findPriceOverrideExcel(dir = ROOT) {
+  return listExcels(dir).find(f => OVERRIDE_RE.test(f.name)) || null;
+}
+
+// 이관 점검 파일에서 ②PSI 시트를 찾아 { byMat:{mat:{cost,sales}}, mats } 를 만든다.
+export function readPriceOverride(browser, xlsxPath) {
+  browser.sandbox.__ovBin = fs.readFileSync(xlsxPath).toString('binary');
+  return browser.run(`(function(){
+    const wb=XLSX.read(__ovBin,{type:'binary'});
+    for(const n of wb.SheetNames){
+      const r=parsePriceOverrideSheet(wb.Sheets[n]);
+      if(r){ r.sheet=n; return r; }
+    }
+    return null;
+  })()`);
+}
+
+// 결산 파일에서 자재수불 시트를 찾아 { byMat, mats, lines } 를 만든다.
+// 파싱 로직은 대시보드의 parseStdCostSheet를 그대로 쓴다 — 브라우저와 숫자가 어긋나지 않게.
+export function readStdCost(browser, xlsxPath) {
+  browser.sandbox.__stdBin = fs.readFileSync(xlsxPath).toString('binary');
+  return browser.run(`(function(){
+    const wb=XLSX.read(__stdBin,{type:'binary'});
+    const n=wb.SheetNames.find(s=>String(s).replace(/\\s/g,'').includes('자재수불')&&!String(s).includes('피벗'));
+    if(!n) return null;
+    const r=parseStdCostSheet(wb.Sheets[n]);
+    if(r) r.sheet=n;
+    return r;
+  })()`);
 }
 
 // ── 브라우저 흉내 ──────────────────────────────────────────────────────────
@@ -97,9 +145,26 @@ function createBrowser(base) {
   return { sandbox, run, els, logs };
 }
 
-export function parseExcel(xlsxPath, base = LIVE_BASE) {
+export function parseExcel(xlsxPath, base = LIVE_BASE, stdCostPath = null, overridePath = null) {
   const browser = createBrowser(base);
   const { sandbox, run, els } = browser;
+  // 단가 소스를 먼저 실어야 한다 — parseInventory가 재고금액을 계산할 때 이미 있어야 하기 때문.
+  // 우선순위: 정정표(이관점검) > 결산 표준원가 > 현재고 시트 금액.
+  let stdCost = null, priceOverride = null;
+  if (overridePath) {
+    priceOverride = readPriceOverride(browser, overridePath);
+    if (priceOverride) {
+      sandbox.__ov = priceOverride;
+      run('PRICE_OVERRIDE_INPUT=__ov;');
+    }
+  }
+  if (stdCostPath) {
+    stdCost = readStdCost(browser, stdCostPath);
+    if (stdCost) {
+      sandbox.__std = stdCost;
+      run('STD_COST_INPUT=__std;');
+    }
+  }
   sandbox.__file = {
     name: path.basename(xlsxPath),
     __binaryString: fs.readFileSync(xlsxPath).toString('binary')  // = FileReader.readAsBinaryString
@@ -115,7 +180,7 @@ export function parseExcel(xlsxPath, base = LIVE_BASE) {
   // 파서 경고는 handleUpload이 console.info('[SOP upload]', ...) 한 줄로 남긴다
   const parserNotes = (browser.logs.find(l => l.text.startsWith('[SOP upload]'))?.text || '')
     .replace('[SOP upload] ', '').split(' / ').filter(Boolean);
-  return { ...browser, uploaded, status: raw, missing, parserNotes };
+  return { ...browser, uploaded, status: raw, missing, parserNotes, stdCost, priceOverride };
 }
 
 export async function publishParsed(browser, { base = LIVE_BASE, password }) {

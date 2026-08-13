@@ -11,7 +11,8 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import {
-  ROOT, LIVE_BASE, readPassword, findLatestExcel, parseExcel, publishParsed, summarize
+  ROOT, LIVE_BASE, readPassword, findLatestExcel, findStdCostExcel, findPriceOverrideExcel,
+  parseExcel, publishParsed, summarize
 } from './lib/publish.mjs';
 
 const args = process.argv.slice(2);
@@ -47,9 +48,24 @@ if (!codeOnly) {
   const mins = Math.round((Date.now() - found.mtime) / 60000);
   say(path.relative(ROOT, found.path), `(${mins < 1 ? '방금' : mins < 60 ? mins + '분 전' : Math.round(mins / 60) + '시간 전'} 수정)`);
 
+  // 표준원가(재고자산 결산 파일)는 있으면 쓰고 없으면 넘어간다 — 없으면 재고금액이 옛 기준(보류분 누락)이 된다.
+  const stdFile = args.find(a => /--std=/.test(a))?.split('=')[1];
+  const stdFound = stdFile ? { path: path.resolve(ROOT, stdFile) } : findStdCostExcel();
+  if (stdFound && fs.existsSync(stdFound.path)) say(`표준원가 원본: ${path.relative(ROOT, stdFound.path)}`);
+  else say('⚠ 재고자산 결산 파일을 찾지 못했습니다 — 재고금액은 현재고 시트 금액 기준(보류재고 금액 누락)으로 계산됩니다');
+  const ovFile = args.find(a => /--override=/.test(a))?.split('=')[1];
+  const ovFound = ovFile ? { path: path.resolve(ROOT, ovFile) } : findPriceOverrideExcel();
+  if (ovFound && fs.existsSync(ovFound.path)) say(`단가 정정표: ${path.relative(ROOT, ovFound.path)}`);
+
   step(++n, total, '데이터 반영');
-  const browser = parseExcel(found.path, base);
+  const browser = parseExcel(
+    found.path, base,
+    stdFound && fs.existsSync(stdFound.path) ? stdFound.path : null,
+    ovFound && fs.existsSync(ovFound.path) ? ovFound.path : null
+  );
   const s = summarize(browser.uploaded);
+  if (browser.stdCost) say(`표준원가 ${browser.stdCost.mats.toLocaleString('ko-KR')}개 자재 적용 (${browser.stdCost.sheet})`);
+  if (browser.priceOverride) say(`단가 정정표 ${browser.priceOverride.mats.toLocaleString('ko-KR')}개 품목 우선 적용 (${browser.priceOverride.sheet})`);
   say(`기준일 ${s.baseLabel} · PSI ${s.psiRows.toLocaleString('ko-KR')}행 · 판매계획 ${s.salesPlanSkus.toLocaleString('ko-KR')}품목`);
   say(`PSI 월 헤더 ${Object.values(s.monthLabels).join(' / ') || '(없음)'}`);
   if (browser.missing) say(`⚠ 읽지 못한 시트: ${browser.missing} — 해당 화면은 이전 값이 남습니다`);

@@ -1883,7 +1883,10 @@ function parseNum(v){
 }
 function inventoryStatsText(stats){
   if(!stats) return '';
-  return `총 ${stats.totalRows.toLocaleString()}행 중 반영 ${stats.usedRows.toLocaleString()}행, 채널 공백 ${stats.skippedNoChannel.toLocaleString()}행, AGING 공백 ${stats.skippedNoAging.toLocaleString()}행, 금액 0/비숫자 ${stats.skippedNoAmount.toLocaleString()}행`;
+  const std=stats.stdMissing!=null
+    ? `, 표준원가 적용 ${stats.stdApplied.toLocaleString()}행 / 미매칭 ${stats.stdMissing.toLocaleString()}행(${(stats.stdMissingQty||0).toLocaleString()}개는 시트 금액 사용)`
+    : '';
+  return `총 ${stats.totalRows.toLocaleString()}행 중 반영 ${stats.usedRows.toLocaleString()}행, 채널 공백 ${stats.skippedNoChannel.toLocaleString()}행, AGING 공백 ${stats.skippedNoAging.toLocaleString()}행, 금액 0/비숫자 ${stats.skippedNoAmount.toLocaleString()}행${std}`;
 }
 function parseBaseLabel(ws){
   const cell=ws?.['AM2'];
@@ -1924,6 +1927,22 @@ function handleUpload(file){
       const result={};
       const warnings=[];
       const errors=[];
+      // 표준원가는 ① 이 파일 안의 자재수불 시트 → ② 배포 도구가 결산 파일에서 실어준 값
+      // → ③ 직전 업로드분(재업로드 때 원가 기준이 조용히 되돌아가는 것을 막는다) 순으로 잡는다.
+      // ③이 없으면 웹에서 월간 파일만 다시 올린 사람이 재고금액을 옛 기준으로 덮어써서
+      // 열람자마다 재고금액이 갈린다.
+      const stdSheet=wb.SheetNames.find(n=>String(n).replace(/\s/g,'').includes('자재수불')&&!String(n).includes('피벗'));
+      const stdFromFile=stdSheet?parseStdCostSheet(wb.Sheets[stdSheet]):null;
+      result.std_cost=stdFromFile||STD_COST_INPUT||UPLOADED?.std_cost||null;
+      STD_COST_INPUT=result.std_cost;
+      result.price_override=PRICE_OVERRIDE_INPUT||UPLOADED?.price_override||null;
+      PRICE_OVERRIDE_INPUT=result.price_override;
+      if(result.std_cost){
+        warnings.push(`표준원가 ${result.std_cost.mats.toLocaleString()}개 자재 반영 · 재고금액 = 수량 × 표준원가`);
+      }
+      if(result.price_override){
+        warnings.push(`단가 정정표 ${result.price_override.mats.toLocaleString()}개 품목 우선 적용`);
+      }
       const invSheet=findSheetName(wb,'현재고');
       if(invSheet){
         result.base_label=parseBaseLabel(wb.Sheets[invSheet]);
@@ -1957,9 +1976,20 @@ function handleUpload(file){
         result.trend_data=h.trend||{};
         result.hyunhwang_current_label=h.latestLabel||'당월';
         if(h.latestChAmt&&Object.keys(h.latestChAmt).length){
-          result.monthly_ch_amt={...(result.monthly_ch_amt||{}),[CURRENT_DETAIL_MONTH]:h.latestChAmt};
-          result.kpi_curr=h.latestKpi||result.kpi_curr;
-          warnings.push(`${trendSheet}: ${h.latestLabel} 당월 채널별 AGING 반영`);
+          // 당월 금액은 원장(현재고) 파싱이 성공했으면 원장 기준으로 통일한다.
+          // 현황 시트는 총계 스냅샷이라 품목별 표준원가를 적용할 수 없어서, 예전처럼 덮어쓰면
+          // 같은 화면에 매트릭스 87.95억 / KPI 80.43억이 동시에 뜬다(둘 다 같은 재고인데).
+          // 과거 월 추이(trend_data)는 현황 시트 그대로 쓴다 — 원장 스냅샷이 그 달치는 없기 때문.
+          // ⚠ sumNestedAging은 채널×구간 2단 맵을 받는다. monthly_ch_amt는 월 키가 하나 더 있는
+          //   3단이라 그대로 넘기면 항상 0이 나온다(그러면 조건이 늘 거짓이라 조용히 옛 동작으로 돌아감).
+          const ledgerOk=sumNestedAging(result.monthly_ch_amt?.[CURRENT_DETAIL_MONTH])>0;
+          if(ledgerOk){
+            warnings.push(`${trendSheet}: 당월 금액은 현재고 원장(표준원가) 기준을 사용 · 현황 스냅샷은 과거 추이에만 반영`);
+          }else{
+            result.monthly_ch_amt={...(result.monthly_ch_amt||{}),[CURRENT_DETAIL_MONTH]:h.latestChAmt};
+            result.kpi_curr=h.latestKpi||result.kpi_curr;
+            warnings.push(`${trendSheet}: ${h.latestLabel} 당월 채널별 AGING 반영`);
+          }
         }
         warnings.push(`${trendSheet}: ${Object.keys(result.trend_data||{}).length}개 현황 스냅샷 반영`);
       }
@@ -2115,7 +2145,7 @@ function parseInventory(ws){
            AVAIL:8,AVAIL_AMT:9,QC:10,QC_AMT:11,HOLD:13,HOLD_AMT:14};
   const ch_amt={},ch_delivery={},matrix={},matrix_delivery={};
   const kpi={'계':0,'환입':0,'6개월 미만':0,'7개월 미만':0,'9개월 미만':0,'12개월 미만':0,'유효기간 초과':0};
-  const stats={totalRows:data.length,usedRows:0,skippedNoChannel:0,skippedNoAging:0,skippedNoAmount:0};
+  const stats={totalRows:data.length,usedRows:0,skippedNoChannel:0,skippedNoAging:0,skippedNoAmount:0,stdApplied:0,stdMissing:0,stdMissingQty:0};
   data.forEach(row=>{
     const mat=row[C.MAT]; if(!mat) return;
     const name=String(row[C.NAME]||'');
@@ -2123,7 +2153,12 @@ function parseInventory(ws){
     const qc=Math.round(parseNum(row[C.QC]));      // 품질검사 (K열)
     const hd=Math.round(parseNum(row[C.HOLD]));    // 보류재고 (N열)
     const qty=av+qc+hd;                            // 리포트 수량 = 가용+품질+보류 합산
-    const amt=(parseNum(row[C.AVAIL_AMT])+parseNum(row[C.QC_AMT])+parseNum(row[C.HOLD_AMT]))/1e8; // 금액 = 가용+검사+보류 합산
+    // 금액: 표준원가가 있으면 수량 × 표준원가. 없으면 기존대로 금액 열 합산(가용+검사+보류).
+    // 보류재고는 금액 열이 항상 0이라, 표준원가 없이는 그 수량만큼 금액이 통째로 빠진다.
+    const std=getStdCost(mat);
+    const sheetAmt=(parseNum(row[C.AVAIL_AMT])+parseNum(row[C.QC_AMT])+parseNum(row[C.HOLD_AMT]))/1e8;
+    if(std>0) stats.stdApplied++; else {stats.stdMissing++; stats.stdMissingQty+=qty;}
+    const amt=std>0?qty*std/1e8:sheetAmt;
     const aoType=normalizeAgingBucket(row[C.AO]);
     const matType=String(row[C.AP]||'');
     const ch=String(row[C.CHANNEL]||'');
@@ -2485,6 +2520,68 @@ function parseSalesPlanSummaryRows(rows){
     }
   });
   return groups;
+}
+// ═══════════ 표준원가 (재고자산 결산 파일 · 자재수불 시트) ═══════════
+// 재고금액은 원래 현재고 시트의 금액 열(가용+검사+보류)을 그대로 썼는데, 보류재고는 수량만 있고
+// 금액이 전부 0으로 들어온다(26/8 파일 기준 167라인·32.7만개). 그래서 재고금액이 7.1억 과소평가되고,
+// '금액÷수량'으로 뽑는 원가단가도 91개 품목에서 심하게 희석됐다(예: 와다다곰 21원, 향남 마그네슘 232원).
+// → 표준원가가 있으면 재고금액 = 수량 × 표준원가로 계산한다. 26/8 검증: 향남 8건이 이관점검 파일과 전건 일치.
+// ⚠ 결산 파일은 월간 Aging 리포트와 별개 파일이다. 배포(tools/deploy.mjs)가 두 파일을 각각 찾아
+//    STD_COST_INPUT에 실어 주고, 없으면 기존 금액 열로 폴백한다(무회귀).
+let STD_COST_INPUT=null;
+function parseStdCostSheet(ws){
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  // 헤더 행을 값으로 찾는다 — 결산 파일은 위에 빈 행이 몇 개 붙어 있고 매달 개수가 달라진다.
+  const hIdx=rows.findIndex(r=>(r||[]).some(v=>String(v).trim()==='자재')&&(r||[]).some(v=>String(v).trim()==='표준원가'));
+  if(hIdx<0) return null;
+  const head=rows[hIdx].map(v=>String(v).trim());
+  const cMat=head.indexOf('자재'), cStd=head.indexOf('표준원가'), cPlant=head.indexOf('플랜트');
+  const byMat={};
+  let lines=0;
+  rows.slice(hIdx+1).forEach(r=>{
+    const mat=String(r[cMat]||'').trim();
+    if(!/^\d+$/.test(mat)) return;
+    const std=Number(r[cStd])||0;
+    if(std<=0) return;
+    lines++;
+    // 같은 자재가 플랜트별로 여러 줄 나온다. 재고금액 평가용이라 값이 갈리면 큰 쪽(보수적)을 쓴다.
+    if(!byMat[mat]||std>byMat[mat]) byMat[mat]=std;
+  });
+  const n=Object.keys(byMat).length;
+  return n?{byMat,mats:n,lines}:null;
+}
+// 품목별 단가 정정표 (횡성공장 이관 점검 파일 ②PSI 시트: 품목코드 / 실매출 / 원가).
+// SAP 표준원가가 횡성(9401) 코드에서 실제 원가의 1.6~3.6배로 잡혀 있어(9401367 5,924원 vs 실제 1,633원)
+// 결산 표준원가를 써도 안 고쳐진다. 사람이 정정한 이 표를 표준원가보다 우선한다.
+// ⚠ 열 위치를 고정하지 말 것 — 시트 범위가 B2부터라 rows[i][0]이 B열이다. 헤더 텍스트로 찾는다.
+let PRICE_OVERRIDE_INPUT=null;
+function parsePriceOverrideSheet(ws){
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  const hIdx=rows.findIndex(r=>(r||[]).some(v=>String(v).trim()==='품목코드')&&(r||[]).some(v=>String(v).trim()==='원가'));
+  if(hIdx<0) return null;
+  const head=rows[hIdx].map(v=>String(v).trim());
+  const cMat=head.indexOf('품목코드'), cCost=head.indexOf('원가'), cSales=head.indexOf('실매출');
+  const byMat={};
+  rows.slice(hIdx+1).forEach(r=>{
+    const mat=String(r[cMat]||'').trim();
+    if(!/^\d+$/.test(mat)||byMat[mat]) return;      // 같은 표가 아래에 한 번 더 반복되므로 첫 값만
+    const cost=Number(r[cCost])||0, sales=cSales>=0?Number(r[cSales])||0:0;
+    if(cost<=0&&sales<=0) return;
+    byMat[mat]={cost,sales};
+  });
+  const n=Object.keys(byMat).length;
+  return n?{byMat,mats:n}:null;
+}
+function getPriceOverride(mat){
+  const src=PRICE_OVERRIDE_INPUT||UPLOADED?.price_override;
+  return src?.byMat?.[String(mat).trim()]||null;
+}
+function getStdCost(mat){
+  const ov=getPriceOverride(mat);
+  if(ov?.cost>0) return ov.cost;                    // 정정표가 1순위
+  const src=STD_COST_INPUT||UPLOADED?.std_cost;
+  const v=src?.byMat?.[String(mat).trim()];
+  return v>0?v:0;
 }
 function parseCostSheet(ws){
   // 원가 시트: 1행=헤더, 2행~=데이터
@@ -5203,7 +5300,8 @@ function getPsiPriceMap(){
   const map={};
   [...(getPSIData()||[]),...(UPLOADED?.daiso_components||[])].forEach(d=>{
     const mat=String(d.mat||''); if(!mat||map[mat]) return;
-    const sales=Number(getUnitPrice(mat))||0;
+    const ov=getPriceOverride(mat);
+    const sales=ov?.sales>0?ov.sales:(Number(getUnitPrice(mat))||0);
     let cost=Number(costMap[mat])||0,src=cost>0?'현재고':'';
     if(!cost&&Array.isArray(d.componentCodes)&&d.componentCodes.length){
       let q=0,a=0;
