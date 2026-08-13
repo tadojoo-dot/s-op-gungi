@@ -1043,13 +1043,13 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
       <div class="archive-panel">
         <div>
           <div class="archive-title">S&amp;OP 월별 보관</div>
-          <div class="archive-copy">회의록은 <strong>기준월별로 따로 저장</strong>됩니다 — 새 달 엑셀을 올리면 그 달 회의록은 빈 상태로 시작하고 지난달 것은 그대로 남습니다. <strong>회의 월</strong>을 고르면 그 달 회의록이 뜨고, <strong>저장</strong>을 누르면 그 달로 저장·보관됩니다. 기본값은 PSI 첫 월(현재 기준월)입니다. 자동 저장은 하지 않으므로 지난달 내용이 다른 달로 새지 않습니다. 「이 달 입력 초기화」는 선택한 달의 입력값만 비웁니다.</div>
+          <div class="archive-copy">회의록은 <strong>기준월별로 따로 저장</strong>됩니다 — 새 달 엑셀을 올리면 그 달 회의록은 빈 상태로 시작하고 지난달 것은 그대로 남습니다. <strong>회의 월</strong>을 고르면 그 달 회의록이 뜨고, <strong>저장</strong>을 누르면 그 달로 저장·보관됩니다. 기본값은 PSI 첫 월(현재 기준월)입니다. 자동 저장은 하지 않으므로 지난달 내용이 다른 달로 새지 않습니다. 「초기화」는 선택한 달의 입력값만 비웁니다.</div>
           <div class="archive-copy" id="archiveAutoNote" style="margin-top:4px;font-weight:700;"></div>
         </div>
         <div class="archive-actions">
           <label style="font-size:11px;font-weight:800;color:var(--navy);">회의 월</label>
           <select id="meetingPeriodSelect" onchange="onMeetingPeriodChange()"></select>
-          <button class="btn-print" onclick="resetLiveMeetingState()">이 달 입력 초기화</button>
+          <button class="btn-print" onclick="resetLiveMeetingState()">초기화</button>
         </div>
         <div id="archiveResult" class="archive-result"></div>
       </div>
