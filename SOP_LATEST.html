@@ -245,6 +245,11 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .psi-tbl.monthly th.month-end{border-right:3px solid #fff;}
 .psi-tbl.monthly td.month-start{border-left:3px solid #8d95c9;}
 .psi-tbl.monthly td.month-end{border-right:3px solid #8d95c9;}
+.psi-tbl.monthly th.psi-sub{background:#e9edfb;color:#1D2783;font-weight:900;font-size:11.5px;border-top:2px solid #1D2783;border-bottom:2px solid #1D2783;white-space:nowrap;}
+.psi-tbl.monthly th.psi-sub.l{text-align:left;}
+.psi-tbl.monthly th.psi-sub.r{text-align:right;}
+.psi-tbl.monthly th.psi-sub.c{text-align:center;}
+.psi-tbl.monthly th.psi-sub.muted{color:#8189b8;font-weight:700;}
 .sp-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:0;}
 .sp-table th{font-size:11px;font-weight:900;}
 .sp-table td{font-size:11.5px;font-weight:700;}
@@ -5021,7 +5026,77 @@ function _psiSortKey(item,col){
   return 0;
 }
 
+// 필터 결과 소계. 헤더 바로 아래(thead 마지막 행)에 두면 sticky가 그대로 걸려 스크롤해도 따라온다.
+// ⚠ 재고일수는 절대 평균 내지 않는다 — Σ기말 ÷ Σ다음달계획 × 30 으로 다시 계산한다.
+//   재고 100개짜리와 30만개짜리를 같은 가중치로 평균 내면 숫자가 무의미해진다.
+// ⚠ 플랜트 분해·다이소 원본 뷰는 여러 행이 같은 수요(분모)와 3평판을 나눠 쓴다.
+//   그대로 더하면 분모가 중복 계상되므로 그 경우엔 '—'로 비운다 (보조 열을 비우는 것과 같은 이유).
+function renderPsiSubtotal(){
+  const tr=document.getElementById('psiSubtotalRow');
+  if(!tr) return;
+  const rows=(_psiState.data||[]).map(x=>x.d);
+  const overrides=getPsiSimBuy();
+  const sharedDemand=rows.some(d=>d._plantScoped||d._sharedDemand);
+  const sharedAvg3=rows.some(d=>d._plantScoped||d._sharedAvg3);
+  const amtMode=psiUnitMode!=='qty';
+  const per=PSI_MONTHS.map(()=>({begin:0,buy:0,plan:0,end:0,basisEnd:0,nextPlan:0,
+                                 beginA:0,buyA:0,planA:0,endA:0,basisEndA:0}));
+  let avg3Sum=0,noPrice=0;
+  rows.forEach(d=>{
+    const rowOv=overrides[d.mat]||{};
+    const priced=!amtMode||psiUnitPriceFor(d.mat)>0;
+    if(!priced) noPrice++;
+    avg3Sum+=Number(d.avg3)||0;
+    const src=d.daysPlanSource||d.monthlyPsi||d.sourceMonthlyPsi||{};
+    let prev=null;
+    PSI_MONTHS.forEach((m,i)=>{
+      const r=calcPsiMonth(d,m,prev,rowOv[m.key]!=null?rowOv[m.key]:null);
+      prev=r.end;
+      const a=per[i];
+      a.begin+=r.begin; a.buy+=r.buy; a.plan+=r.plan; a.end+=r.end;
+      const nk=psiNextMonthKey(m.key);
+      a.nextPlan+=nk?Number(src?.[nk]?.plan)||0:0;
+      const basis=m.progress&&!d._plantScoped?Number(d.er)||0:0;
+      a.basisEnd+=basis;
+      if(amtMode&&priced){
+        a.beginA+=psiAmtFromQty(r.begin,d.mat)||0;
+        a.buyA+=psiAmtFromQty(r.buy,d.mat)||0;
+        a.planA+=psiAmtFromQty(r.plan,d.mat)||0;
+        a.endA+=psiAmtFromQty(r.end,d.mat)||0;
+        a.basisEndA+=psiAmtFromQty(basis,d.mat)||0;
+      }
+    });
+  });
+  const val=(q,amt)=>amtMode?fmtPsiAmt(amt):fmtPsiInt(q);
+  const daysCell=(end,nextPlan,cls)=>{
+    if(sharedDemand) return `<th class="psi-sub muted ${cls}" title="플랜트 분해·다이소 원본 뷰는 여러 행이 같은 판매계획(분모)을 나눠 써서 합산이 성립하지 않습니다">—</th>`;
+    const days=psiDaysByNextPlan(end,nextPlan);
+    return `<th class="psi-sub c ${cls}" title="Σ기말재고 ${fmtPsiInt(end)} ÷ Σ다음달 판매계획 ${fmtPsiInt(nextPlan)} × 30 (행별 재고일수의 평균이 아닙니다)">${days==null?'산출불가':fmtPsiInt(days)+'일'}</th>`;
+  };
+  const label=`소계 · 표시 ${rows.length.toLocaleString('ko-KR')}건`
+    +(amtMode&&noPrice?` <span style="font-weight:700;color:#8a5c00;">· 단가없음 ${noPrice}건 제외</span>`:'');
+  let h=`<th colspan="5" class="psi-sub l">${label}</th>`;
+  h+=sharedAvg3
+    ?`<th class="psi-sub r muted" title="3평판은 통합코드 단위라 플랜트·하위코드가 나눠 쓰는 값입니다 — 더하면 중복 계상됩니다">—</th>`
+    :`<th class="psi-sub r">${fmtPsiInt(avg3Sum)}</th>`;
+  h+=`<th class="psi-sub c"></th>`;
+  PSI_MONTHS.forEach((m,i)=>{
+    const a=per[i];
+    h+=`<th class="psi-sub r month-start">${val(a.begin,a.beginA)}</th>`
+      +`<th class="psi-sub r">${val(a.buy,a.buyA)}</th>`
+      +`<th class="psi-sub r">${val(a.plan,a.planA)}</th>`
+      +`<th class="psi-sub r">${val(a.end,a.endA)}</th>`
+      +daysCell(a.end,a.nextPlan,m.progress?'':'month-end');
+    if(m.progress){
+      h+=`<th class="psi-sub r">${val(a.basisEnd,a.basisEndA)}</th>`
+        +daysCell(a.basisEnd,a.nextPlan,'month-end');
+    }
+  });
+  h+=`<th class="psi-sub c"></th>`;
+  tr.innerHTML=h;
+}
 function _renderPsiTbody(){
+  renderPsiSubtotal();
   const tbody=document.getElementById('psiTbody');
   if(!tbody) return;
   if(!_psiState.data.length){
@@ -5363,6 +5438,7 @@ function recalcPsiRow(mat){
     tds[bi+3].setAttribute('style',ec);tds[bi+3].textContent=fmtPsiInt(r.end);
     tds[bi+4].innerHTML=`<span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig)}`;
   });
+  renderPsiSubtotal();   // 입고를 조정하면 소계도 같이 움직여야 한다
 }
 function resetPsiBuyCell(btn){
   if(!requireAdminMode()) return;
@@ -5957,6 +6033,7 @@ function renderPSI(){
       <tr>
         ${months.map(m=>`<th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-end')" data-scol="${m.key}-end">${unitHd} ${si(m.key+'-end')}</th><th class="plan-hd c${m.progress?'':' month-end'}" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-days')" data-scol="${m.key}-days">재고일수 ${si(m.key+'-days')}</th>${m.progress?`<th class="plan-hd r" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisEnd')" data-scol="${m.key}-basisEnd">${unitHd} ${si(m.key+'-basisEnd')}</th><th class="plan-hd c month-end" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisDays')" data-scol="${m.key}-basisDays">재고일수 ${si(m.key+'-basisDays')}</th>`:''}`).join('')}
       </tr>
+      <tr id="psiSubtotalRow"></tr>
     </thead><tbody id="psiTbody"></tbody></table></div>`;
 
   _psiState.data=data.map(d=>{
