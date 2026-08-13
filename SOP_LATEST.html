@@ -891,6 +891,18 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
     <div class="tile"><div class="tile-label">보정 필요 품목 수</div><div class="tile-val navy" id="hitCorrectionKpi">—</div><div class="tile-sub" id="hitCorrectionSub">정상 제외 + 확인 필요</div></div>
   </div>
 
+  <div class="sec-hdr" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+    <span>월별 판매계획 오차율 트렌드 (WAPE)</span>
+    <span class="no-print" style="display:flex;gap:4px;">
+      <button id="hitTrendAmtBtn" class="aging-mode-btn on" onclick="setHitTrendUnit('amt',this)">금액</button>
+      <button id="hitTrendQtyBtn" class="aging-mode-btn" onclick="setHitTrendUnit('qty',this)">수량</button>
+    </span>
+  </div>
+  <div class="panel" style="margin-bottom:14px;">
+    <div class="cw hit-chart-frame"><canvas id="hitTrendChart"></canvas></div>
+    <div id="hitTrendNote" style="padding:0 14px 12px;font-size:10.5px;color:var(--muted);"></div>
+  </div>
+
   <div class="grid-5-5">
     <div>
       <div class="sec-hdr">
@@ -6107,11 +6119,41 @@ function currentHitSummary(){
 }
 
 // 오차율 트렌드 막대: 오차율분석 시트의 월별 실측 WAPE(Σ|실적-계획| / Σ계획).
-// 판매계획이 비어 있는 달(26/8 파일의 7월)은 산출 자체가 불가하므로 막대를 그리지 않는다
+// 판매계획이 비어 있는 달은 산출 자체가 불가하므로 막대를 그리지 않는다
 // — 0%로 그리면 "오차 없음"으로 읽혀서 완전히 반대 의미가 된다.
 // 채널 필터(fhc)를 그대로 태우므로 필터를 바꾸면 전 구간이 같이 반응한다.
-function buildHitTrend(){
+// 금액/수량 토글. 수량은 오차율분석 시트 [수량] 구획(AU~BF)이 채워져야 산출된다(`hit.qty.hasPlan`).
+let hitTrendUnit='amt';
+function hitTrendSource(){
   const hit=getHitData();
+  if(hitTrendUnit!=='qty') return hit;
+  return hit?.qty?.hasPlan?hit.qty:null;   // 수량 판매계획이 비면 null → 화면에서 '산출불가'로 안내
+}
+function setHitTrendUnit(unit,btn){
+  hitTrendUnit=unit;
+  document.querySelectorAll('#hitTrendAmtBtn,#hitTrendQtyBtn').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  renderHitTrend();
+}
+// 버튼 상태는 렌더 경로에서 맞춘다 — 업로드 경로에만 두면 업로드한 사람과 나머지 열람자의 화면이 갈린다
+// (CLAUDE.md의 chAchieveMonth 사례와 같은 계열). 선택 자체는 코드가 바꾸지 않고 비활성화만 한다.
+function syncHitTrendUnitUI(){
+  const amtBtn=document.getElementById('hitTrendAmtBtn');
+  const qtyBtn=document.getElementById('hitTrendQtyBtn');
+  const qtyOk=Boolean(getHitData()?.qty?.hasPlan);
+  if(amtBtn) amtBtn.classList.toggle('on',hitTrendUnit==='amt');
+  if(qtyBtn){
+    qtyBtn.classList.toggle('on',hitTrendUnit==='qty');
+    qtyBtn.disabled=!qtyOk;
+    qtyBtn.style.opacity=qtyOk?'':'.45';
+    qtyBtn.style.cursor=qtyOk?'':'not-allowed';
+    qtyBtn.title=qtyOk?'수량 기준 WAPE':'오차율분석 시트 [수량] 판매계획(AU~BF)이 비어 있어 수량 기준은 산출할 수 없습니다';
+  }
+  const note=document.getElementById('hitTrendNote');
+  if(note) note.textContent=`WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획(억원)'} 기준 · 아래 ‘판매계획 보정 대상 리스트’의 채널 필터가 같이 적용됩니다 · 판매계획이 비어 있는 달은 막대를 그리지 않습니다`;
+}
+function buildHitTrend(){
+  const hit=hitTrendSource();
   if(!hit?.byMonth) return null;
   const fhc=document.getElementById('fhc')?.value||'';
   const out=[];
@@ -6472,13 +6514,22 @@ function renderHitKpis(){
 }
 function renderHitTrend(){
   renderHitKpis();
+  syncHitTrendUnitUI();
   safeDestroyChart('hitTrendChart'); hitTrendChart=null;
   const canvas=document.getElementById('hitTrendChart');
   if(!canvas) return;
+  canvas.style.display='';
+  canvas.parentElement?.querySelector('.chart-offline')?.remove();
   if(!hasChart()){markChartOffline('hitTrendChart','Chart.js가 차단되어 오차율 트렌드 차트를 표시할 수 없습니다.');return;}
-  // 업로드 데이터가 있으면 실측 월별 WAPE, 없으면 기존 예시 상수(마지막 막대만 현재 요약값)
+  // 업로드 데이터가 있으면 실측 월별 WAPE, 없으면 기존 예시 상수(마지막 막대만 현재 요약값).
+  // 수량 모드는 폴백 상수가 금액 기준이라 쓰면 안 된다 — 산출 불가로 비워 둔다.
   const s=currentHitSummary();
-  const trend=buildHitTrend()||HIT_TREND_DEFAULT.map((d,i)=>i===HIT_TREND_DEFAULT.length-1?{...d,acc:s.acc}:d);
+  const built=buildHitTrend();
+  const trend=built||(hitTrendUnit==='qty'?null:HIT_TREND_DEFAULT.map((d,i)=>i===HIT_TREND_DEFAULT.length-1?{...d,acc:s.acc}:d));
+  if(!trend){
+    markChartOffline('hitTrendChart','수량 판매계획(오차율분석 시트 [수량] 구획)이 비어 있어 수량 기준 오차율은 산출할 수 없습니다.');
+    return;
+  }
   const hitTarget=50;
   const hitTargetLabelPlugin={
     id:'hitTargetLabel',
@@ -6500,7 +6551,7 @@ function renderHitTrend(){
     type:'bar',
     plugins:[ChartDataLabels,hitTargetLabelPlugin],
     data:{labels:trend.map(d=>d.m),datasets:[
-      {label:'판매계획 오차율 (WAPE)',data:trend.map(d=>d.acc),borderColor:'#C46B4D',backgroundColor:'#C46B4D',
+      {label:`판매계획 오차율 · ${hitTrendUnit==='qty'?'수량':'금액'} 기준 (WAPE)`,data:trend.map(d=>d.acc),borderColor:'#C46B4D',backgroundColor:'#C46B4D',
        borderWidth:0,borderRadius:5,borderSkipped:false,barPercentage:.42,categoryPercentage:.55,maxBarThickness:34,
        datalabels:{anchor:'end',align:'top',offset:4,color:'#C46B4D',font:{size:12,weight:'900'},formatter:v=>v.toFixed(1)+'%'}},
       {type:'line',label:'목표 50%',data:trend.map(()=>hitTarget),borderColor:'#1D2783',borderWidth:4,borderDash:[8,4],pointRadius:0,
