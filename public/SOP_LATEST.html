@@ -707,6 +707,26 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
     </div>
   </div>
 
+  <!-- ③-2 품목군별 전월대비 (전월 스냅샷이 있을 때만 표시) -->
+  <div class="sec-card" id="pkgDeltaCard" style="display:none;">
+    <div class="sec-head">
+      <div class="sec-tw"><div class="sec-bar"></div><div>
+        <div class="sec-title">품목군별 전월대비 재고 증감</div>
+        <div class="sec-sub" id="pkgDeltaSub"></div>
+      </div></div>
+      <div class="no-print" style="display:flex;gap:6px;align-items:center;">
+        <button class="aging-mode-btn on" id="pkgDeltaBtnAmt" onclick="setPkgDeltaUnit('amt')">금액</button>
+        <button class="aging-mode-btn" id="pkgDeltaBtnQty" onclick="setPkgDeltaUnit('qty')">수량</button>
+      </div>
+    </div>
+    <div class="sec-body flush" style="overflow-x:auto;">
+      <table class="base" id="pkgDeltaTbl"></table>
+      <div style="margin:8px 16px 12px;font-size:10.5px;color:var(--muted);">
+        ※ 품목군은 기준정보 시트의 자재코드별 품목군 · 금액은 재고Aging리포트와 같은 기준(가용+품질검사+보류 합산)
+      </div>
+    </div>
+  </div>
+
   <!-- ④ M+N Sensing -->
   <div class="sec-card">
     <div class="sec-head">
@@ -1631,7 +1651,7 @@ function syncAchieveMonthToData(){
 }
 function renderAllScreens(){
   updateHdrBaseYm();
-  renderKPICards();renderChAgingChart();renderTrendChart();renderMatrix();
+  renderKPICards();renderChAgingChart();renderTrendChart();renderMatrix();renderPkgDelta();
   renderSensing(parseInt(document.getElementById('monthSlider').value));
   renderSP();
   renderPSI();renderPSIChart();renderPSIRiskChart();
@@ -2017,11 +2037,14 @@ function handleUpload(file){
       if(result.price_override){
         warnings.push(`단가 정정표 ${result.price_override.mats.toLocaleString()}개 품목 우선 적용`);
       }
+      // 품목군은 현재고 시트에 없고 기준정보 시트에만 있다 → parseInventory보다 먼저 읽어서 넘긴다
+      const pkgRefSheet=findSheetName(wb,'기준정보');
+      const pkgMap=pkgRefSheet?parsePkgGroupMap(wb.Sheets[pkgRefSheet]):null;
       const invSheet=findSheetName(wb,'현재고');
       if(invSheet){
         result.base_label=parseBaseLabel(wb.Sheets[invSheet]);
         result.base_yearmonth=parseBaseYearMonth(wb.Sheets[invSheet]);
-        const p=parseInventory(wb.Sheets[invSheet]);
+        const p=parseInventory(wb.Sheets[invSheet],pkgMap);
         const totalAmt=sumNestedAging(p.ch_amt);
         if(totalAmt<=0){
           warnings.push(`${invSheet}: 원장 기준 SKU 드릴다운 금액 0원 (${inventoryStatsText(p.stats)}) · 당월 AGING 차트는 현황 시트 기준으로 반영`);
@@ -2032,6 +2055,18 @@ function handleUpload(file){
         result.monthly_mx_delivery={'6/1':p.matrix_delivery};
         result.kpi_curr=p.kpi;
           result.inventory_stats=p.stats;
+          result.pkg_snapshot=buildPkgSnapshot(p.pkgAgg,result.base_label,result.base_yearmonth);
+          // 전월 스냅샷은 배포 도구가 실어준다(파일이 하나뿐인 웹 업로드에는 없음).
+          // 재업로드로 조용히 사라지지 않게 직전 값을 이어받되, 반드시 '더 이전 달'이어야 한다.
+          // ⚠ 같지 않은지만 보면 안 된다 — 지난달 파일을 다시 올릴 때 이번 달을 '전월'로 그려 증감 부호가 뒤집힌다.
+          // yearmonth는 "2026.08" 형식이라 문자열 비교로 월 순서가 그대로 나온다.
+          const carried=PKG_PREV_INPUT||UPLOADED?.pkg_prev||null;
+          result.pkg_prev=(carried&&carried.yearmonth&&result.base_yearmonth&&carried.yearmonth<result.base_yearmonth)?carried:null;
+          if(result.pkg_snapshot){
+            const nPkg=Object.keys(result.pkg_snapshot.byPkg).length;
+            const unmapped=result.pkg_snapshot.byPkg['미분류'];
+            warnings.push(`품목군 ${nPkg}개 집계${unmapped?` · 미분류 ${unmapped.skus.length}개 SKU ${unmapped.a.toFixed(2)}억`:''}`);
+          }
           warnings.push(`${invSheet}: ${p.stats.usedRows.toLocaleString()}행 반영 / ${totalAmt.toFixed(1)}억원`);
         }
       }else{
@@ -2199,7 +2234,10 @@ function handleUpload(file){
   reader.readAsBinaryString(file);
 }
 
-function parseInventory(ws){
+// pkgMap({자재코드:품목군})을 주면 품목군별 집계(pkgAgg)를 같이 만든다.
+// ⚠ 집계는 반드시 여기(원본 amt)에서 해야 한다. 매트릭스의 sku.a는 0.1백만원으로 반올림된 값이라
+//    493행을 다시 더하면 총액이 화면(80.4292억)과 조용히 어긋난다.
+function parseInventory(ws,pkgMap){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
   const data=rows.slice(2); // 3행부터 (2행=헤더)
   // 0-indexed 컬럼: B=1,C=2,AS=44,AT=45,AO=40,AP=41,AV=47,AK=36,AZ=51
@@ -2207,6 +2245,7 @@ function parseInventory(ws){
   const C={MAT:1,NAME:2,QTY:44,AMT:45,AO:40,AP:41,CHANNEL:47,REM:36,AZ:51,CHDL_MO:50,
            AVAIL:8,AVAIL_AMT:9,QC:10,QC_AMT:11,HOLD:13,HOLD_AMT:14};
   const ch_amt={},ch_delivery={},matrix={},matrix_delivery={};
+  const pkgAgg={};
   const kpi={'계':0,'환입':0,'6개월 미만':0,'7개월 미만':0,'9개월 미만':0,'12개월 미만':0,'유효기간 초과':0};
   const stats={totalRows:data.length,usedRows:0,skippedNoChannel:0,skippedNoAging:0,skippedNoAmount:0};
   data.forEach(row=>{
@@ -2229,6 +2268,14 @@ function parseInventory(ws){
     if(!aoType){stats.skippedNoAging++; return;}
     if(qty===0 && amt===0){stats.skippedNoAmount++; return;} // 보류/품질(금액 0)이라도 수량 있으면 포함
     stats.usedRows++;
+    if(pkgMap){
+      const pkg=pkgMap[String(mat)]||'미분류';
+      const g=pkgAgg[pkg]||(pkgAgg[pkg]={a:0,q:0,skus:{}});
+      g.a+=amt; g.q+=qty;
+      const sk=g.skus[mat]||(g.skus[mat]={n:name,a:0,q:0});
+      if(!sk.n&&name) sk.n=name;
+      sk.a+=amt; sk.q+=qty;
+    }
     kpi['계']+=amt;
     if(aoType==='환입') kpi['환입']+=amt;
     if(aoType==='6개월 미만') kpi['6개월 미만']+=amt;
@@ -2257,7 +2304,51 @@ function parseInventory(ws){
       matrix_delivery[ch][azType].s.push(sku);
     }
   });
-  return{ch_amt,ch_delivery,matrix,matrix_delivery,kpi,stats};
+  return{ch_amt,ch_delivery,matrix,matrix_delivery,kpi,stats,pkgAgg};
+}
+
+// 기준정보 시트 → {자재코드:품목군}
+// ⚠ 헤더를 '값'으로 찾는다. 이 시트는 범위가 A2부터라 rows[0]이 이미 헤더고, 자재코드/품목군 열이
+//    (자재코드 G·품목군 M) / (자재코드 U·품목군 AA) 두 블록으로 반복된다. 열 번호를 박으면 조용히 절반이 빈다.
+function parsePkgGroupMap(ws){
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  let hr=-1;
+  for(let i=0;i<Math.min(10,rows.length);i++){
+    if((rows[i]||[]).some(c=>String(c).trim()==='품목군')){hr=i;break;}
+  }
+  if(hr<0) return null;
+  const H=rows[hr]||[];
+  const pairs=[];
+  for(let c=0;c<H.length;c++){
+    if(String(H[c]).trim()!=='자재코드') continue;
+    for(let d=c+1;d<H.length;d++){
+      if(String(H[d]).trim()==='자재코드') break;          // 다음 블록으로 넘어감
+      if(String(H[d]).trim()==='품목군'){pairs.push([c,d]);break;}
+    }
+  }
+  if(!pairs.length) return null;
+  const map={};
+  rows.slice(hr+1).forEach(r=>{
+    if(!r) return;
+    pairs.forEach(([ci,pi])=>{
+      const code=String(r[ci]??'').trim(), pkg=String(r[pi]??'').trim();
+      if(code&&pkg&&!map[code]) map[code]=pkg;
+    });
+  });
+  return Object.keys(map).length?map:null;
+}
+
+// 품목군 집계를 화면·비교용 스냅샷으로 정규화한다 (전월분도 같은 함수를 거쳐야 두 달이 같은 기준이 된다)
+function buildPkgSnapshot(pkgAgg,label,yearmonth){
+  if(!pkgAgg||!Object.keys(pkgAgg).length) return null;
+  const byPkg={}; let ta=0,tq=0;
+  Object.entries(pkgAgg).forEach(([pkg,g])=>{
+    const skus=Object.entries(g.skus).map(([m,s])=>({m,n:s.n,a:s.a,q:s.q}))
+      .sort((x,y)=>y.a-x.a);
+    byPkg[pkg]={a:g.a,q:g.q,skus};
+    ta+=g.a; tq+=g.q;
+  });
+  return {label:label||'',yearmonth:yearmonth||'',total:{a:ta,q:tq},byPkg};
 }
 
 function normalizeAgingBucket(v){
@@ -2598,6 +2689,9 @@ function parseSalesPlanSummaryRows(rows){
 // ⚠ 결산 파일은 월간 Aging 리포트와 별개 파일이다. 배포(tools/deploy.mjs)가 두 파일을 각각 찾아
 //    STD_COST_INPUT에 실어 주고, 없으면 기존 금액 열로 폴백한다(무회귀).
 let STD_COST_INPUT=null;
+// 전월 품목군 스냅샷. 대시보드는 엑셀 한 개만 파싱하므로 전월 숫자를 만들 수 없다 —
+// 배포 도구(tools/lib/publish.mjs)가 전월 Aging 파일을 한 번 더 파싱해서 여기에 실어준다.
+let PKG_PREV_INPUT=null;
 function parseStdCostSheet(ws){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
   // 헤더 행을 값으로 찾는다 — 결산 파일은 위에 빈 행이 몇 개 붙어 있고 매달 개수가 달라진다.
@@ -4136,6 +4230,109 @@ function drilldown(ch, cat){
   panel.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function closeDrill(){activeCell=null;renderMatrix();document.getElementById('drilldown').classList.remove('show');}
+
+// ═══════════ 품목군별 전월대비 재고 증감 ══════════════════════
+// 전월 숫자는 UPLOADED.pkg_prev — 배포 도구가 전월 Aging 파일을 한 번 더 파싱해 실어준 스냅샷이다.
+// 없으면 카드를 통째로 숨긴다(웹에서 파일 하나만 올린 경우). ⚠ 없다고 당월 값으로 대신 그리지 말 것.
+let pkgDeltaUnit='amt';
+const _pkgDeltaOpen=new Set();
+function setPkgDeltaUnit(u){
+  pkgDeltaUnit=u;
+  const a=document.getElementById('pkgDeltaBtnAmt'),q=document.getElementById('pkgDeltaBtnQty');
+  if(a) a.classList.toggle('on',u==='amt');
+  if(q) q.classList.toggle('on',u==='qty');
+  renderPkgDelta();
+}
+function togglePkgDeltaRow(pkg){
+  if(_pkgDeltaOpen.has(pkg)) _pkgDeltaOpen.delete(pkg); else _pkgDeltaOpen.add(pkg);
+  renderPkgDelta();
+}
+function _pkgVal(o){return !o?0:(pkgDeltaUnit==='amt'?(o.a||0):(o.q||0));}
+function _pkgFmt(v){
+  return pkgDeltaUnit==='amt'
+    ? (Math.round(v*100)/100).toFixed(2)
+    : Math.round(v).toLocaleString();
+}
+function _pkgFmtDiff(v){
+  const s=_pkgFmt(Math.abs(v));
+  if(Math.abs(v)<(pkgDeltaUnit==='amt'?0.005:0.5)) return '0';
+  return (v>0?'+':'−')+s;
+}
+function _pkgDiffCls(v){
+  const eps=pkgDeltaUnit==='amt'?0.005:0.5;
+  return v>eps?'style="color:#D64545;font-weight:800;"':(v<-eps?'style="color:#1D6F42;font-weight:800;"':'style="color:var(--muted);"');
+}
+// 증감률은 전월이 0이면 정의되지 않는다 — 0으로 나눠 Infinity를 찍지 말고 '신규'로 표시한다
+function _pkgRate(p,c){
+  const eps=pkgDeltaUnit==='amt'?0.005:0.5;
+  if(Math.abs(p)<eps) return Math.abs(c)<eps?'—':'신규';
+  if(Math.abs(c)<eps) return '소진';
+  return ((c-p)/Math.abs(p)*100).toFixed(0)+'%';
+}
+function renderPkgDelta(){
+  const card=document.getElementById('pkgDeltaCard');
+  const tbl=document.getElementById('pkgDeltaTbl');
+  if(!card||!tbl) return;
+  const cur=UPLOADED?.pkg_snapshot, prev=UPLOADED?.pkg_prev;
+  if(!cur?.byPkg||!prev?.byPkg){card.style.display='none';return;}
+  card.style.display='';
+  const unitTxt=pkgDeltaUnit==='amt'?'억원':'개';
+  const pLab=prev.label||'전월', cLab=cur.label||'당월';
+  const keys=[...new Set([...Object.keys(prev.byPkg),...Object.keys(cur.byPkg)])];
+  const rows=keys.map(k=>{
+    const p=_pkgVal(prev.byPkg[k]), c=_pkgVal(cur.byPkg[k]);
+    return {k,p,c,d:c-p};
+  }).sort((x,y)=>y.d-x.d);
+  const tp=_pkgVal(prev.total), tc=_pkgVal(cur.total), td=tc-tp;
+  const sub=document.getElementById('pkgDeltaSub');
+  if(sub) sub.textContent=`전월(${pLab}) → 당월(${cLab}) · 전체 ${_pkgFmt(tp)} → ${_pkgFmt(tc)} ${unitTxt} (${_pkgFmtDiff(td)}) · 품목군 행을 클릭하면 SKU가 증감 큰 순으로 펼쳐집니다`;
+  let h=`<colgroup><col style="width:200px"><col style="width:120px"><col style="width:120px"><col style="width:120px"><col style="width:90px"><col style="width:110px"></colgroup>
+  <thead><tr>
+    <th class="l">품목군 / SKU</th>
+    <th class="r">전월 ${pLab}</th><th class="r">당월 ${cLab}</th>
+    <th class="r">증감</th><th class="r">증감률</th><th class="r">증가 기여율</th>
+  </tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const open=_pkgDeltaOpen.has(r.k);
+    // 기여율은 '전체가 늘어난 몫을 누가 얼마나 차지했나'라서 늘어난 행에만 의미가 있다
+    const share=(td>0&&r.d>0)?`${(r.d/td*100).toFixed(1)}%`:'—';
+    h+=`<tr style="cursor:pointer;background:${open?'#eef2ff':'#fff'};" onclick="togglePkgDeltaRow('${String(r.k).replace(/'/g,"\\'")}')">
+      <td class="l" style="font-weight:800;color:var(--navy);">${open?'▾':'▸'} ${htmlSafe(r.k)}</td>
+      <td class="r">${_pkgFmt(r.p)}</td><td class="r">${_pkgFmt(r.c)}</td>
+      <td class="r" ${_pkgDiffCls(r.d)}>${_pkgFmtDiff(r.d)}</td>
+      <td class="r">${_pkgRate(r.p,r.c)}</td>
+      <td class="r" style="font-weight:${share==='—'?'400':'800'};">${share}</td>
+    </tr>`;
+    if(!open) return;
+    const pm=new Map((prev.byPkg[r.k]?.skus||[]).map(s=>[String(s.m),s]));
+    const cm=new Map((cur.byPkg[r.k]?.skus||[]).map(s=>[String(s.m),s]));
+    const mats=[...new Set([...pm.keys(),...cm.keys()])];
+    const sk=mats.map(m=>{
+      const p=_pkgVal(pm.get(m)), c=_pkgVal(cm.get(m));
+      return {m,n:(cm.get(m)||pm.get(m))?.n||'',p,c,d:c-p};
+    }).sort((x,y)=>y.d-x.d);
+    sk.forEach(s=>{
+      const sShare=(r.d>0&&s.d>0)?`${(s.d/r.d*100).toFixed(1)}%`:'—';
+      h+=`<tr style="background:#fafbff;">
+        <td class="l" style="padding-left:30px;font-size:11.5px;">
+          <span style="color:var(--muted);">${htmlSafe(s.m)}</span> ${htmlSafe(s.n)}</td>
+        <td class="r" style="font-size:11.5px;">${_pkgFmt(s.p)}</td>
+        <td class="r" style="font-size:11.5px;">${_pkgFmt(s.c)}</td>
+        <td class="r" style="font-size:11.5px;" ${_pkgDiffCls(s.d)}>${_pkgFmtDiff(s.d)}</td>
+        <td class="r" style="font-size:11.5px;">${_pkgRate(s.p,s.c)}</td>
+        <td class="r" style="font-size:11.5px;color:var(--muted);">${sShare}</td>
+      </tr>`;
+    });
+  });
+  h+=`</tbody><tfoot><tr style="background:#F7F8FA;">
+    <td class="l" style="font-weight:900;color:var(--navy);">합계</td>
+    <td class="r" style="font-weight:800;">${_pkgFmt(tp)}</td>
+    <td class="r" style="font-weight:800;">${_pkgFmt(tc)}</td>
+    <td class="r" ${_pkgDiffCls(td)}>${_pkgFmtDiff(td)}</td>
+    <td class="r" style="font-weight:800;">${_pkgRate(tp,tc)}</td>
+    <td class="r">—</td></tr></tfoot>`;
+  tbl.innerHTML=h;
+}
 
 // ─ Aging 드릴다운 정렬 ─
 function sortDDCol(col){

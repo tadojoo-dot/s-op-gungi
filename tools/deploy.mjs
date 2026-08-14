@@ -6,13 +6,15 @@
 //   npm run deploy -- --code-only        엑셀 없이 코드 변경만 배포
 //   npm run deploy -- --data-only        코드 배포 없이 데이터만 반영
 //   npm run deploy -- --dry-run          아무것도 올리지 않고 파싱 결과만 확인
+//   npm run deploy -- --prev=파일.xlsx    품목군 전월대비 표의 전월 파일을 직접 지정
+//                                        (기본: 리포에서 기준월이 한 달 앞선 Aging 파일 → 없으면 라이브 KV의 직전 달)
 import { execFileSync } from 'child_process';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import {
   ROOT, LIVE_BASE, readPassword, findLatestExcel, findStdCostExcel, findPriceOverrideExcel,
-  parseExcel, publishParsed, summarize
+  findPrevAgingExcel, readPrevPkgSnapshot, readLivePkgSnapshot, parseExcel, publishParsed, summarize
 } from './lib/publish.mjs';
 
 const args = process.argv.slice(2);
@@ -57,17 +59,49 @@ if (!codeOnly) {
   const ovFound = ovFile ? { path: path.resolve(ROOT, ovFile) } : findPriceOverrideExcel();
   if (ovFound && fs.existsSync(ovFound.path)) say(`단가 정정표: ${path.relative(ROOT, ovFound.path)}`);
 
+  // 전월 Aging 파일 — 품목군별 전월대비 표에만 쓴다. 없으면 그 표만 안 보인다(나머지는 무영향).
+  const prevFile = args.find(a => /--prev=/.test(a))?.split('=')[1];
+  const prevFound = prevFile ? { path: path.resolve(ROOT, prevFile) } : findPrevAgingExcel(found.path);
+  let prevPkg = null;
+  if (prevFound && fs.existsSync(prevFound.path)) {
+    say(`전월 Aging 원본: ${path.relative(ROOT, prevFound.path)} (품목군 전월대비용)`);
+    try {
+      prevPkg = readPrevPkgSnapshot(prevFound.path, base);
+      if (prevPkg) say(`전월 기준일 ${prevPkg.label} · 품목군 ${Object.keys(prevPkg.byPkg).length}개 · 합계 ${prevPkg.total.a.toFixed(2)}억`);
+      else say('⚠ 전월 파일에서 품목군 집계를 얻지 못했습니다 — 전월대비 표는 표시되지 않습니다');
+    } catch (e) {
+      say(`⚠ 전월 파일 파싱 실패(${String(e.message || e).slice(0, 80)}) — 전월대비 표만 생략합니다`);
+    }
+  }
+  if (!prevPkg) {
+    // 옛 엑셀을 안 들고 있어도 되게, 지금 라이브에 올라가 있는 달을 전월로 쓴다 (업로드 전에 읽어야 함)
+    try {
+      prevPkg = await readLivePkgSnapshot(base);
+      if (prevPkg) say(`전월 스냅샷을 라이브에서 가져왔습니다 (${prevPkg.yearmonth} 기준일 ${prevPkg.label} · ${prevPkg.total.a.toFixed(2)}억)`);
+      else say('⚠ 전월 Aging 파일도 라이브 스냅샷도 없습니다 — 품목군 전월대비 표는 표시되지 않습니다');
+    } catch (e) {
+      say(`⚠ 라이브 스냅샷 확인 실패(${String(e.message || e).slice(0, 60)}) — 전월대비 표만 생략합니다`);
+    }
+  }
+
   step(++n, total, '데이터 반영');
   const browser = parseExcel(
     found.path, base,
     stdFound && fs.existsSync(stdFound.path) ? stdFound.path : null,
-    ovFound && fs.existsSync(ovFound.path) ? ovFound.path : null
+    ovFound && fs.existsSync(ovFound.path) ? ovFound.path : null,
+    prevPkg
   );
   const s = summarize(browser.uploaded);
   if (browser.stdCost) say(`표준원가 ${browser.stdCost.mats.toLocaleString('ko-KR')}개 자재 적용 (${browser.stdCost.sheet})`);
   if (browser.priceOverride) say(`단가 정정표 ${browser.priceOverride.mats.toLocaleString('ko-KR')}개 품목 우선 적용 (${browser.priceOverride.sheet})`);
   say(`기준일 ${s.baseLabel} · PSI ${s.psiRows.toLocaleString('ko-KR')}행 · 판매계획 ${s.salesPlanSkus.toLocaleString('ko-KR')}품목`);
   say(`PSI 월 헤더 ${Object.values(s.monthLabels).join(' / ') || '(없음)'}`);
+  if (browser.uploaded.pkg_prev) {
+    const c = browser.uploaded.pkg_snapshot, p = browser.uploaded.pkg_prev;
+    say(`품목군 전월대비 ${p.label} ${p.total.a.toFixed(2)}억 → ${c.label} ${c.total.a.toFixed(2)}억 (${(c.total.a - p.total.a >= 0 ? '+' : '') + (c.total.a - p.total.a).toFixed(2)}억)`);
+  } else if (prevPkg) {
+    say('⚠ 전월 스냅샷이 당월과 같은 기준월이라 버렸습니다 — 전월대비 표는 표시되지 않습니다');
+  }
   if (browser.missing) say(`⚠ 읽지 못한 시트: ${browser.missing} — 해당 화면은 이전 값이 남습니다`);
   browser.parserNotes.filter(t => /없음|오류|불일치|누락/.test(t)).forEach(t => say('⚠', t));
 

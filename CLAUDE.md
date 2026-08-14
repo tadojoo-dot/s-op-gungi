@@ -113,6 +113,7 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 | 화면/기능 | 함수 |
 |---|---|
 | ① 재고 Aging 매트릭스 + 드릴다운 | `renderMatrix`, `drilldown`, `_renderDDTbody` |
+| ① 품목군별 전월대비 재고 증감 (+SKU 드릴다운) | `renderPkgDelta`, `togglePkgDeltaRow`, `setPkgDeltaUnit` — 아래 "품목군 전월대비" 참고 |
 | 📡 Aging Sensing (M+N 예측) | `renderSensing`, `projectSensingInventory`, `computeSensInbound`(PSI 입고, 원가단가 기준) |
 | SKU 상세 팝업(라인차트, 실적vs계획) | `renderSkuDetailModal` — 배지: `diffVal`/`diffPos` 3번째 dataset |
 | ② PSI 시뮬레이션 탭 | `renderPSI`, `_renderPsiTbody`, `calcPsiMonth` (건드리지 말 것 — 사용자가 최소화 지시) |
@@ -147,6 +148,24 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 구현 통로 두 개 (평소엔 `undefined`라 기존 동작 무영향):
 - `d.daysPlanSource` → `psiDaysForRow`가 분모를 다른 행에서 가져오게 함
 - `d.sigByMonth` → `calcPsiMonth`가 신호등을 통합 기준으로 판정하게 함
+
+## 품목군 전월대비 (2026-08-14 신설)
+
+**대시보드는 엑셀을 한 개만 파싱하므로 전월 숫자를 스스로 만들 수 없다.** 그래서 배포 도구가 전월분을 실어준다.
+
+- **품목군은 `현재고` 시트에 없다** — `기준정보` 시트에 자재코드별로 있다(`parsePkgGroupMap`).
+  ⚠ 이 시트는 범위가 `A2`부터라 `rows[0]`이 이미 헤더고, `자재코드/품목군` 열 쌍이 **두 블록으로 반복**된다(G·M / U·AA).
+  헤더를 값으로 찾아야 하고, 열 번호를 박으면 조용히 절반이 빈다.
+- **집계는 `parseInventory` 안에서 한다**(`pkgAgg`). ⚠ 매트릭스의 `sku.a`는 0.1백만원으로 반올림된 값이라
+  그걸 다시 더하면 총액이 화면(80.4292억)과 어긋난다. 반드시 원본 `amt`로 더할 것.
+- `result.pkg_snapshot` = 당월(모든 경로에서 생성) / `result.pkg_prev` = 전월(배포 도구만 채움).
+  둘 다 있어야 카드가 보이고, 없으면 `renderPkgDelta`가 카드를 숨긴다. **없다고 당월 값으로 대신 그리지 말 것.**
+- 전월 소스 우선순위 (`tools/deploy.mjs`): ① `--prev=` ② 리포에서 **파일명 기준월이 한 달 앞선** Aging 파일
+  (`findPrevAgingExcel` — ⚠ "두 번째로 최근인 파일"로 집으면 같은 달 v1.1/v1.4를 전월로 오인한다)
+  ③ 라이브 KV의 `pkg_snapshot`(`readLivePkgSnapshot` — **반드시 `publishParsed` 전에** 읽을 것, 올린 뒤엔 당월로 덮인다)
+- ⚠ `handleUpload`의 가드는 `carried.yearmonth < result.base_yearmonth` — **같은지만 보면 안 된다.**
+  지난달 파일을 다시 올릴 때 이번 달을 '전월'로 그려 증감 부호가 통째로 뒤집힌다.
+- 금액은 재고 Aging과 같은 기준(현재고 시트 금액, 표준원가 재평가 안 함)이라 전월·당월이 같은 방식으로 계산된다.
 
 ## 확립된 시각 패턴
 - **차이(diff) 배지**: 초록(`#33512E`)/빨강(`#D64545`) 배경 + 흰 텍스트 + `ctx.roundRect`로 둥근 모서리. `▲+`/`▼` 접두사. Chart.js `afterDraw` 플러그인으로 캔버스에 직접 그림 (Chart.js datalabels의 `backgroundColor`+`borderRadius` 조합도 동일 효과, `renderSkuDetailModal`의 3번째 dataset 참고).

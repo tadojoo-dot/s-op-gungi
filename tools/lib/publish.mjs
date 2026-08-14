@@ -59,6 +59,48 @@ export function findPriceOverrideExcel(dir = ROOT) {
   return listExcels(dir).find(f => OVERRIDE_RE.test(f.name)) || null;
 }
 
+// 파일명에서 기준월을 뽑는다: "26년 8월 건기식 Aging 리포트 260813 v1.4.xlsx" → 2608
+function agingMonthKey(name) {
+  const m = String(name).match(/(\d{2})\s*년\s*(\d{1,2})\s*월/);
+  return m ? Number(m[1]) * 100 + Number(m[2]) : null;
+}
+
+// 전월 Aging 파일. 품목군별 전월대비 표에만 쓰이고, 없으면 그 표만 숨긴다(무회귀).
+// ⚠ "두 번째로 최근인 Aging 파일"로 집으면 안 된다 — 같은 달 v1.1/v1.4가 같이 있으면 그걸 전월로 오인한다.
+//    파일명의 기준월이 현재 파일보다 앞선 것 중 가장 최근(=가장 가까운 달)을 고른다.
+export function findPrevAgingExcel(currentPath, dir = ROOT) {
+  const curKey = agingMonthKey(path.basename(currentPath));
+  const cands = listExcels(dir)
+    .filter(f => AGING_RE.test(f.name) && !STDCOST_RE.test(f.name) && !OVERRIDE_RE.test(f.name))
+    .filter(f => path.resolve(f.path) !== path.resolve(currentPath))
+    .map(f => ({ ...f, key: agingMonthKey(f.name) }))
+    .filter(f => f.key !== null);
+  if (curKey === null) return null;
+  const earlier = cands.filter(f => f.key < curKey).sort((a, b) => b.key - a.key || b.mtime - a.mtime);
+  return earlier[0] || null;
+}
+
+// 전월 파일에서 품목군 스냅샷만 뽑는다. 파서를 새로 쓰지 않고 handleUpload을 그대로 한 번 더 돌린다.
+// 표준원가/정정표는 넘기지 않는다 — 재고 Aging 금액은 현재고 시트 금액을 그대로 쓰는 업무 기준이라
+// 두 달이 같은 방식으로 계산된다(2026-08-13 사용자 결정).
+export function readPrevPkgSnapshot(prevPath, base = LIVE_BASE) {
+  const b = parseExcel(prevPath, base);
+  const snap = b.uploaded?.pkg_snapshot || null;
+  return snap && snap.byPkg && Object.keys(snap.byPkg).length ? snap : null;
+}
+
+// 전월 파일이 없을 때의 폴백: 지금 라이브(KV)에 올라가 있는 달의 품목군 스냅샷을 그대로 전월로 쓴다.
+// 9월 파일을 올리는 시점에 라이브는 8월이므로 자연스럽게 전월이 된다 — 옛 엑셀을 계속 안 들고 있어도 된다.
+// ⚠ 반드시 publishParsed(새 데이터 업로드) 전에 호출할 것. 올린 뒤엔 라이브가 당월로 덮여 있다.
+export async function readLivePkgSnapshot(base = LIVE_BASE) {
+  const b = createBrowser(base);
+  const got = await b.run('loadSharedDashboardData()');
+  if (!got) return null;
+  const snap = b.run('UPLOADED&&UPLOADED.pkg_snapshot');
+  if (!snap || !snap.byPkg || !Object.keys(snap.byPkg).length) return null;
+  return JSON.parse(b.run('JSON.stringify(UPLOADED.pkg_snapshot)'));
+}
+
 // 이관 점검 파일에서 ②PSI 시트를 찾아 { byMat:{mat:{cost,sales}}, mats } 를 만든다.
 export function readPriceOverride(browser, xlsxPath) {
   browser.sandbox.__ovBin = fs.readFileSync(xlsxPath).toString('binary');
@@ -145,9 +187,15 @@ function createBrowser(base) {
   return { sandbox, run, els, logs };
 }
 
-export function parseExcel(xlsxPath, base = LIVE_BASE, stdCostPath = null, overridePath = null) {
+export function parseExcel(xlsxPath, base = LIVE_BASE, stdCostPath = null, overridePath = null, prevPkg = null) {
   const browser = createBrowser(base);
   const { sandbox, run, els } = browser;
+  // 전월 품목군 스냅샷 — handleUpload이 result.pkg_prev로 실어 KV까지 같이 올라간다.
+  // 같은 달 스냅샷이면 handleUpload 안에서 버려진다(base_yearmonth 비교).
+  if (prevPkg) {
+    sandbox.__prevPkg = prevPkg;
+    run('PKG_PREV_INPUT=__prevPkg;');
+  }
   // 단가 소스를 먼저 실어야 한다 — parseInventory가 재고금액을 계산할 때 이미 있어야 하기 때문.
   // 우선순위: 정정표(이관점검) > 결산 표준원가 > 현재고 시트 금액.
   let stdCost = null, priceOverride = null;
