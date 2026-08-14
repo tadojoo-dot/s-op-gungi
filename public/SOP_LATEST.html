@@ -2458,6 +2458,12 @@ function parseSalesPlanSheet(ws){
   const ymRow=rows[34]||[]; // Excel 35행: I~AF 실적 컬럼의 실제 년월 헤더
   const actMonthMeta=[];
   for(let col=8;col<=31;col++){ actMonthMeta[col-8]=parseYearMonthCell(ymRow[col]); }
+  // 계획 블록(AG~AK)도 같은 헤더 행에서 실제 년월을 읽는다.
+  // ⚠ 예전엔 month를 6+i로 박아 놨는데 실제 블록은 매달 롤링한다(26/8 파일 기준 8~12월).
+  //   그 라벨을 믿고 인덱스를 되짚는 getNextPlan이 두 달 뒤 계획을 집어 왔다.
+  //   헤더를 못 읽으면 옛 방식으로 폴백한다(무회귀).
+  const planMonthMeta=[];
+  for(let col=32;col<=36;col++){ planMonthMeta[col-32]=parseYearMonthCell(ymRow[col]); }
   const data=rows.slice(35);
   // 동일 자재코드 여러 행을 누적 집계 (덮어쓰기 금지)
   const acc={};
@@ -2510,15 +2516,17 @@ function parseSalesPlanSheet(ws){
       const qty=(unitPrice>0&&hasData)?Math.round(amt/unitPrice):0;
       monthly.push({year:meta?.year??null,month:meta?.month??null,label:meta?.label||'',amt:hasData?amt:0,qty,hasData});
     }
-    const planAmt=a.planAmts.map((amt,i)=>({year:2026,month:6+i,amt}));
-    const planQty=a.planQtys.map((qty,i)=>({year:2026,month:6+i,qty}));
+    const planYear=i=>planMonthMeta[i]?.year??2026;
+    const planMonth=i=>planMonthMeta[i]?.month??(6+i);
+    const planAmt=a.planAmts.map((amt,i)=>({year:planYear(i),month:planMonth(i),amt}));
+    const planQty=a.planQtys.map((qty,i)=>({year:planYear(i),month:planMonth(i),qty}));
     const byChannel={};
     Object.entries(a.byChannel).forEach(([ch,c])=>{
       byChannel[ch]={
         ch,
         unitPrice:c.unitPrice||unitPrice,
-        planAmt:c.planAmts.map((amt,i)=>({year:2026,month:6+i,amt})),
-        planQty:c.planQtys.map((qty,i)=>({year:2026,month:6+i,qty}))
+        planAmt:c.planAmts.map((amt,i)=>({year:planYear(i),month:planMonth(i),amt})),
+        planQty:c.planQtys.map((qty,i)=>({year:planYear(i),month:planMonth(i),qty}))
       };
     });
     result[mat]={mat,monthly,unitPrice,planAmt,planQty,byChannel};
@@ -6651,10 +6659,19 @@ function buildMonthAggMap(month){
   getHitMonthRows(month).forEach(row=>map.set(hitRowKey(row),row));
   return map;
 }
+// SF 계획 블록(AG~AK)이 몇 월인지는 매달 롤링한다. 시트 헤더에서 읽은 실제 월로 자리를 찾는다.
+// ⚠ 예전에는 idx=nextMonth-6으로 계산했는데, 26/8 파일의 블록은 8~12월이라 차월 8월을 물으면
+//   index 2(=10월) 계획을 집어 왔다. 절대 오프셋 산식으로 되돌리지 말 것.
+function psiPlanIdxForMonth(nextMonth){
+  const any=Object.values(getSalesPlanData()||{}).find(v=>Array.isArray(v?.planQty)&&v.planQty.length);
+  const months=any?any.planQty.map(x=>Number(x.month)):[];
+  const i=months.indexOf(Number(nextMonth));
+  return i>=0?i:-1;
+}
 function getNextPlan(row,nextMonth,matCurrentTotals){
   const mat=String(row.mat||'').trim();
-  if(!nextMonth||nextMonth<6||nextMonth>10) return {amt:0,qty:0,source:'차월계획 없음'};
-  const idx=nextMonth-6;
+  const idx=nextMonth?psiPlanIdxForMonth(nextMonth):-1;
+  if(idx<0) return {amt:0,qty:0,source:'차월계획 없음'};
   // 다이소 통합코드 행: 판매계획은 개별코드로 들어있으므로 멤버 코드들의 계획을 채널 기준으로 합산
   const members=getDaisoGroupMembers()?.[mat];
   if(members&&members.length){
