@@ -830,7 +830,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
       <div id="psiSkuHeaderCount" style="font-size:10px;color:rgba(255,255,255,.6);">전 품목 기준 / 안전재고 90일</div>
     </div>
     <div class="sec-body">
-      <div class="alert r" style="margin-bottom:14px;" id="psiAlertText">⚠ PSI는 당월부터 4개월 시계열로 봅니다. 기초재고(전체재고 − 6개월미만 재고) + 입고계획 − 판매계획 = 기말재고, 재고일수 90일 미만은 빨간 신호로 표시합니다.</div>
+      <div class="alert r" style="margin-bottom:14px;" id="psiAlertText">⚠ PSI는 당월부터 4개월 시계열로 봅니다. 기초재고(전체재고 − 6개월미만 재고 − 보류재고) + 입고계획 − 판매계획 = 기말재고, 재고일수 90일 미만은 빨간 신호로 표시합니다.</div>
       <!-- KPI 3종 (2단계 신호등) -->
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);">
         <div class="kpi"><div class="kpi-lbl">위험 품목</div><div id="psiShortCount" class="kpi-val kv-red">-</div><div class="kpi-sub">재고일수 90일 미만</div></div>
@@ -918,7 +918,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
       <div id="psiWrap"></div>
       <div class="remark-box" style="margin:10px 16px 14px;">
         <strong>비고 · PSI 보조 기준 산식</strong><br>
-        기초재고 = 전체재고(BQ) − 6개월미만 재고(BS). 6개월미만은 원칙적으로 출고 불가하여 가용 기초에서 제외합니다.<br>
+        기초재고 = 전체재고(BQ) − 6개월미만 재고(BS) − 보류재고. 6개월미만은 원칙적으로 출고 불가하여 가용 기초에서 제외하고, 보류재고도 판매 불가라 제외합니다(전체재고 BQ는 기초재고 시트의 가용+품질검사+보류 합이라 보류가 포함돼 있습니다). 품질검사 재고는 공정 통과 후 판매 가능해지므로 포함합니다.<br>
         보조 기준은 <strong>당월에만</strong> 진척율 기준으로 병행 표시하며, 진척율 기준 재고수량 = 당월 기초재고 + 당월 입고계획 - 진척율 기준 예상 판매수량입니다.
         차월 이후는 판매계획 기준 기말재고만 표시합니다.
         재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30입니다. 다음 월 판매계획이 없으면 재고일수는 산출불가로 표시합니다. PSI 표의 수량·재고일수는 반올림 정수로 표시합니다.<br>
@@ -2092,8 +2092,18 @@ function handleUpload(file){
         warnings.push(`${trendSheet}: ${Object.keys(result.trend_data||{}).length}개 현황 스냅샷 반영`);
       }
       let daisoMatSet=null;
+      // PSI 기초재고에서 뺄 보류재고. PSI!BQ가 참조하는 바로 그 시트에서 읽어야 기준이 어긋나지 않는다.
+      const holdSheet=wb.SheetNames.find(n=>String(n).replace(/\s/g,'')==='기초재고');
+      const holdByMat=holdSheet?parseHoldStock(wb.Sheets[holdSheet]):null;
+      if(holdByMat){
+        const hMats=Object.keys(holdByMat).length;
+        const hQty=Object.values(holdByMat).reduce((s,v)=>s+v,0);
+        warnings.push(`보류재고 ${hMats.toLocaleString()}개 자재 ${Math.round(hQty).toLocaleString()}개를 PSI 기초재고에서 제외`);
+      }else if(psiSheet){
+        warnings.push('기초재고 시트 없음: PSI 기초재고에 보류재고가 포함된 채로 계산됩니다');
+      }
       if(psiSheet){
-        const rawPsi=parsePSISheet(wb.Sheets[psiSheet]);
+        const rawPsi=parsePSISheet(wb.Sheets[psiSheet],holdByMat);
         if(daisoPsiSheet&&daisoMasterSheet){
           const daisoMaster=parseDaisoMasterSheet(wb.Sheets[daisoMasterSheet]);
           daisoMatSet=new Set(daisoMaster.codeToGroup.keys());
@@ -2307,6 +2317,28 @@ function parseInventory(ws,pkgMap){
   return{ch_amt,ch_delivery,matrix,matrix_delivery,kpi,stats,pkgAgg};
 }
 
+// 기초재고 시트 → {자재코드: 보류재고 수량}
+// PSI의 전체재고(BQ)는 `SUMIFS(기초재고!AS, 기초재고!B, 자재코드)`인데 그 AS열은 가용+품질+보류 합이라
+// 보류재고가 그대로 들어 있다(494행 전건 확인). PSI는 판매 가능 재고 관점이므로 여기서 빼야 한다.
+// ⚠ PSI의 6개월↓ 열(BS)은 `BZ+CA` = 기초재고 AO가 '유효기간 초과' 또는 '6개월 ↓'인 것의 합이다.
+//   그 두 구간의 보류는 이미 빠져 있으므로 여기서 또 빼면 이중차감이 된다 → 제외하고 센다.
+function parseHoldStock(ws){
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  const map={};
+  let any=false;
+  rows.slice(2).forEach(row=>{         // 현재고 시트와 같은 레이아웃 (1행 제목 / 2행 헤더)
+    const mat=String(row[1]||'').trim();
+    if(!mat) return;
+    const hd=Math.round(parseNum(row[13]));   // N열 보류 재고
+    if(hd<=0) return;
+    const bucket=normalizeAgingBucket(row[40]); // AO열 유효기간 유형
+    if(bucket==='유효기간 초과'||bucket==='6개월 미만') return; // BS로 이미 차감됨
+    map[mat]=(map[mat]||0)+hd;
+    any=true;
+  });
+  return any?map:null;
+}
+
 // 기준정보 시트 → {자재코드:품목군}
 // ⚠ 헤더를 '값'으로 찾는다. 이 시트는 범위가 A2부터라 rows[0]이 이미 헤더고, 자재코드/품목군 열이
 //    (자재코드 G·품목군 M) / (자재코드 U·품목군 AA) 두 블록으로 반복된다. 열 번호를 박으면 조용히 절반이 빈다.
@@ -2459,7 +2491,8 @@ function parseHyunhwang(ws){
   return {trend,latestLabel:latest?.label,latestChAmt:latest?.chAmt,latestKpi:latest?.kpi};
 }
 
-function parsePSISheet(ws){
+// holdByMat({자재코드:보류수량})을 주면 기초재고에서 그만큼 뺀다 — parseHoldStock 주석 참고.
+function parsePSISheet(ws,holdByMat){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:0});
   const headerRow=rows.findIndex(row=>String(row[0]||'').replace(/\s/g,'')==='자재코드');
   const data=rows.slice(headerRow>=0?headerRow+3:6);
@@ -2494,13 +2527,16 @@ function parsePSISheet(ws){
     const name=String(row[1]||'').trim();
     const sourcePkg=String(row[2]||'').trim();
     const avg3=Math.round(Number(row[4])||0);
-    // 기초재고 = 전체재고(BQ,array67) - 6개월미만재고(BS,array69). 6개월미만은 원칙적으로 출고 불가하여 제외.
+    // 기초재고 = 전체재고(BQ,array67) - 6개월미만재고(BS,array69) - 보류재고. 6개월미만은 원칙적으로 출고 불가하여 제외.
     // 구버전 파일(전체재고 컬럼 없음)은 현재고(array8)로 폴백.
     const _totalStock=Number(row[67]);
     const _under6=Number(row[69])||0;
-    const inv=(Number.isFinite(_totalStock)&&_totalStock!==0)
+    const _invRaw=(Number.isFinite(_totalStock)&&_totalStock!==0)
       ? Math.max(0,Math.round(_totalStock-_under6))
       : Math.round(Number(row[8])||0);
+    // 보류재고 제외 (2026-08-14 사용자 결정). 품질검사 재고는 공정 통과 후 판매 가능해지므로 남긴다.
+    const hold=holdByMat?Math.round(holdByMat[mat]||0):0;
+    const inv=Math.max(0,_invRaw-hold);
     const plan6=Math.round(Number(row[10])||0);
     const planAmt6=Number(row[11])||0;
     const actual6=Math.round(Number(row[12])||0);
@@ -2526,7 +2562,7 @@ function parsePSISheet(ws){
     const dr=psiDaysFromMonthlyPlan(sourceMonthlyPsi,'6월',er);
     const sp=dp==null?'gray':(inv<100?'green':getPSIStockSignal(dp)); // 당월 기초재고 100개 미만은 정상 처리
     const sr=dr==null?'gray':(inv<100?'green':getPSIStockSignal(dr));
-    result.push({mat,name,pkg,avg3,inv,plan6,planAmt6,buy6,actual6,rate6,ep,dp,sp,er,dr,sr,sourceMonthlyPsi,monthRealLabels});
+    result.push({mat,name,pkg,avg3,inv,invRaw:_invRaw,hold,plan6,planAmt6,buy6,actual6,rate6,ep,dp,sp,er,dr,sr,sourceMonthlyPsi,monthRealLabels});
   });
   return result;
 }
@@ -6326,7 +6362,7 @@ function bindPsiBuyInputs(){
 function updatePsiMonthTexts(firstMo,lastMo){
   const range=(firstMo&&lastMo)?`${firstMo}~${lastMo}`:'당월부터 4개월';
   const alertEl=document.getElementById('psiAlertText');
-  if(alertEl) alertEl.innerHTML=`⚠ PSI는 ${range} 4개월 시계열로 봅니다. 기초재고(전체재고 − 6개월미만 재고) + 입고계획 − 판매계획 = 기말재고, 재고일수 90일 미만은 빨간 신호로 표시합니다.`;
+  if(alertEl) alertEl.innerHTML=`⚠ PSI는 ${range} 4개월 시계열로 봅니다. 기초재고(전체재고 − 6개월미만 재고 − 보류재고) + 입고계획 − 판매계획 = 기말재고, 재고일수 90일 미만은 빨간 신호로 표시합니다.`;
   const subEl=document.getElementById('psiSecSub');
   if(subEl) subEl.innerHTML=`${range} 4개월 · ${firstMo||'당월'}은 판매계획 기준 기말재고와 진척율 기준 예상 재고를 수량/재고일수로 병행 표시 &nbsp;|&nbsp; 재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30`;
 }
