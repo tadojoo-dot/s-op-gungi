@@ -202,22 +202,34 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .archive-box pre{white-space:pre-wrap;margin:0;font-family:inherit;font-size:11px;line-height:1.45;color:var(--text);}
 @media(max-width:900px){.archive-panel{grid-template-columns:1fr}.archive-actions{justify-content:flex-start}.archive-grid{grid-template-columns:1fr}}
 .rem-chip{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;}
-/* 채널별 오차율 히트맵 — 색 기준은 wapeClass()(30/50%)로 보정 대상 리스트 총계 배지와 동일하게 맞춘다 */
-.chwape{width:100%;border-collapse:collapse;font-size:11.5px;}
-.chwape th{background:#F7F8FA;color:var(--navy);font-weight:700;padding:7px 6px;border-bottom:2px solid var(--border);font-size:10.5px;white-space:nowrap;text-align:center;}
-.chwape th.l{text-align:left;} .chwape th.r{text-align:right;}
-.chwape td{padding:6px;border-bottom:1px solid #f0f1f5;text-align:center;font-weight:700;white-space:nowrap;}
-.chwape td.l{text-align:left;} .chwape td.r{text-align:right;font-weight:700;color:var(--muted);}
-.chwape th.sortable{cursor:pointer;user-select:none;} .chwape th.sortable:hover{background:#eef0f9;}
-.chwape .cw-g{background:var(--green-lt);color:var(--green);}
-.chwape .cw-y{background:var(--yellow-lt);color:#8a5c00;}
-.chwape .cw-r{background:var(--red-lt);color:var(--red);}
-.chwape .cw-na{color:var(--gray-m);font-weight:400;}
-.chwape tr.cw-total{background:#eef0f9;font-weight:900;}
-.chwape tr.cw-total td{border-top:2px solid var(--border);}
-.chwape tr.cw-sel td{outline:2px solid var(--navy);outline-offset:-2px;}
-.chwape tr.cw-ch{cursor:pointer;} .chwape tr.cw-ch:hover td{background:#f5f7ff;}
-.chwape .cw-small{font-size:9px;font-weight:400;color:var(--muted);display:block;}
+/* 채널별 오차율 표 — 음영 없이 숫자만으로 읽는다(2026-08-16 사용자 지시).
+   색으로 크기를 칠하지 않으므로, 대신 ① 자릿수 정렬(tabular-nums) ② 열 구분선
+   ③ 채널명 고정(가로 스크롤해도 안 사라짐) 으로 가독성을 만든다. */
+.chwape{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;}
+.chwape th{background:#F7F8FA;color:var(--navy);font-weight:700;padding:8px 10px;border-bottom:2px solid var(--border);font-size:11px;white-space:nowrap;text-align:right;}
+.chwape th.l{text-align:left;}
+.chwape td{padding:8px 10px;border-bottom:1px solid #f0f1f5;text-align:right;white-space:nowrap;color:var(--text);}
+.chwape td.l{text-align:left;font-weight:700;}
+.chwape td.r{color:var(--muted);}
+.chwape th.sortable{cursor:pointer;user-select:none;} .chwape th.sortable:hover{color:var(--terra);}
+/* 월 구간과 계획금액 구간을 세로선으로 가른다 */
+.chwape th.cw-sep,.chwape td.cw-sep{border-left:1px solid var(--border);}
+.chwape .cw-na{color:var(--gray-m);}
+.chwape tr.cw-total td{border-top:2px solid var(--border);border-bottom:none;font-weight:900;color:var(--navy);}
+/* 채널명 열 고정 — 월이 12개까지 늘어나면 가로 스크롤이 생긴다 */
+.chwape th.l,.chwape td.l{position:sticky;left:0;background:#fff;z-index:1;}
+.chwape th.l{background:#F7F8FA;}
+.chwape tr.cw-ch{cursor:pointer;}
+.chwape tr.cw-ch:hover td{background:#fafbff;}
+.chwape tr.cw-ch:hover td.l{background:#fafbff;}
+/* 선택된 채널은 칠하지 않고 왼쪽 굵은 선 + 진한 글씨로만 표시 */
+.chwape tr.cw-sel td{font-weight:900;color:var(--navy);}
+.chwape tr.cw-sel td.l{box-shadow:inset 3px 0 0 var(--navy);}
+/* 차트에 그려진 채널 표시 — 채널명 앞의 색 점. 점 색 = 차트 라인 색 */
+.chwape .cw-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;}
+.chwape .cw-dot.off{background:transparent;border:1.5px solid var(--gray-l);box-sizing:border-box;}
+.chwape td.l .cw-name{vertical-align:middle;}
+.chwape tr.cw-off td:not(.l){color:var(--gray-m);}
 .rem-r{background:var(--red-lt);color:var(--red);}
 .rem-y{background:var(--yellow-lt);color:#8a5c00;}
 .rem-g{background:var(--green-lt);color:var(--green);}
@@ -983,6 +995,8 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
     </span>
   </div>
   <div class="panel" style="margin-bottom:14px;">
+    <div class="cw hit-chart-frame"><canvas id="chWapeChart"></canvas></div>
+    <div id="chWapeChartNote" style="padding:0 14px 10px;font-size:10.5px;color:var(--muted);"></div>
     <div class="sort-toolbar"><span class="sort-summary" id="chWapeSortSummary">정렬: 기본</span><button onclick="resetChWapeSort()">정렬 초기화</button></div>
     <div id="chWapeWrap" style="overflow-x:auto;"></div>
     <div id="chWapeNote" style="padding:0 14px 12px;font-size:10.5px;color:var(--muted);"></div>
@@ -7022,14 +7036,96 @@ function resetChWapeSort(){
   chWapeSort=cloneSort(CHWAPE_DEFAULT_SORT);
   renderChannelWape();
 }
-// 행 클릭 → 아래 '보정 대상 리스트'의 채널 필터와 연동 (같은 채널을 다시 누르면 해제)
+// 차트에 그릴 채널 — 계획규모 상위 4개가 기본.
+// 11개를 다 그리면 카카오 4월 836%(계획 0.6억)가 Y축을 다 먹어 나머지가 바닥에 깔린다.
+// 상위 4개가 계획의 97.4%(74.8억/76.8억)라 정보 손실은 사실상 없고, 나머지는 아래 표에서 본다.
+// null이면 '아직 사용자가 안 건드림' → 기본값(상위 4개)을 쓴다. Set이면 사용자가 고른 그대로 존중.
+const CHWAPE_CHART_TOP_N=4;
+const CHWAPE_LINE_COLORS=['#1D2783','#C46B4D','#33512E','#9B59B6','#E3B341','#5AA469','#7a8099','#E3521A'];
+let chWapeChartPicked=null;
+let chWapeChart=null;
+function chWapeDefaultPicks(rows){
+  return [...rows].sort((a,b)=>(Number(b.planSize)||0)-(Number(a.planSize)||0))
+    .slice(0,CHWAPE_CHART_TOP_N).map(r=>r.ch);
+}
+function chWapeActivePicks(rows){
+  const all=new Set(rows.map(r=>r.ch));
+  if(chWapeChartPicked){
+    const kept=[...chWapeChartPicked].filter(c=>all.has(c));   // 데이터가 바뀌어 사라진 채널은 흘려보낸다
+    return new Set(kept);
+  }
+  return new Set(chWapeDefaultPicks(rows));
+}
+// 표에서 채널 클릭 → 차트 라인 켜기/끄기 (+ 아래 보정 대상 리스트 필터 연동)
+function toggleChWapeChannel(ch){
+  const data=buildChannelWape();
+  if(!data) return;
+  const picks=chWapeActivePicks(data.rows);
+  if(picks.has(ch)) picks.delete(ch); else picks.add(ch);
+  chWapeChartPicked=picks;
+  renderChannelWape();
+}
+function resetChWapeChartPicks(){
+  chWapeChartPicked=null;
+  renderChannelWape();
+}
+// 채널명 클릭 → 아래 '보정 대상 리스트'의 채널 필터와 연동 (같은 채널을 다시 누르면 해제)
 function selectChWapeChannel(ch){
   const sel=document.getElementById('fhc');
   if(!sel) return;
   const next=sel.value===ch?'':ch;
   if(![...sel.options].some(o=>o.value===next)) return;
   sel.value=next;
-  renderHitTrend();renderInsightTables();renderHT();
+  renderHitTrend();renderInsightTables();renderHT();renderChannelWape();
+}
+function renderChWapeChart(data,picks,colorOf){
+  safeDestroyChart('chWapeChart'); chWapeChart=null;
+  const canvas=document.getElementById('chWapeChart');
+  const note=document.getElementById('chWapeChartNote');
+  if(!canvas) return;
+  canvas.style.display='';
+  canvas.parentElement?.querySelector('.chart-offline')?.remove();
+  if(!hasChart()){markChartOffline('chWapeChart','Chart.js가 차단되어 채널별 오차율 차트는 숨기고 아래 표만 표시합니다.');return;}
+  if(!data){ if(note) note.textContent=''; return; }
+  const {months,rows,totalWape}=data;
+  const labels=months.map(m=>m.label);
+  const picked=rows.filter(r=>picks.has(r.ch));
+  const line=(label,vals,color,bold)=>({
+    label,data:vals,borderColor:color,backgroundColor:color,
+    borderWidth:bold?3.5:2,pointRadius:bold?0:3,pointHoverRadius:5,tension:0.3,
+    borderDash:bold?[]:[],spanGaps:false,order:bold?0:1,
+    datalabels:{display:false}   // 숫자는 아래 표에서 읽는다 — 라인 5개에 레이블을 다 붙이면 겹친다
+  });
+  // 범례·라인 순서를 계획규모 순으로 — 표 기본 정렬과 같은 순서라야 눈이 오간다
+  picked.sort((a,b)=>(Number(b.planSize)||0)-(Number(a.planSize)||0));
+  const datasets=picked.map(r=>line(r.ch,months.map(m=>r.wape[m.key]),colorOf(r.ch),false));
+  datasets.push(line('전체',months.map(m=>totalWape[m.key]),'#8A90A6',true));
+  chWapeChart=new Chart(canvas,{
+    type:'line',
+    plugins:[ChartDataLabels],
+    data:{labels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{position:'bottom',labels:{font:{size:11},boxWidth:12,usePointStyle:true,pointStyle:'line'}},
+        tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y==null?'계획없음':c.parsed.y.toFixed(1)+'%'}`}},
+        datalabels:{display:false}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:12,weight:'bold'}}},
+        // suggestedMax만 주고 상한을 고정하지 않는다 — 100%를 넘는 달이 잘리면 안 된다
+        y:{grid:{color:'#f0f1f5'},ticks:{callback:v=>v+'%',font:{size:11}},border:{display:false},min:0,suggestedMax:120}
+      }
+    }
+  });
+  if(note){
+    const off=rows.length-picked.length;
+    note.innerHTML=`굵은 회색 선이 <strong>전체</strong> 기준입니다 — 각 채널이 전체보다 위면 오차가 큰 쪽입니다. `
+      +`기본은 <strong>계획규모 상위 ${CHWAPE_CHART_TOP_N}개</strong>만 그립니다`
+      +`${off>0?` (나머지 ${off}개는 아래 표에서 확인)`:''}. `
+      +`아래 표에서 <strong>채널명 왼쪽 점</strong>을 누르면 라인을 켜고 끌 수 있습니다`
+      +`${chWapeChartPicked?` · <button onclick="resetChWapeChartPicks()" style="border:0;background:none;color:var(--navy);font-weight:700;cursor:pointer;padding:0;text-decoration:underline;">기본으로</button>`:''}`;
+  }
 }
 // 채널 필터(#fhc) 목록을 실제 데이터에서 채운다.
 // ⚠ HTML에 6개(직영몰/다이소/쿠팡/스/스/카카오/올리브영)만 박혀 있어서 오프라인 기타·편의점·벤더·
@@ -7073,10 +7169,17 @@ function renderChannelWape(){
         ? '수량 판매계획(오차율분석 시트 [수량] 구획)이 비어 있어 수량 기준 오차율은 산출할 수 없습니다.'
         : '오차율 분석 데이터가 없습니다. 최신 엑셀을 업로드해 주세요.'}</div>`;
     if(note) note.textContent='';
+    renderChWapeChart(null);
     renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
     return;
   }
   const {months,rows,totalWape,sizeLabel,totalSize}=data;
+  // 라인 색은 '차트에 켜진 순서'가 아니라 계획규모 순위로 고정한다 —
+  // 채널을 껐다 켤 때마다 색이 바뀌면 눈이 따라가지 못한다.
+  const colorRank=new Map([...rows].sort((a,b)=>(Number(b.planSize)||0)-(Number(a.planSize)||0))
+    .map((r,i)=>[r.ch,CHWAPE_LINE_COLORS[i%CHWAPE_LINE_COLORS.length]]));
+  const colorOf=ch=>colorRank.get(ch)||'#7a8099';
+  const picks=chWapeActivePicks(rows);
   const unitTxt=hitTrendUnit==='qty'?'개':'억';
   const fmtSize=v=>hitTrendUnit==='qty'?`${Math.round(v).toLocaleString()}개`:`${v.toFixed(1)}억`;
   const sorted=[...rows].sort((a,b)=>{
@@ -7090,35 +7193,38 @@ function renderChannelWape(){
     return 0;
   });
   const selCh=document.getElementById('fhc')?.value||'';
-  const cell=v=>{
-    const cls=wapeClass(v);
-    if(cls==null) return `<td class="cw-na" title="해당 월 판매계획 없음">—</td>`;
-    return `<td class="cw-${cls}">${v.toFixed(0)}%</td>`;
-  };
+  const cell=v=>v==null?`<td class="cw-na" title="해당 월 판매계획 없음">—</td>`:`<td>${v.toFixed(0)}%</td>`;
+  const esc=s=>JSON.stringify(String(s)).replace(/"/g,'&quot;');
   let h=`<table class="chwape"><thead><tr>
     <th class="l sortable" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
     ${months.map(m=>`<th class="sortable" onclick="handleChWapeSort('${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="${m.key}"></span></th>`).join('')}
-    <th class="r sortable" onclick="handleChWapeSort('plan',event)">${sizeLabel} 계획<span data-sort-table="chwape" data-sort-key="plan"></span></th>
+    <th class="r cw-sep sortable" onclick="handleChWapeSort('plan',event)">${sizeLabel} 계획<span data-sort-table="chwape" data-sort-key="plan"></span></th>
   </tr></thead><tbody>`;
   sorted.forEach(r=>{
-    h+=`<tr class="cw-ch${r.ch===selCh?' cw-sel':''}" onclick="selectChWapeChannel(${JSON.stringify(r.ch).replace(/"/g,'&quot;')})" title="클릭하면 아래 보정 대상 리스트를 이 채널로 거릅니다">
-      <td class="l">${r.ch}</td>
+    const on=picks.has(r.ch);
+    const dot=`<span class="cw-dot${on?'':' off'}"${on?` style="background:${colorOf(r.ch)};"`:''}></span>`;
+    h+=`<tr class="cw-ch${r.ch===selCh?' cw-sel':''}${on?'':' cw-off'}">
+      <td class="l">
+        <button type="button" onclick="event.stopPropagation();toggleChWapeChannel(${esc(r.ch)})" title="${on?'차트에서 이 채널 라인 끄기':'차트에 이 채널 라인 켜기'}" style="border:0;background:none;padding:0;margin:0;cursor:pointer;line-height:0;">${dot}</button
+        ><button type="button" class="cw-name" onclick="selectChWapeChannel(${esc(r.ch)})" title="아래 보정 대상 리스트를 이 채널로 거르기" style="border:0;background:none;padding:0;color:inherit;font:inherit;cursor:pointer;">${r.ch}</button>
+      </td>
       ${months.map(m=>cell(r.wape[m.key])).join('')}
-      <td class="r">${fmtSize(r.planSize)}</td>
+      <td class="r cw-sep">${fmtSize(r.planSize)}</td>
     </tr>`;
   });
   h+=`<tr class="cw-total">
-    <td class="l">전체</td>
+    <td class="l"><span class="cw-dot" style="background:#8A90A6;"></span>전체</td>
     ${months.map(m=>cell(totalWape[m.key])).join('')}
-    <td class="r">${fmtSize(totalSize)}</td>
+    <td class="r cw-sep">${fmtSize(totalSize)}</td>
   </tr></tbody></table>`;
   wrap.innerHTML=h;
+  renderChWapeChart(data,picks,colorOf);
   renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
   if(note){
     note.innerHTML=`WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
-      +`<span style="color:var(--green);font-weight:700;">초록 30% 미만</span> / <span style="color:#8a5c00;font-weight:700;">노랑 50% 미만</span> / <span style="color:var(--red);font-weight:700;">빨강 50% 이상</span> `
-      +`— 위 트렌드 차트·보정 대상 리스트와 같은 기준입니다 · 판매계획이 없는 달은 <span style="color:var(--gray-m);">—</span> · `
-      +`규모가 작은 채널은 오차율이 크게 흔들리므로 맨 오른쪽 계획금액과 같이 보세요 · 행을 클릭하면 아래 보정 대상 리스트가 그 채널로 걸립니다`;
+      +`위 트렌드 차트·보정 대상 리스트와 같은 기준입니다 · 판매계획이 없는 달은 <span style="color:var(--gray-m);">—</span> · `
+      +`규모가 작은 채널은 오차율이 크게 흔들리므로 맨 오른쪽 계획금액과 같이 보세요 · `
+      +`<strong>점</strong>을 누르면 차트 라인 on/off, <strong>채널명</strong>을 누르면 아래 보정 대상 리스트가 그 채널로 걸립니다`;
   }
 }
 
