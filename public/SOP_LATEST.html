@@ -206,10 +206,14 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
    색으로 칠하거나 라인을 그리지 않으므로, 가독성은 전부 타이포와 여백으로 만든다:
    ① 숫자 13px + 자릿수 고정(tabular-nums) ② 넉넉한 행 높이 ③ 3행마다 옅은 가로 구분선
    ④ 월 구간/계획 구간 세로선 ⑤ 채널명 열 고정 ⑥ hover 시 행 전체 강조(가로로 눈이 안 샘) */
-.chwape{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;}
-.chwape th{background:#F7F8FA;color:var(--navy);font-weight:700;padding:10px 12px;border-bottom:2px solid var(--border);font-size:11.5px;white-space:nowrap;text-align:right;}
+/* ⚠ width:100%로 두면 표가 화면 전체(1400px+)로 늘어나 9개 열이 흩어진다 —
+   숫자 사이가 멀어져 한눈에 안 들어온다. 열 너비를 px로 고정하고 표 전체 폭도
+   내용에 맞춰 잡는다(renderChannelWape가 월 개수로 계산). 좁은 화면에선 max-width:100%로 접힌다. */
+.chwape{border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;table-layout:fixed;max-width:100%;}
+.chwape th{background:#F7F8FA;color:var(--navy);font-weight:700;padding:9px 8px;border-bottom:2px solid var(--border);font-size:11.5px;white-space:nowrap;text-align:right;}
 .chwape th.l{text-align:left;}
-.chwape td{padding:11px 12px;border-bottom:1px solid #f4f5f8;text-align:right;white-space:nowrap;color:var(--text);}
+.chwape td{padding:10px 8px;border-bottom:1px solid #f4f5f8;text-align:right;white-space:nowrap;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;}
 .chwape td.l{text-align:left;font-weight:700;}
 .chwape td.r{color:var(--muted);font-size:12px;}
 .chwape th.sortable{cursor:pointer;user-select:none;} .chwape th.sortable:hover{color:var(--terra);}
@@ -228,7 +232,8 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .chwape tr.cw-sel td{font-weight:900;color:var(--navy);}
 .chwape tr.cw-sel td.l{box-shadow:inset 3px 0 0 var(--navy);}
 .chwape .cw-name{border:0;background:none;padding:0;color:inherit;font:inherit;cursor:pointer;
-  text-decoration:underline;text-decoration-color:var(--gray-l);text-underline-offset:3px;}
+  text-decoration:underline;text-decoration-color:var(--gray-l);text-underline-offset:3px;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom;}
 .chwape .cw-name:hover{color:var(--navy);text-decoration-color:var(--navy);}
 /* 셀 클릭 → 채널×월 오차 상세 팝업 */
 .chwape td.cw-click{cursor:pointer;}
@@ -7213,10 +7218,15 @@ function renderChannelWape(){
     if(v==null) return `<td class="cw-na" title="해당 월 판매계획 없음">—</td>`;
     return `<td class="cw-click" onclick="openChDrill(${esc(ch)},${esc(mk)})" title="${ch} ${ml} 오차 상세 보기">${v.toFixed(0)}%</td>`;
   };
-  let h=`<table class="chwape"><thead><tr>
+  // 표 전체 폭을 내용에 맞춰 잡는다 — 화면 폭에 맞춰 늘리면 숫자 사이가 벌어져 한눈에 안 들어온다.
+  const W_CH=132,W_MO=68,W_PLAN=hitTrendUnit==='qty'?110:92;
+  const tableW=W_CH+months.length*W_MO+W_PLAN;
+  let h=`<table class="chwape" style="width:${tableW}px;">
+  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}<col style="width:${W_PLAN}px;"></colgroup>
+  <thead><tr>
     <th class="l sortable" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
     ${months.map(m=>`<th class="sortable" onclick="handleChWapeSort('${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="${m.key}"></span></th>`).join('')}
-    <th class="r cw-sep sortable" onclick="handleChWapeSort('plan',event)">${sizeLabel} 계획<span data-sort-table="chwape" data-sort-key="plan"></span></th>
+    <th class="r cw-sep sortable" onclick="handleChWapeSort('plan',event)">${sizeLabel}계획<span data-sort-table="chwape" data-sort-key="plan"></span></th>
   </tr></thead><tbody>`;
   sorted.forEach(r=>{
     h+=`<tr class="cw-ch${r.ch===selCh?' cw-sel':''}">
