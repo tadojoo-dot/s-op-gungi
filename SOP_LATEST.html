@@ -236,6 +236,11 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
   max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom;}
 .chwape .cw-name:hover{color:var(--navy);text-decoration-color:var(--navy);}
 /* 표(고정폭 700px) + 오른쪽 남는 폭에 오차 금액 차트. 좁아지면 아래로 접힌다. */
+.chmemo-td{vertical-align:top;padding:4px 6px!important;}
+.chmemo-td textarea.action-memo{min-height:30px;height:30px;font-size:11.5px;}
+.chmemo-td textarea.action-memo:focus{height:80px;}
+.chmemo-carry{font-size:9.5px;font-weight:700;color:var(--terra);margin-top:2px;line-height:1.35;}
+.chmemo-hist{font-size:9.5px;color:var(--muted);margin-top:1px;cursor:help;}
 .chwape-side-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 4px 8px;
   font-size:12.5px;font-weight:900;color:var(--navy);}
 .chwape-side-hd select{height:26px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;}
@@ -6759,6 +6764,13 @@ function saveSharedTextInput(el){
   localStorage.setItem(el.dataset.memoKey,el.value);
   el.classList.toggle('saved',el.value.trim()!=='');
   queueSharedStateSave();
+  // 채널 조치의견은 두 표(채널별 오차율 / 보정 대상 리스트 총계 행)가 같은 키를 공유한다.
+  // 입력 중에 표를 다시 그리면 포커스가 날아가므로, 다른 표의 같은 키 칸만 값을 맞춰준다.
+  if(String(el.dataset.memoKey||'').startsWith(HIT_CH_MEMO_PREFIX)){
+    document.querySelectorAll(`textarea[data-memo-key="${el.dataset.memoKey}"]`).forEach(t=>{
+      if(t!==el){ t.value=el.value; t.classList.toggle('saved',el.value.trim()!==''); }
+    });
+  }
 }
 function refreshSharedStateViews(){
   if(!BOOT_RENDER_DONE) return;
@@ -7371,6 +7383,51 @@ function buildHitTrend(){
   return out.length?out:null;
 }
 
+// ═══════════ 채널별 조치의견 ═══════════
+// 품목별 조치의견(hitAdjustMemo|채널|자재)과 달리 **채널 하나에 한 칸**이다.
+// ⚠ 같은 메모를 두 곳에서 쓴다 — 채널별 오차율 표의 '조치의견' 열과 보정 대상 리스트의 총계 행.
+//   키를 공유하므로 어디서 쓰든 같은 내용이다. 채널 목록이 달마다 바뀌어도 채널명이 키라 알아서 따라간다.
+// ⚠ SKU 담당 의견과 같이 **기준월별로 쌓는다**. 지난달에 뭘 하겠다고 했는지가 남아야 한다.
+const HIT_CH_MEMO_PREFIX='hitChMemo|';
+function hitChMemoKey(ch,ym){return `${HIT_CH_MEMO_PREFIX}${ch||'전체'}|${ym||skuMemoMonth()}`;}
+// 이 채널의 과거 기록(최신월 우선). 당월은 빼고 준다.
+function hitChMemoHistory(ch){
+  const pre=`${HIT_CH_MEMO_PREFIX}${ch||'전체'}|`;
+  const ym=skuMemoMonth();
+  const out=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(!k||!k.startsWith(pre)) continue;
+    const kym=k.slice(pre.length);
+    if(kym===ym) continue;
+    const v=localStorage.getItem(k)||'';
+    if(v.trim()) out.push({ym:kym,label:_ymLabel(kym),text:v});
+  }
+  return out.sort((a,b)=>String(b.ym).localeCompare(String(a.ym)));
+}
+// 화면에 뿌릴 값 한 덩어리. 당월이 비어 있으면 직전 달을 이어받아 보여준다(저장 전).
+function hitChMemoView(ch){
+  const ym=skuMemoMonth();
+  const cur=localStorage.getItem(hitChMemoKey(ch,ym));
+  const hist=hitChMemoHistory(ch);
+  if(cur!=null&&cur!=='') return {ym,text:cur,carriedFrom:'',hist};
+  return {ym,text:hist[0]?.text||'',carriedFrom:hist[0]?.label||'',hist};
+}
+// 표 셀 하나 — textarea + 이어받음/이력 표시. 저장은 기존 saveSharedTextInput(공유 KV)이 그대로 처리한다.
+function hitChMemoCell(ch){
+  const v=hitChMemoView(ch);
+  const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const histTip=v.hist.length?v.hist.map(h=>`${h.label}: ${h.text}`).join('\n'):'';
+  const carry=v.carriedFrom
+    ? `<div class="chmemo-carry" title="${esc(histTip)}">↩ ${v.carriedFrom} 의견 · 고치면 ${_ymLabel(v.ym)} 기록으로 저장됩니다</div>` : '';
+  const hist=v.hist.length
+    ? `<div class="chmemo-hist" title="${esc(histTip)}">이전 ${v.hist.map(h=>h.label).join('·')}</div>` : '';
+  return `<td class="l chmemo-td">
+    <textarea class="action-memo${v.text.trim()?' saved':''}" data-memo-key="${hitChMemoKey(ch,v.ym)}"
+      oninput="saveSharedTextInput(this)" placeholder="${_ymLabel(v.ym)} 조치의견">${esc(v.text)}</textarea>
+    ${carry}${hist}</td>`;
+}
+
 // WAPE 색 기준 — 보정 대상 리스트 총계 배지와 채널별 히트맵이 같은 값을 쓰게 한 곳에 둔다.
 // ⚠ 임계값을 호출부에 복사하지 말 것. 같은 38%가 표마다 다른 색으로 보이면 안 된다.
 function wapeClass(v){
@@ -7630,23 +7687,26 @@ function renderChannelWape(){
     return `<td class="cw-click" onclick="openChDrill(${esc(ch)},${esc(mk)})" title="${ch} ${ml} 오차 상세 보기">${v.toFixed(0)}%</td>`;
   };
   // 표 전체 폭을 내용에 맞춰 잡는다 — 화면 폭에 맞춰 늘리면 숫자 사이가 벌어져 한눈에 안 들어온다.
-  const W_CH=132,W_MO=68;
-  const tableW=W_CH+months.length*W_MO;
+  const W_CH=132,W_MO=68,W_MEMO=280;
+  const tableW=W_CH+months.length*W_MO+W_MEMO;
   let h=`<table class="chwape" style="width:${tableW}px;">
-  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}</colgroup>
+  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}<col style="width:${W_MEMO}px;"></colgroup>
   <thead><tr>
     <th class="l sortable" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
     ${months.map(m=>`<th class="sortable" onclick="handleChWapeSort('${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="${m.key}"></span></th>`).join('')}
+    <th class="l">조치의견 ${_ymLabel(skuMemoMonth())}</th>
   </tr></thead><tbody>`;
   sorted.forEach(r=>{
     h+=`<tr class="cw-ch${r.ch===selCh?' cw-sel':''}">
       <td class="l"><button type="button" class="cw-name" onclick="openChDrill(${esc(r.ch)})" title="${r.ch}의 오차 상세 보기 (차이 큰 순)">${r.ch}</button></td>
       ${months.map(m=>cell(r.wape[m.key],r.ch,m.key,m.label)).join('')}
+      ${hitChMemoCell(r.ch)}
     </tr>`;
   });
   h+=`<tr class="cw-total">
     <td class="l">전체</td>
     ${months.map(m=>totalWape[m.key]==null?`<td class="cw-na">—</td>`:`<td>${totalWape[m.key].toFixed(0)}%</td>`).join('')}
+    ${hitChMemoCell('전체')}
   </tr></tbody></table>`;
   wrap.innerHTML=h;
   renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
@@ -8361,7 +8421,8 @@ function renderHT(){
         <div class="hit-rate-wrap"><span class="tag ${totalClass}" style="font-size:15px;font-weight:900;padding:3px 9px;">${displayWape.toFixed(1)}%</span></div>
         <div style="font-size:9px;color:var(--muted);margin-top:2px;">${displaySubText}</div>
       </td>
-      <td class="c" colspan="4">보정 필요 ${data.filter(r=>r.needCorrection).length.toLocaleString()}건</td>
+      <td class="c" colspan="3">보정 필요 ${data.filter(r=>r.needCorrection).length.toLocaleString()}건</td>
+      ${hitChMemoCell(fhc||'전체')}
     </tr>`;
   }
   data.forEach((d,idx)=>{
