@@ -146,17 +146,19 @@ export function readPrevMonths(prevPaths, base = LIVE_BASE, curYearMonth = null,
       const wb=XLSX.read(f.bin,{type:'binary'});
       const refSheet=findSheetName(wb,'기준정보');
       const pkgMap=refSheet?parsePkgGroupMap(wb.Sheets[refSheet]):null;
-      // 한 파일이 여러 달을 담는다 — 26/7 파일은 기초재고=6/1, 현재고=7/8이다.
-      ['기초재고','현재고'].forEach(n=>{
-        const sheet=findSheetName(wb,n); if(!sheet) return;
-        const ws=wb.Sheets[sheet];
-        const ym=parseBaseYearMonth(ws);
-        if(!ym||(__curYm&&ym>=__curYm)) return;            // 당월 이후는 월 필터에 넣지 않는다
-        // 같은 달이 둘이면 '기초재고'(월초)를 남긴다 — 당월이 기초재고 기준이라 기준을 맞춘다.
-        const prev=byYm.get(ym);
-        if(prev&&!(n==='기초재고'&&prev.name!=='기초재고')) return;
-        byYm.set(ym,{name:n,sheet,ym,file:f.name,ws,pkgMap});
-      });
+      // ⚠ **파일 하나당 한 달만 쓴다** (2026-08-18 사용자 지시: "6월 날려").
+      //   26/7 파일은 기초재고=6/1, 현재고=7/8이라 두 달을 담고 있지만, 6/1은 그 파일이 대표하는 달이 아니다.
+      //   그 파일이 말하는 달(= 당월보다 앞서면서 가장 최근인 원장) 하나만 고른다.
+      //   동률이면 '기초재고'(월초) 우선 — 당월이 기초재고 기준이라 기준을 맞춘다.
+      const cands=['기초재고','현재고']
+        .map(n=>{const sheet=findSheetName(wb,n); if(!sheet) return null;
+                 const ws=wb.Sheets[sheet]; return {name:n,sheet,ws,ym:parseBaseYearMonth(ws)||''};})
+        .filter(c=>c&&c.ym&&(!__curYm||c.ym<__curYm));
+      if(!cands.length) return;
+      const pick=cands.reduce((best,c)=>(c.ym>best.ym?c:best),cands[0]);
+      const prev=byYm.get(pick.ym);
+      if(prev&&!(pick.name==='기초재고'&&prev.name!=='기초재고')) return;
+      byYm.set(pick.ym,{name:pick.name,sheet:pick.sheet,ym:pick.ym,file:f.name,ws:pick.ws,pkgMap});
     });
     const out=[...byYm.values()].sort((a,b)=>b.ym.localeCompare(a.ym)).map(m=>{
       const p=parseInventory(m.ws,m.pkgMap,srcMap);
