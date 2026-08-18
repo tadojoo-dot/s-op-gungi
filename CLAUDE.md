@@ -173,6 +173,7 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 | 화면/기능 | 함수 |
 |---|---|
 | ① 재고 Aging 매트릭스 + 드릴다운 | `renderMatrix`, `drilldown`, `_renderDDTbody` |
+| ① 매트릭스 월 필터 | `agingViewMonth`, `agingMonthKeyNow`, `setAgingViewMonth`, `syncAgingMonthOptions` — 아래 "월 필터" 참고 |
 | ① 매트릭스 필터(생산처·자재유형) | `matrixSkuFilter`, `filterMatrixCell`, `syncMatrixFilterOptions`, `_syncFilterSelect`, `normalizeSourcePlant` — 아래 "매트릭스 필터" 참고 |
 | ① 품목군별 전월대비 재고 증감 (+SKU 드릴다운) | `renderPkgDelta`, `togglePkgDeltaRow`, `setPkgDeltaUnit` — 아래 "품목군 전월대비" 참고 |
 | 📡 Aging Sensing (M+N 예측) | `renderSensing`, `projectSensingInventory`, `computeSensInbound`(PSI 입고, 원가단가 기준) |
@@ -251,8 +252,29 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
   기준월을 못 읽으면 옛 동작(기초재고 우선)으로 폴백한다(무회귀).
 - ⚠ 그래도 간격이 1개월이 아닐 수 있다. `renderPkgDelta`가 `yearmonth` 차이를 보고 머리말을
   `전월`/`N개월 전`으로 바꾼다(숫자·계산은 그대로). 특정 달을 강제하려면 `--prev=`로 파일을 직접 지정할 것.
-- **검증 기준선: 전월 카드 합계 = `현황` 시트 트렌드의 그 달 값.** 어긋나면 원장 시트를 잘못 고른 것이다.
-  (26/8 배포 기준: 트렌드 7월 52.40억 = 전월 스냅샷 52.40억 → 당월 78.66억, +26.27억)
+- **검증 기준선: 전월 카드 합계 = 전월 파일에서 고른 원장 시트의 총액.**
+  (26/8 배포 기준: 7월 62.23억 → 8월 78.66억, **+16.44억**)
+  ⚠ `현황` 시트 트렌드와는 **더 이상 맞지 않는다** — 26/8 파일의 7월 블록은 **값으로 박힌 52.40억**이고,
+  26/7 파일의 채널 수식이 고쳐지면서 실제 7월은 62.23억이 됐다(26/7 파일 자신의 현황은 수식이라 62.23으로 재계산됨).
+  담당자가 26/8 파일 `현황` V25를 갱신하면 다시 맞는다. **트렌드 값에 맞추려고 원장을 되돌리지 말 것.**
+
+## ①탭 월 필터 (2026-08-18) — **올린 파일 기준**
+
+선택지는 리포에 있는 Aging 파일 수만큼이다. 과거월도 **원장 전체**를 갖고 있어 당월과 똑같이 보인다
+(채널 4개·수량·SKU 드릴다운·생산처/자재유형 필터 전부).
+
+- ⚠ **`현황` 시트 요약으로 만들지 말 것.** 한 번 검토했다가 기각한 안이다 —
+  현황은 채널이 3개뿐이고(**세븐일레븐이 건기식에 합쳐져 있다**) 금액만 있어 수량이 0이며 SKU가 없다.
+  게다가 **과거월 블록은 값으로 박혀 있어** 원본 파일을 고쳐도 안 따라온다
+  (26/8 파일의 7월 = 52.40억, 실제 26/7 파일 = 62.23억).
+- 과거월 매트릭스는 `readPrevPkgSnapshot`이 **품목군 스냅샷과 같은 파싱**에서 뽑아 `snap.month`로 실어준다
+  → 두 카드의 숫자가 어긋날 수 없다. `handleUpload`이 `monthly_mx[yearmonth]` 등에 합치고
+  `result.month_options`(선택 목록)와 `result.prev_months`(원본)를 만든다.
+- ⚠ **당월 키는 `CURRENT_DETAIL_MONTH`(`'6/1'`) 그대로 두고 과거월만 `yearmonth`를 키로 쓴다.**
+  Sensing(`getSensingBaseInventory`) 등이 그 키를 직접 쓰고 있어 당월 고정으로 남아야 한다.
+  화면이 보는 월은 `agingMonthKeyNow()` — `renderMatrix`/`drilldown`만 이걸 쓴다.
+- 월을 바꾸면 `closeDrill()`로 드릴다운을 닫는다(다른 달 SKU가 열린 채 남지 않게).
+- KV 영향: 한 달치 매트릭스 추가에 gzip +44KB(282→326KB). 상한 20MB라 여유 있다.
 
 ## ①탭 매트릭스 필터 (생산처·자재유형, 2026-08-18)
 
