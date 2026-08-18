@@ -222,6 +222,9 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
   그걸 다시 더하면 총액이 화면(80.4292억)과 어긋난다. 반드시 원본 `amt`로 더할 것.
 - `result.pkg_snapshot` = 당월(모든 경로에서 생성) / `result.pkg_prev` = 전월(배포 도구만 채움).
   둘 다 있어야 카드가 보이고, 없으면 `renderPkgDelta`가 카드를 숨긴다. **없다고 당월 값으로 대신 그리지 말 것.**
+- **생산처 버튼은 카드 헤더에 있다**(`pkgDeltaSrcBtns` / `setPkgDeltaSource`) — ①탭 `sourceFilter`와
+  **같은 상태를 읽고 쓴다**. ⚠ 컨트롤을 두 벌(각자 상태)로 두지 말 것: 한쪽만 바뀐 채
+  매트릭스와 이 카드가 다른 기준을 보게 된다.
 - **생산처(향남/횡성) 축**: 스냅샷에 `bySrc[생산처] = {total, byPkg}`가 실린다 — 스냅샷 본체와 **모양이 같아서**
   `renderPkgDelta`는 ①탭 `sourceFilter`가 걸리면 스냅샷만 갈아끼운다(계산 로직은 그대로).
   집계는 `parseInventory`의 `pkgAggBySrc`, 조립은 `buildPkgSnapshot`의 4번째 인자.
