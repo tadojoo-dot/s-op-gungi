@@ -2419,8 +2419,12 @@ function parseInventory(ws,pkgMap,srcMap){
     const hd=Math.round(parseNum(row[C.HOLD]));    // 보류재고 (N열)
     const qty=av+qc+hd;                            // 리포트 수량 = 가용+품질+보류 합산
     // 금액 = 가용+검사+보류 금액 열 합산. ⚠ 표준원가로 재평가하지 않는다 —
-    // Aging 리포트는 현재고 시트 금액을 그대로 쓰는 게 업무 기준이다(2026-08-13 사용자 결정).
+    // Aging 리포트는 재고 원장 시트 금액을 그대로 쓰는 게 업무 기준이다(2026-08-13 사용자 결정).
     // 표준원가/단가 정정표는 PSI 원가 환산(getPsiPriceMap)에서만 쓴다.
+    // ⚠⚠ **금액 열이 비어 있으면 0이 맞다. 다른 단가로 메우지 말 것** (2026-08-18 사용자 확정).
+    //   보류재고(O열)는 전 행 0이고 그게 정상이며(수량 118만개는 그대로 집계됨),
+    //   9401386·7301428·7301427처럼 전 행 금액이 0인 자재도 0으로 둔다.
+    //   결산 자재수불 단가로 환산하면 총액이 약 2.09억 커지지만 그건 Aging 기준이 아니다.
     const amt=(parseNum(row[C.AVAIL_AMT])+parseNum(row[C.QC_AMT])+parseNum(row[C.HOLD_AMT]))/1e8;
     const aoType=normalizeAgingBucket(row[C.AO]);
     const matType=String(row[C.AP]||'');
