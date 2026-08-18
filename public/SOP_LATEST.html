@@ -7777,7 +7777,7 @@ function renderChannelWape(){
   wrap.innerHTML=h;
   renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
   if(note){
-    note.innerHTML=`오른쪽 막대 = <strong>판매계획(SF) 시트</strong> 기준 채널별 월 흐름 (<strong>진한 막대 = 실적</strong>, 옅은 막대 = 계획 · <strong>금액(억원) 고정</strong>이라 위 수량 토글과 무관 · 마우스를 올리면 월별 숫자) · 세로 점선 = 실적/계획 경계 · 높이는 채널마다 따로 잡습니다(채널 간 크기 비교용 아님) · <strong>왼쪽 오차율은 오차율분석 시트</strong> 기준이라 두 시트의 실적 합계는 조금 다를 수 있습니다<br>WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
+    note.innerHTML=`오른쪽 막대 = <strong>판매계획(SF) 시트</strong> 기준 채널별 월 흐름 (<strong>진한 막대 = 실적</strong>, 옅은 막대 = 계획 · <strong>금액(억원) 고정</strong>이라 위 수량 토글과 무관 · 마우스를 올리면 월별 숫자) · 세로 점선 = 실적/계획 경계 · 높이는 채널마다 따로 잡습니다(채널 간 크기 비교용 아님)<br>WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
       +`위 트렌드 차트·보정 대상 리스트와 같은 기준입니다 · 판매계획이 없는 달은 <span style="color:var(--gray-m);">—</span><br>`
       +`⚠ 규모가 작은 채널은 오차율이 크게 흔들립니다 — 맨 오른쪽 계획금액과 같이 보세요 (기본 정렬이 계획규모 순입니다) · `
       +`<strong>숫자 칸</strong>을 누르면 그 채널·그 달의 품목이 차이 큰 순으로 뜹니다`;
