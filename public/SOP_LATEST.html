@@ -726,8 +726,8 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
           <option value="구강">구강</option>
           <option value="세븐일레븐">세븐일레븐</option>
         </select>
-        <select id="plantFilter" onchange="renderMatrix()" style="display:none;height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;">
-          <option value="">전체 플랜트</option>
+        <select id="sourceFilter" onchange="renderMatrix()" title="품목 기준 생산처(다이소 마스터). 창고 위치가 아닙니다 — 횡성 생산 품목이 향남 창고에 있어도 횡성으로 잡힙니다." style="display:none;height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;">
+          <option value="">전체 생산처</option>
         </select>
         <select id="typeFilter" onchange="renderMatrix()" style="display:none;height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;">
           <option value="">전체 자재유형</option>
@@ -2018,6 +2018,7 @@ function getUnitPrice(mat){
 function getSupplyRiskData(){return UPLOADED?.supply_risk??null;}
 function getKpiCurr(){return UPLOADED?.kpi_curr??null;}
 function getInvPlants(){return UPLOADED?.inventory_plants??null;}
+function getInvSources(){return UPLOADED?.inventory_sources??null;}
 function getHitData(){return UPLOADED?.hit??null;}
 function getActualUnitMap(){return UPLOADED?.actual_unit??{};}
 function currentDetailLabel(){return UPLOADED?.base_label||'당월';}
@@ -2121,7 +2122,11 @@ function handleUpload(file){
       if(invSheet){
         result.base_label=parseBaseLabel(wb.Sheets[invSheet]);
         result.base_yearmonth=parseBaseYearMonth(wb.Sheets[invSheet]);
-        const p=parseInventory(wb.Sheets[invSheet],pkgMap);
+        // 생산처 맵은 '다이소 마스터' 시트에 있다. 아래에서 다시 파싱하지만 78행짜리라 비용이 없고,
+        // 여기서 순서를 바꾸면(마스터 파싱을 통째로 위로 올리면) 다른 경로에 영향이 간다.
+        const dmSheet=wb.SheetNames.find(n=>String(n).replace(/\s/g,'')==='다이소마스터');
+        const srcMap=dmSheet?parseDaisoMasterSheet(wb.Sheets[dmSheet]).plantByMaterial:null;
+        const p=parseInventory(wb.Sheets[invSheet],pkgMap,srcMap);
         const totalAmt=sumNestedAging(p.ch_amt);
         if(totalAmt<=0){
           warnings.push(`${invSheet}: 원장 기준 SKU 드릴다운 금액 0원 (${inventoryStatsText(p.stats)}) · 당월 AGING 차트는 현황 시트 기준으로 반영`);
@@ -2132,7 +2137,8 @@ function handleUpload(file){
         result.monthly_mx_delivery={'6/1':p.matrix_delivery};
         result.kpi_curr=p.kpi;
           result.inventory_stats=p.stats;
-          result.inventory_plants=p.plants;   // ①탭 플랜트 필터 드롭다운 소스
+          result.inventory_plants=p.plants;    // 창고(원장 플랜트) — 지금 화면에는 안 쓴다
+          result.inventory_sources=p.sources;  // ①탭 생산처 필터 드롭다운 소스
           result.inventory_sheet=invSheet;   // 화면에 'Aging 기준이 어느 시트인지' 그대로 표시한다
           result.pkg_snapshot=buildPkgSnapshot(p.pkgAgg,result.base_label,result.base_yearmonth);
           // 전월 스냅샷은 배포 도구가 실어준다(파일이 하나뿐인 웹 업로드에는 없음).
@@ -2378,7 +2384,18 @@ function inventoryColMap(rows){
     CHANNEL:find('(채널)유통채널',47), AZ:find('(채널)유효기간 구분',51)
   };
 }
-function parseInventory(ws,pkgMap){
+// 생산처 표기를 하나로 맞춘다. 다이소 마스터는 '향남'/'횡성', 원장 플랜트명은
+// '대웅제약 향남 1공장'/'대웅제약 횡성 공장'이라 그대로 두면 같은 공장이 둘로 갈린다.
+function normalizeSourcePlant(v){
+  const t=String(v==null?'':v).trim();
+  if(!t) return '';
+  if(t.includes('횡성')) return '횡성';
+  if(t.includes('향남')) return '향남';
+  return t;
+}
+// ⚠ 3번째 인자 srcMap(자재코드→생산처)은 ①탭 '생산처' 필터 전용이다.
+//   안 넘겨도 동작한다 — 그 경우 원장 플랜트명(=창고)으로 폴백한다(배포 도구의 전월 스냅샷 경로가 그렇다).
+function parseInventory(ws,pkgMap,srcMap){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
   const data=rows.slice(2); // 3행부터 (2행=헤더)
   // 수량 = 가용(I)+품질검사(K)+보류(N), 금액 = 가용금액(J)+검사금액(L)+보류금액(O)
@@ -2386,9 +2403,9 @@ function parseInventory(ws,pkgMap){
   const C=inventoryColMap(rows);
   const ch_amt={},ch_delivery={},matrix={},matrix_delivery={};
   const pkgAgg={};
-  // ①탭 플랜트 필터용 {플랜트코드:플랜트명}. 코드에 박지 않고 원장에서 읽는다 —
-  // 생산처가 늘어나도(횡성이 그랬듯) 드롭다운이 알아서 따라온다.
-  const plants={};
+  // ①탭 필터용. 코드에 박지 않고 데이터에서 읽는다 — 생산처가 늘어나도(횡성이 그랬듯) 따라온다.
+  const plants={};    // {창고코드:창고명} — 지금 화면에는 안 쓰지만 남겨둔다
+  const sources={};   // {생산처:true} — 필터 드롭다운은 이쪽을 쓴다
   const kpi={'계':0,'환입':0,'6개월 미만':0,'7개월 미만':0,'9개월 미만':0,'12개월 미만':0,'유효기간 초과':0};
   // 채널이 비어 버려지는 행은 '조용히 사라지는 금액'이라 금액과 대표 자재코드까지 남긴다.
   // (26/8 파일에서 수식 미채움·VLOOKUP #N/A로 8억이 통째로 빠졌는데 아무 표시가 없었다)
@@ -2444,7 +2461,12 @@ function parseInventory(ws,pkgMap){
     const chRemMo=Math.round(parseNum(row[C.CHDL_MO]))||0;
     const plant=String(row[C.PLANT]||'').trim();
     if(plant&&!plants[plant]) plants[plant]=String(row[C.PLANT_NAME]||'').trim()||plant;
-    const sku={m:mat,n:name,q:qty,av,qc,hd,a:Math.round(amt*1e8/1e6*10)/10,t:matType,r:rem,chRemMo,p:plant};
+    // 생산처는 **품목 기준**이다 — 창고가 아니라 '그 품목을 어디서 만드는가'.
+    // 횡성 생산 품목이 향남 창고에도 쌓여 있어(26/8 기준 3.64억) 창고로 보면 횡성이 과소 계상된다.
+    // 다이소 마스터에 없는 품목(비다이소)은 창고명으로 폴백한다 — 전부 향남 창고라 향남으로 떨어진다.
+    const src=normalizeSourcePlant((srcMap&&srcMap.get(String(mat)))||row[C.PLANT_NAME]);
+    if(src) sources[src]=true;
+    const sku={m:mat,n:name,q:qty,av,qc,hd,a:Math.round(amt*1e8/1e6*10)/10,t:matType,r:rem,chRemMo,p:plant,sp:src};
     // 유통기한 기준 (AO열)
     if(!ch_amt[ch]) ch_amt[ch]={};
     if(!ch_amt[ch][aoType]) ch_amt[ch][aoType]={a:0,q:0};
@@ -2464,7 +2486,7 @@ function parseInventory(ws,pkgMap){
       matrix_delivery[ch][azType].s.push(sku);
     }
   });
-  return{ch_amt,ch_delivery,matrix,matrix_delivery,kpi,stats,pkgAgg,plants};
+  return{ch_amt,ch_delivery,matrix,matrix_delivery,kpi,stats,pkgAgg,plants,sources};
 }
 
 // 기초재고 시트 → {자재코드: 보류재고 수량}
@@ -4353,10 +4375,11 @@ let activeCell=null;
 //   무시해서, 걸러진 셀을 눌러도 전체 SKU가 나왔다(2026-08-18 플랜트 필터 붙이며 같이 수정).
 function matrixSkuFilter(){
   const typeF=document.getElementById('typeFilter')?.value||'';
-  const plantF=document.getElementById('plantFilter')?.value||'';
+  // ⚠ 생산처는 sku.sp(품목 기준)다. sku.p(창고)로 거르면 향남 창고에 있는 횡성 품목이 빠진다.
+  const srcF=document.getElementById('sourceFilter')?.value||'';
   return {
-    on:!!(typeF||plantF), typeF, plantF,
-    pass:s=>(!typeF||s.t===typeF)&&(!plantF||String(s.p||'')===plantF)
+    on:!!(typeF||srcF), typeF, srcF,
+    pass:s=>(!typeF||s.t===typeF)&&(!srcF||String(s.sp||'')===srcF)
   };
 }
 // 셀 하나(raw)를 필터 적용 결과로 접는다. sku.a는 0.1백만원 단위라 억으로 되돌릴 때 /100.
@@ -4385,8 +4408,14 @@ function _syncFilterSelect(id,pairs,allLabel){
   sel.value=pairs.some(x=>x[0]===prev)?prev:'';
 }
 function syncMatrixFilterOptions(mxData){
-  const plants=getInvPlants()||{};
-  _syncFilterSelect('plantFilter',Object.keys(plants).sort().map(c=>[c,plants[c]||c]),'전체 플랜트');
+  // 생산처 목록은 파서가 모아준 것을 쓰되, 옛 파싱본(sources 없음)이면 매트릭스의 sku.sp에서 줍는다.
+  let srcs=Object.keys(getInvSources()||{});
+  if(!srcs.length){
+    const set=new Set();
+    for(const ch in mxData) for(const c in mxData[ch]) (mxData[ch][c].s||[]).forEach(s=>{if(s.sp) set.add(s.sp);});
+    srcs=[...set];
+  }
+  _syncFilterSelect('sourceFilter',srcs.sort().map(v=>[v,v]),'전체 생산처');
   const types=new Set();
   for(const ch in mxData) for(const c in mxData[ch]) (mxData[ch][c].s||[]).forEach(s=>{if(s.t) types.add(s.t);});
   _syncFilterSelect('typeFilter',[...types].sort().map(t=>[t,t]),'전체 자재유형');
@@ -4499,9 +4528,8 @@ function renderMatrix(){
   // 플랜트/자재유형 축이 없어 따라올 수 없다 — 말없이 두면 한 화면에서 총액이 갈린 것처럼 보인다.
   const fNote=document.getElementById('matrixFilterNote');
   if(fNote){
-    const plants=getInvPlants()||{};
     const parts=[];
-    if(f.plantF) parts.push(`플랜트 ${plants[f.plantF]||f.plantF}`);
+    if(f.srcF) parts.push(`생산처 ${f.srcF}(품목 기준)`);
     if(f.typeF) parts.push(`자재유형 ${f.typeF}`);
     if(chF) parts.push(`채널 ${chF}`);
     if(parts.length){
@@ -4523,8 +4551,7 @@ function drilldown(ch, cat){
   const panel=document.getElementById('drilldown');
   const title=document.getElementById('ddTitle');
   const body=document.getElementById('ddBody');
-  const plants=getInvPlants()||{};
-  const fTag=f.on?` <span class="tag gray" style="font-size:11px;padding:3px 9px;">${[f.plantF?(plants[f.plantF]||f.plantF):'',f.typeF].filter(Boolean).join(' · ')}</span>`:'';
+  const fTag=f.on?` <span class="tag gray" style="font-size:11px;padding:3px 9px;">${[f.srcF?`생산처 ${f.srcF}`:'',f.typeF].filter(Boolean).join(' · ')}</span>`:'';
   title.innerHTML=`📦 ${ch} — ${cat} 구간 SKU 상세 &nbsp;<span class="tag" style="background:${AGING_COL[cat]||'#888'};color:#fff;font-size:14px;padding:3px 12px;">${fmtAmt(d.a||0)} / ${formatQty(d.q||0)}</span>${fTag}`;
   loadDrillMemo(`${ch}|${cat}`);
 
