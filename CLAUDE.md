@@ -86,9 +86,17 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
   파일에 따라 의약품 등 **타사업부 원장이 통째로 섞여 있을 수 있고 그건 채널이 없는 게 정상**이다.
   그래서 채널 공백 경고는 `pkgMap`(기준정보 품목군 맵)에 등록된 건기식 자재일 때만 사고로 센다
   (`stats.skippedNoChannelAmt` → 상태줄에 ⚠). 전건을 세면 매달 가짜 경고가 뜬다.
-- **플랜트**: D열=`플랜트`(코드), P열=`플랜트명`. ①탭 플랜트 필터용으로 `sku.p`(코드)와
-  `result.inventory_plants`(`{코드:이름}`)를 만든다. **드롭다운 목록을 코드에 박지 말 것** —
-  생산처가 늘어도(횡성이 그랬다) 데이터에서 그린다. 26/8: 향남 68.87 + 횡성 9.79 = 78.66억(전체와 일치)
+- **창고 vs 생산처** ⚠ 둘은 다르고, 화면 필터는 **생산처(품목 기준)** 를 쓴다.
+  - 창고 = 원장 D열 `플랜트`/P열 `플랜트명` → `sku.p`, `result.inventory_plants`
+  - **생산처 = `다이소 마스터` 시트의 `플랜트` 열(자재코드별 향남/횡성)** → `sku.sp`, `result.inventory_sources`
+    `parseDaisoMasterSheet(...).plantByMaterial`을 그대로 쓴다 — 새로 파싱하지 말 것.
+    마스터에 없는 품목(비다이소)은 원장 플랜트명으로 폴백(전부 향남 창고라 향남으로 떨어진다).
+    표기가 `향남` / `대웅제약 향남 1공장`으로 갈리므로 `normalizeSourcePlant`로 통일한다.
+  - ⚠ **창고로 거르면 횡성이 과소 계상된다** — 횡성 생산 품목이 향남 창고에도 있다.
+    26/8: 창고 기준 향남 68.87 / 횡성 9.80 ↔ **생산처 기준 향남 65.23 / 횡성 13.43** (차이 3.63억)
+  - ⚠ **마스터의 생산처 지정은 달마다 바뀐다** (26/7→26/8에 22개 코드: 7302 계열 17개 횡성→향남,
+    9401 계열 5개 향남→횡성). **전월대비를 낼 때는 당월 마스터 하나로 양쪽을 통일할 것** —
+    월별 마스터를 각각 쓰면 이관 자체가 재고 증감으로 잡힌다.
 - 컬럼: B=자재, F=배치, **I=가용/J=가용금액, K=품질검사/L=검사금액, N=보류재고/O=보류금액**
   (열 위치는 `inventoryColMap(rows)`이 헤더에서 값으로 찾는다 — 두 시트의 중간 열 구성이 서로 다르다)
 - **수량/금액은 항상 I+K+N, J+L+O 합산** (가용만 쓰면 안 됨 — 2026-07-08에 이 버그로 "3개월↓ 리포트가 3개인데 실제 12개" 이슈 발생/수정함)
@@ -157,7 +165,7 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 | 화면/기능 | 함수 |
 |---|---|
 | ① 재고 Aging 매트릭스 + 드릴다운 | `renderMatrix`, `drilldown`, `_renderDDTbody` |
-| ① 매트릭스 필터(플랜트·자재유형) | `matrixSkuFilter`, `filterMatrixCell`, `syncMatrixFilterOptions`, `_syncFilterSelect` — 아래 "매트릭스 필터" 참고 |
+| ① 매트릭스 필터(생산처·자재유형) | `matrixSkuFilter`, `filterMatrixCell`, `syncMatrixFilterOptions`, `_syncFilterSelect`, `normalizeSourcePlant` — 아래 "매트릭스 필터" 참고 |
 | ① 품목군별 전월대비 재고 증감 (+SKU 드릴다운) | `renderPkgDelta`, `togglePkgDeltaRow`, `setPkgDeltaUnit` — 아래 "품목군 전월대비" 참고 |
 | 📡 Aging Sensing (M+N 예측) | `renderSensing`, `projectSensingInventory`, `computeSensInbound`(PSI 입고, 원가단가 기준) |
 | SKU 상세 팝업(라인차트, 실적vs계획) | `renderSkuDetailModal` — 배지: `diffVal`/`diffPos` 3번째 dataset |
@@ -226,7 +234,7 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 - **검증 기준선: 전월 카드 합계 = `현황` 시트 트렌드의 그 달 값.** 어긋나면 원장 시트를 잘못 고른 것이다.
   (26/8 배포 기준: 트렌드 7월 52.40억 = 전월 스냅샷 52.40억 → 당월 78.66억, +26.27억)
 
-## ①탭 매트릭스 필터 (플랜트·자재유형, 2026-08-18)
+## ①탭 매트릭스 필터 (생산처·자재유형, 2026-08-18)
 
 **조건은 `matrixSkuFilter()` 한 곳에만 있어야 한다.** `renderMatrix`와 `drilldown`이 같은 걸 쓴다 —
 예전엔 `drilldown`이 자재유형 필터를 통째로 무시해서, 걸러진 셀을 눌러도 전체 SKU가 나왔다.
@@ -242,7 +250,9 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 - ⚠ **KPI 카드·재고 추이 차트는 따라오지 않는다.** `kpi_curr`/`trend_data`는 `현황` 시트 SUMIFS라
   플랜트·자재유형 축이 없다. 그래서 필터가 걸리면 `matrixFilterNote`에 "이 표만 걸러진 값"이라고 띄운다.
   **카드 숫자를 필터에 맞춰 바꾸려 들지 말 것** — 원장 기준과 현황 기준이 섞인다.
-- 품목군 전월대비(`renderPkgDelta`)와 Sensing에는 플랜트 축이 없어 필터가 적용되지 않는다.
+- 필터 select id는 `sourceFilter`(생산처) / `typeFilter`(자재유형). **`sku.sp`로 거를 것** —
+  `sku.p`(창고)로 거르면 향남 창고에 있는 횡성 품목 3.63억이 빠진다.
+- 품목군 전월대비(`renderPkgDelta`)와 Sensing에는 생산처 축이 없어 필터가 적용되지 않는다.
 
 ## 확립된 시각 패턴
 - **차이(diff) 배지**: 초록(`#33512E`)/빨강(`#D64545`) 배경 + 흰 텍스트 + `ctx.roundRect`로 둥근 모서리. `▲+`/`▼` 접두사. Chart.js `afterDraw` 플러그인으로 캔버스에 직접 그림 (Chart.js datalabels의 `backgroundColor`+`borderRadius` 조합도 동일 효과, `renderSkuDetailModal`의 3번째 dataset 참고).
