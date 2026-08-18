@@ -726,18 +726,18 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
           <option value="구강">구강</option>
           <option value="세븐일레븐">세븐일레븐</option>
         </select>
-        <select id="typeFilter" onchange="renderMatrix()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;">
+        <select id="plantFilter" onchange="renderMatrix()" style="display:none;height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;">
+          <option value="">전체 플랜트</option>
+        </select>
+        <select id="typeFilter" onchange="renderMatrix()" style="display:none;height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;">
           <option value="">전체 자재유형</option>
-          <option value="(DW)상품">(DW)상품</option>
-          <option value="(DW)완제품">(DW)완제품</option>
-          <option value="(DW)포장재">(DW)포장재</option>
-          <option value="(DW)판촉물">(DW)판촉물</option>
         </select>
         <button onclick="toggleUnit()" id="unitBtn" style="border:1px solid var(--border);border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer;background:#fff;">수량 보기</button>
       </div>
     </div>
     <div class="sec-body flush" style="overflow-x:auto;">
       <table class="aging-matrix" id="agingMatrix"></table>
+      <div id="matrixFilterNote" style="display:none;margin:8px 16px 0;font-size:10.5px;color:var(--terra);font-weight:800;"></div>
       <div id="matrixRevNote" style="display:none;margin:8px 16px 0;font-size:10.5px;color:var(--muted);">※ 매출환산: 재고금액(원가 기준)에 SKU별 전월 순매출÷원가 배율을 곱한 값 · 원가 시트(전월 스냅샷) 기준이라 이번 달 실제 마진과 다를 수 있음 · ⚠N = 원가 시트에 없는 SKU N건은 전사 평균 배율로 대체 적용</div>
     </div>
     <div class="drilldown" id="drilldown">
@@ -2017,6 +2017,7 @@ function getUnitPrice(mat){
 }
 function getSupplyRiskData(){return UPLOADED?.supply_risk??null;}
 function getKpiCurr(){return UPLOADED?.kpi_curr??null;}
+function getInvPlants(){return UPLOADED?.inventory_plants??null;}
 function getHitData(){return UPLOADED?.hit??null;}
 function getActualUnitMap(){return UPLOADED?.actual_unit??{};}
 function currentDetailLabel(){return UPLOADED?.base_label||'당월';}
@@ -2131,6 +2132,7 @@ function handleUpload(file){
         result.monthly_mx_delivery={'6/1':p.matrix_delivery};
         result.kpi_curr=p.kpi;
           result.inventory_stats=p.stats;
+          result.inventory_plants=p.plants;   // ①탭 플랜트 필터 드롭다운 소스
           result.inventory_sheet=invSheet;   // 화면에 'Aging 기준이 어느 시트인지' 그대로 표시한다
           result.pkg_snapshot=buildPkgSnapshot(p.pkgAgg,result.base_label,result.base_yearmonth);
           // 전월 스냅샷은 배포 도구가 실어준다(파일이 하나뿐인 웹 업로드에는 없음).
@@ -2364,6 +2366,8 @@ function inventoryColMap(rows){
   };
   return {
     MAT:find('자재',1), NAME:find('자재 내역',2),
+    // 플랜트는 ①탭 필터에만 쓴다. 헤더에 '플랜트'와 '플랜트명'이 따로 있어 정확일치로 갈린다.
+    PLANT:find('플랜트',3), PLANT_NAME:find('플랜트명',15),
     AVAIL:find('가용',8), AVAIL_AMT:find('가용재고 금액',9),
     QC:find('품질 검사',10), QC_AMT:find('검사재고 금액',11),
     HOLD:find('보류 재고',13), HOLD_AMT:find('보류재고 금액',14),
@@ -2382,6 +2386,9 @@ function parseInventory(ws,pkgMap){
   const C=inventoryColMap(rows);
   const ch_amt={},ch_delivery={},matrix={},matrix_delivery={};
   const pkgAgg={};
+  // ①탭 플랜트 필터용 {플랜트코드:플랜트명}. 코드에 박지 않고 원장에서 읽는다 —
+  // 생산처가 늘어나도(횡성이 그랬듯) 드롭다운이 알아서 따라온다.
+  const plants={};
   const kpi={'계':0,'환입':0,'6개월 미만':0,'7개월 미만':0,'9개월 미만':0,'12개월 미만':0,'유효기간 초과':0};
   // 채널이 비어 버려지는 행은 '조용히 사라지는 금액'이라 금액과 대표 자재코드까지 남긴다.
   // (26/8 파일에서 수식 미채움·VLOOKUP #N/A로 8억이 통째로 빠졌는데 아무 표시가 없었다)
@@ -2435,7 +2442,9 @@ function parseInventory(ws,pkgMap){
     if(aoType==='12개월 미만') kpi['12개월 미만']+=amt;
     if(aoType==='유효기간 초과') kpi['유효기간 초과']+=amt;
     const chRemMo=Math.round(parseNum(row[C.CHDL_MO]))||0;
-    const sku={m:mat,n:name,q:qty,av,qc,hd,a:Math.round(amt*1e8/1e6*10)/10,t:matType,r:rem,chRemMo};
+    const plant=String(row[C.PLANT]||'').trim();
+    if(plant&&!plants[plant]) plants[plant]=String(row[C.PLANT_NAME]||'').trim()||plant;
+    const sku={m:mat,n:name,q:qty,av,qc,hd,a:Math.round(amt*1e8/1e6*10)/10,t:matType,r:rem,chRemMo,p:plant};
     // 유통기한 기준 (AO열)
     if(!ch_amt[ch]) ch_amt[ch]={};
     if(!ch_amt[ch][aoType]) ch_amt[ch][aoType]={a:0,q:0};
@@ -2455,7 +2464,7 @@ function parseInventory(ws,pkgMap){
       matrix_delivery[ch][azType].s.push(sku);
     }
   });
-  return{ch_amt,ch_delivery,matrix,matrix_delivery,kpi,stats,pkgAgg};
+  return{ch_amt,ch_delivery,matrix,matrix_delivery,kpi,stats,pkgAgg,plants};
 }
 
 // 기초재고 시트 → {자재코드: 보류재고 수량}
@@ -4339,14 +4348,64 @@ function toggleUnit(){
 
 // ═══════════ AGING MATRIX ══════════════════════════════════
 let activeCell=null;
-function renderMatrix(){
+// ①탭 매트릭스의 SKU 필터(자재유형·플랜트)를 한 곳에서 만든다.
+// ⚠ renderMatrix와 drilldown이 **같은 조건**을 써야 한다 — 예전엔 drilldown이 자재유형 필터를
+//   무시해서, 걸러진 셀을 눌러도 전체 SKU가 나왔다(2026-08-18 플랜트 필터 붙이며 같이 수정).
+function matrixSkuFilter(){
   const typeF=document.getElementById('typeFilter')?.value||'';
-  const chF=document.getElementById('chFilter')?.value||'';
+  const plantF=document.getElementById('plantFilter')?.value||'';
+  return {
+    on:!!(typeF||plantF), typeF, plantF,
+    pass:s=>(!typeF||s.t===typeF)&&(!plantF||String(s.p||'')===plantF)
+  };
+}
+// 셀 하나(raw)를 필터 적용 결과로 접는다. sku.a는 0.1백만원 단위라 억으로 되돌릴 때 /100.
+function filterMatrixCell(raw,f){
+  if(!f.on||!raw.s) return {...raw};
+  const fs=raw.s.filter(f.pass);
+  return {a:fs.reduce((t,x)=>t+(x.a||0),0)/100,q:fs.reduce((t,x)=>t+(x.q||0),0),s:fs};
+}
+// 필터 드롭다운은 **업로드 데이터에서** 만든다.
+// ⚠ 목록을 HTML에 박아두면 안 된다 — 자재유형이 실제로 그렇게 깨져 있었다.
+//   26/8 파일의 자재유형 값은 `상품/완제품/포장재`인데 옵션은 `(DW)상품`이라, 고르면 빈 표가 나왔다.
+// ⚠ 이 동기화를 handleUpload 안에만 두면 안 된다 — 업로드한 사람과 나머지 열람자의 화면이 갈린다
+//   (CLAUDE.md의 chAchieveMonth 사고와 같은 계열). 그래서 모든 경로가 지나는 renderMatrix에서 부른다.
+function _syncFilterSelect(id,pairs,allLabel){
+  const sel=document.getElementById(id);
+  if(!sel) return;
+  // 고를 게 하나뿐이면(=정보량 0) 셀렉트를 숨긴다. 옛 파싱본이라 값이 없을 때도 마찬가지.
+  if(pairs.length<2){ sel.style.display='none'; sel.value=''; sel.dataset.sig=''; return; }
+  sel.style.display='';
+  const sig=pairs.map(x=>x[0]).join('|');
+  if(sel.dataset.sig===sig) return;   // 매 렌더마다 다시 그리면 사용자 선택이 튄다
+  sel.dataset.sig=sig;
+  const prev=sel.value;
+  sel.innerHTML=`<option value="">${allLabel}</option>`+
+    pairs.map(([v,label])=>`<option value="${v}">${label}</option>`).join('');
+  sel.value=pairs.some(x=>x[0]===prev)?prev:'';
+}
+function syncMatrixFilterOptions(mxData){
+  const plants=getInvPlants()||{};
+  _syncFilterSelect('plantFilter',Object.keys(plants).sort().map(c=>[c,plants[c]||c]),'전체 플랜트');
+  const types=new Set();
+  for(const ch in mxData) for(const c in mxData[ch]) (mxData[ch][c].s||[]).forEach(s=>{if(s.t) types.add(s.t);});
+  _syncFilterSelect('typeFilter',[...types].sort().map(t=>[t,t]),'전체 자재유형');
+}
+function renderMatrix(){
   const cats=agingViewMode==='delivery'?DELIVERY_CATS:CATS;
   const catCol=agingViewMode==='delivery'?DELIVERY_COL:AGING_COL;
   const mxData=agingViewMode==='delivery'?getMxDelivery(CURRENT_DETAIL_MONTH):getMx(CURRENT_DETAIL_MONTH);
+  syncMatrixFilterOptions(mxData||{});
+  const f=matrixSkuFilter();
+  const chF=document.getElementById('chFilter')?.value||'';
   let chs=mxData?Object.keys(mxData):CHANNELS;
   if(chF) chs=chs.filter(c=>c===chF);
+  // 필터를 걸면 해당 없는 채널은 행째로 뺀다 — 안 그러면 횡성처럼 한 칸만 있는 플랜트에서
+  // '—'만 찬 빈 행 3개가 남아 표를 읽기 어렵다. (필터 없을 땐 예전 그대로 전 채널을 보여준다)
+  if(f.on&&mxData) chs=chs.filter(ch=>cats.some(c=>{
+    const d=filterMatrixCell((mxData[ch]||{})[c]||{a:0,q:0,s:[]},f);
+    return d.a||d.q||(d.s&&d.s.length);
+  }));
 
   /* 선택 월 데이터 없을 때 → 집계 표시 */
   if(!mxData){
@@ -4381,11 +4440,7 @@ function renderMatrix(){
     let rowA=0,rowQ=0,rowRev=0,rowUnmatched=0;
     cats.forEach(c=>{
       const raw=(mxData[ch]||{})[c]||{a:0,q:0,s:[]};
-      let d={...raw};
-      if(typeF&&raw.s){
-        const fs=raw.s.filter(s=>s.t===typeF);
-        d={a:fs.reduce((s,x)=>s+(x.a||0),0)/100,q:fs.reduce((s,x)=>s+(x.q||0),0),s:fs};
-      }
+      const d=filterMatrixCell(raw,f);
       totals[c].a+=d.a; totals[c].q+=d.q||0;
       rowA+=d.a; rowQ+=(d.q||0);
       if(costData){
@@ -4440,6 +4495,20 @@ function renderMatrix(){
   document.getElementById('agingMatrix').innerHTML=html;
   const note=document.getElementById('matrixRevNote');
   if(note) note.style.display=costData?'block':'none';
+  // 필터를 걸면 이 표만 걸러진다. 상단 KPI 카드·재고 추이 차트는 '현황' 시트 SUMIFS 결과라
+  // 플랜트/자재유형 축이 없어 따라올 수 없다 — 말없이 두면 한 화면에서 총액이 갈린 것처럼 보인다.
+  const fNote=document.getElementById('matrixFilterNote');
+  if(fNote){
+    const plants=getInvPlants()||{};
+    const parts=[];
+    if(f.plantF) parts.push(`플랜트 ${plants[f.plantF]||f.plantF}`);
+    if(f.typeF) parts.push(`자재유형 ${f.typeF}`);
+    if(chF) parts.push(`채널 ${chF}`);
+    if(parts.length){
+      fNote.style.display='block';
+      fNote.textContent=`※ 필터 적용 중 (${parts.join(' · ')}) — 걸러진 건 이 표와 SKU 드릴다운뿐입니다. 상단 KPI 카드와 재고 추이 차트는 현황 시트 기준이라 전체 ${(getKpiCurr()?.['계']??0).toFixed(2)}억 그대로입니다.`;
+    }else fNote.style.display='none';
+  }
 }
 
 function drilldown(ch, cat){
@@ -4448,12 +4517,15 @@ function drilldown(ch, cat){
   activeCell=key;
   renderMatrix();
   const mxData=agingViewMode==='delivery'?(getMxDelivery(CURRENT_DETAIL_MONTH)||{}):(getMx(CURRENT_DETAIL_MONTH)||{});
-  const d=(mxData[ch]||{})[cat]||{};
+  const f=matrixSkuFilter();
+  const d=filterMatrixCell((mxData[ch]||{})[cat]||{a:0,q:0,s:[]},f);
   const skus=d.s||[];
   const panel=document.getElementById('drilldown');
   const title=document.getElementById('ddTitle');
   const body=document.getElementById('ddBody');
-  title.innerHTML=`📦 ${ch} — ${cat} 구간 SKU 상세 &nbsp;<span class="tag" style="background:${AGING_COL[cat]||'#888'};color:#fff;font-size:14px;padding:3px 12px;">${fmtAmt(d.a||0)} / ${formatQty(d.q||0)}</span>`;
+  const plants=getInvPlants()||{};
+  const fTag=f.on?` <span class="tag gray" style="font-size:11px;padding:3px 9px;">${[f.plantF?(plants[f.plantF]||f.plantF):'',f.typeF].filter(Boolean).join(' · ')}</span>`:'';
+  title.innerHTML=`📦 ${ch} — ${cat} 구간 SKU 상세 &nbsp;<span class="tag" style="background:${AGING_COL[cat]||'#888'};color:#fff;font-size:14px;padding:3px 12px;">${fmtAmt(d.a||0)} / ${formatQty(d.q||0)}</span>${fTag}`;
   loadDrillMemo(`${ch}|${cat}`);
 
   if(!skus.length){body.innerHTML=`<div style="padding:12px;color:var(--muted);">해당 데이터 없음</div>`;panel.classList.add('show');return;}
@@ -4461,7 +4533,7 @@ function drilldown(ch, cat){
   _ddSort={col:'',dir:0};
   let overflowNote='';
   if(cat==='18개월 이상'&&(mxData[ch]||{})['18개월 이상']){
-    const total=((mxData[ch]||{})['18개월 이상']?.q||0);
+    const total=(d.q||0);
     const shown=skus.reduce((a,s)=>a+(s.q||0),0);
     if(total>shown) overflowNote=`<tr><td colspan="12" style="text-align:center;padding:8px;color:var(--muted);font-size:11px;">... 상위 ${skus.length}개 표시 / 전체 SKU는 현재고 시트 참조</td></tr>`;
   }
