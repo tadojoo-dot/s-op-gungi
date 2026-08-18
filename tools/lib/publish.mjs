@@ -144,6 +144,13 @@ export function readPrevPkgSnapshot(prevPath, base = LIVE_BASE, curYearMonth = n
     snap.sheet=pick.sheet;
     snap.srcFrom=__srcBin?'당월 마스터':'(생산처 분해 없음)';
     snap.candidates=cands.map(c=>c.sheet+'('+(c.ym||'기준월 미상')+')');
+    // ①탭 월 필터용 매트릭스. 전월 파일도 원장 전체를 갖고 있으므로 당월과 **똑같은 수준**으로 볼 수 있다
+    //   (채널 4개·수량·SKU 드릴다운·생산처 필터 전부). 현황 시트 요약과는 다른 소스다.
+    snap.month={
+      label:parseBaseLabel(ws), yearmonth:parseBaseYearMonth(ws), sheet:pick.sheet,
+      matrix:p.matrix, matrix_delivery:p.matrix_delivery,
+      ch_amt:p.ch_amt, ch_delivery:p.ch_delivery, kpi:p.kpi
+    };
     return JSON.parse(JSON.stringify(snap));
   })()`);
   return snap && snap.byPkg && Object.keys(snap.byPkg).length ? snap : null;
@@ -255,6 +262,11 @@ export function parseExcel(xlsxPath, base = LIVE_BASE, stdCostPath = null, overr
   if (prevPkg) {
     sandbox.__prevPkg = prevPkg;
     run('PKG_PREV_INPUT=__prevPkg;');
+    // 전월 매트릭스는 ①탭 월 필터가 쓴다. pkg 스냅샷과 같은 파싱에서 나온 것이라 숫자가 어긋나지 않는다.
+    if (prevPkg.month) {
+      sandbox.__prevMonths = [prevPkg.month];
+      run('PREV_MONTHS_INPUT=__prevMonths;');
+    }
   }
   // 단가 소스를 먼저 실어야 한다 — parseInventory가 재고금액을 계산할 때 이미 있어야 하기 때문.
   // 우선순위: 정정표(이관점검) > 결산 표준원가 > 현재고 시트 금액.

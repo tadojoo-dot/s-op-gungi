@@ -726,6 +726,8 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
           <option value="구강">구강</option>
           <option value="세븐일레븐">세븐일레븐</option>
         </select>
+        <select id="monthFilter" onchange="setAgingViewMonth(this.value)" title="올린 Aging 파일 기준입니다. 과거월도 당월과 같은 원장 기준이라 채널·수량·SKU 드릴다운이 모두 나옵니다." style="display:none;height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:800;">
+        </select>
         <select id="sourceFilter" onchange="onAgingFilterChange()" title="품목 기준 생산처(다이소 마스터). 창고 위치가 아닙니다 — 횡성 생산 품목이 향남 창고에 있어도 횡성으로 잡힙니다." style="display:none;height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;">
           <option value="">전체 생산처</option>
         </select>
@@ -2019,6 +2021,14 @@ function getSupplyRiskData(){return UPLOADED?.supply_risk??null;}
 function getKpiCurr(){return UPLOADED?.kpi_curr??null;}
 function getInvPlants(){return UPLOADED?.inventory_plants??null;}
 function getInvSources(){return UPLOADED?.inventory_sources??null;}
+function getMonthOptions(){return UPLOADED?.month_options??null;}
+// ①탭이 지금 보고 있는 월 키. 선택 안 했거나 데이터가 없으면 당월.
+let agingViewMonth='';
+function agingMonthKeyNow(){
+  const opts=getMonthOptions();
+  if(agingViewMonth&&opts&&opts.some(o=>o.key===agingViewMonth)) return agingViewMonth;
+  return CURRENT_DETAIL_MONTH;
+}
 function getHitData(){return UPLOADED?.hit??null;}
 function getActualUnitMap(){return UPLOADED?.actual_unit??{};}
 function currentDetailLabel(){return UPLOADED?.base_label||'당월';}
@@ -2141,6 +2151,21 @@ function handleUpload(file){
           result.inventory_sources=p.sources;  // ①탭 생산처 필터 드롭다운 소스
           result.inventory_sheet=invSheet;   // 화면에 'Aging 기준이 어느 시트인지' 그대로 표시한다
           result.pkg_snapshot=buildPkgSnapshot(p.pkgAgg,result.base_label,result.base_yearmonth,p.pkgAggBySrc);
+          // ①탭 월 필터 — 선택지는 **올린 파일 수만큼**이다(현황 시트 요약이 아니라 원장 기준).
+          //   당월 키는 CURRENT_DETAIL_MONTH('6/1') 그대로 둔다. 다른 화면(Sensing 등)이 그 키를 직접 쓴다.
+          //   과거월은 자기 yearmonth('2026.07')를 키로 쓴다 — 당월 키와 겹치지 않는다.
+          const carriedMonths=PREV_MONTHS_INPUT||UPLOADED?.prev_months||null;
+          const prevMonths=(carriedMonths||[]).filter(m=>m&&m.yearmonth&&result.base_yearmonth&&m.yearmonth<result.base_yearmonth);
+          result.prev_months=prevMonths.length?prevMonths:null;
+          const opts=[{key:CURRENT_DETAIL_MONTH,label:result.base_label,yearmonth:result.base_yearmonth,sheet:invSheet,current:true}];
+          prevMonths.forEach(m=>{
+            result.monthly_mx[m.yearmonth]=m.matrix;
+            if(m.matrix_delivery) result.monthly_mx_delivery[m.yearmonth]=m.matrix_delivery;
+            if(m.ch_amt) result.monthly_ch_amt[m.yearmonth]=m.ch_amt;
+            if(m.ch_delivery) result.monthly_ch_delivery[m.yearmonth]=m.ch_delivery;
+            opts.push({key:m.yearmonth,label:m.label,yearmonth:m.yearmonth,sheet:m.sheet});
+          });
+          result.month_options=opts.sort((a,b)=>String(b.yearmonth||'').localeCompare(String(a.yearmonth||'')));
           // 전월 스냅샷은 배포 도구가 실어준다(파일이 하나뿐인 웹 업로드에는 없음).
           // 재업로드로 조용히 사라지지 않게 직전 값을 이어받되, 반드시 '더 이전 달'이어야 한다.
           // ⚠ 같지 않은지만 보면 안 된다 — 지난달 파일을 다시 올릴 때 이번 달을 '전월'로 그려 증감 부호가 뒤집힌다.
@@ -3004,6 +3029,8 @@ let STD_COST_INPUT=null;
 // 전월 품목군 스냅샷. 대시보드는 엑셀 한 개만 파싱하므로 전월 숫자를 만들 수 없다 —
 // 배포 도구(tools/lib/publish.mjs)가 전월 Aging 파일을 한 번 더 파싱해서 여기에 실어준다.
 let PKG_PREV_INPUT=null;
+// 배포 도구가 채워주는 과거월 원장 매트릭스 [{label,yearmonth,sheet,matrix,...}]. 웹 업로드에는 없다.
+let PREV_MONTHS_INPUT=null;
 function parseStdCostSheet(ws){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
   // 헤더 행을 값으로 찾는다 — 결산 파일은 위에 빈 행이 몇 개 붙어 있고 매달 개수가 달라진다.
@@ -4444,10 +4471,29 @@ function syncMatrixFilterOptions(mxData){
 }
 // 생산처 필터는 매트릭스와 품목군 전월대비 카드에 같이 걸린다 — 한 화면에서 기준이 갈리지 않게.
 function onAgingFilterChange(){ renderMatrix(); renderPkgDelta(); }
+function setAgingViewMonth(v){ agingViewMonth=v||''; closeDrill(); renderMatrix(); }
+// 월 드롭다운도 데이터에서 만든다. 파일을 더 올리면 선택지가 저절로 늘어난다.
+function syncAgingMonthOptions(){
+  const opts=getMonthOptions()||[];
+  // 표기는 기준일('8/1/26')이 아니라 회의에서 부르는 이름('8월')으로. 기준일은 툴팁에 남긴다.
+  const _mn=o=>{const m=/^(\d{4})\.(\d{2})$/.exec(String(o.yearmonth||''));return m?`${Number(m[2])}월`:(o.label||o.key);};
+  _syncFilterSelect('monthFilter',opts.map(o=>[o.key,`${_mn(o)}${o.current?' (당월)':''}`]),'');
+  const sel=document.getElementById('monthFilter');
+  if(!sel) return;
+  if(opts.length<2){ sel.style.display='none'; return; }
+  sel.style.display='';
+  // '전체' 옵션이 의미 없는 축이라 _syncFilterSelect가 넣은 빈 옵션은 뺀다.
+  if(sel.options.length&&sel.options[0].value==='') sel.remove(0);
+  sel.value=agingMonthKeyNow();
+  const cur=opts.find(o=>o.key===sel.value);
+  sel.title=cur?`기준일 ${cur.label} · ${cur.sheet||''} 시트 · 올린 Aging 파일 기준`:'';
+}
 function renderMatrix(){
+  syncAgingMonthOptions();
+  const mKey=agingMonthKeyNow();
   const cats=agingViewMode==='delivery'?DELIVERY_CATS:CATS;
   const catCol=agingViewMode==='delivery'?DELIVERY_COL:AGING_COL;
-  const mxData=agingViewMode==='delivery'?getMxDelivery(CURRENT_DETAIL_MONTH):getMx(CURRENT_DETAIL_MONTH);
+  const mxData=agingViewMode==='delivery'?getMxDelivery(mKey):getMx(mKey);
   syncMatrixFilterOptions(mxData||{});
   const f=matrixSkuFilter();
   const chF=document.getElementById('chFilter')?.value||'';
@@ -4462,7 +4508,7 @@ function renderMatrix(){
 
   /* 선택 월 데이터 없을 때 → 집계 표시 */
   if(!mxData){
-    const snap=getTrendData()[CURRENT_DETAIL_MONTH]||{};
+    const snap=getTrendData()[mKey]||getTrendData()[CURRENT_DETAIL_MONTH]||{};
     let html=`<thead><tr><th class="ch-head">기준</th>`;
     cats.forEach(c=>html+=`<th style="color:#fff;background:${AGING_COL[c]||'#888'}">${c}</th>`);
     html+=`<th>합계</th></tr></thead><tbody>`;
@@ -4553,12 +4599,16 @@ function renderMatrix(){
   const fNote=document.getElementById('matrixFilterNote');
   if(fNote){
     const parts=[];
+    if(mKey!==CURRENT_DETAIL_MONTH){
+      const mo=(getMonthOptions()||[]).find(o=>o.key===mKey);
+      parts.push(`과거월 ${mo?.label||mKey}${mo?.sheet?`(${mo.sheet} 시트)`:''}`);
+    }
     if(f.srcF) parts.push(`생산처 ${f.srcF}(품목 기준)`);
     if(f.typeF) parts.push(`자재유형 ${f.typeF}`);
     if(chF) parts.push(`채널 ${chF}`);
     if(parts.length){
       fNote.style.display='block';
-      fNote.textContent=`※ 필터 적용 중 (${parts.join(' · ')}) — 걸러진 건 이 표·SKU 드릴다운과 아래 품목군 전월대비(생산처만)입니다. 상단 KPI 카드와 재고 추이 차트는 현황 시트 기준이라 전체 ${(getKpiCurr()?.['계']??0).toFixed(2)}억 그대로입니다.`;
+      fNote.textContent=`※ 이 표에만 적용 중 (${parts.join(' · ')}) — 걸러진 건 이 표·SKU 드릴다운과 아래 품목군 전월대비(생산처만)입니다. 상단 KPI 카드와 재고 추이 차트는 현황 시트 기준 당월(${(getKpiCurr()?.['계']??0).toFixed(2)}억) 그대로입니다.`;
     }else fNote.style.display='none';
   }
 }
@@ -4568,7 +4618,7 @@ function drilldown(ch, cat){
   if(activeCell===key){closeDrill();return;}
   activeCell=key;
   renderMatrix();
-  const mxData=agingViewMode==='delivery'?(getMxDelivery(CURRENT_DETAIL_MONTH)||{}):(getMx(CURRENT_DETAIL_MONTH)||{});
+  const mxData=agingViewMode==='delivery'?(getMxDelivery(agingMonthKeyNow())||{}):(getMx(agingMonthKeyNow())||{});
   const f=matrixSkuFilter();
   const d=filterMatrixCell((mxData[ch]||{})[cat]||{a:0,q:0,s:[]},f);
   const skus=d.s||[];

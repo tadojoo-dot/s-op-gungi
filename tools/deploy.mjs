@@ -103,6 +103,9 @@ if (!codeOnly) {
   if (browser.priceOverride) say(`단가 정정표 ${browser.priceOverride.mats.toLocaleString('ko-KR')}개 품목 우선 적용 (${browser.priceOverride.sheet})`);
   say(`기준일 ${s.baseLabel} · PSI ${s.psiRows.toLocaleString('ko-KR')}행 · 판매계획 ${s.salesPlanSkus.toLocaleString('ko-KR')}품목`);
   say(`PSI 월 헤더 ${Object.values(s.monthLabels).join(' / ') || '(없음)'}`);
+  if (browser.uploaded.month_options) {
+    say(`①탭 월 선택 ${browser.uploaded.month_options.map(o => `${o.label}${o.current ? '(당월)' : ''}`).join(' / ')}`);
+  }
   if (browser.uploaded.pkg_prev) {
     const c = browser.uploaded.pkg_snapshot, p = browser.uploaded.pkg_prev;
     say(`품목군 전월대비 ${p.label} ${p.total.a.toFixed(2)}억 → ${c.label} ${c.total.a.toFixed(2)}억 (${(c.total.a - p.total.a >= 0 ? '+' : '') + (c.total.a - p.total.a).toFixed(2)}억)`);
