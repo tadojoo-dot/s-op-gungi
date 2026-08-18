@@ -236,6 +236,9 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
   max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom;}
 .chwape .cw-name:hover{color:var(--navy);text-decoration-color:var(--navy);}
 /* 표(고정폭 700px) + 오른쪽 남는 폭에 오차 금액 차트. 좁아지면 아래로 접힌다. */
+.chwape td.cw-spark{padding:3px 8px!important;text-align:left;vertical-align:middle;}
+.chwape td.cw-spark svg{display:block;}
+.chwape th.cw-spark-h{text-align:left;}
 .chmemo-td{vertical-align:top;padding:4px 6px!important;}
 .chmemo-td textarea.action-memo{min-height:30px;height:30px;font-size:11.5px;}
 .chmemo-td textarea.action-memo:focus{height:80px;}
@@ -7383,6 +7386,55 @@ function buildHitTrend(){
   return out.length?out:null;
 }
 
+// ═══════════ 채널별 실적·계획 스파크라인 ═══════════
+// 판매계획(SF) 시트 요약(__summary.ch)에 채널별로 실적 1~7월 / 계획 8~12월이 들어 있다.
+// ⚠ **금액(억원) 고정**이다 — __summary.ch에는 수량이 없다. 위 금액/수량 토글을 수량으로 바꿔도
+//   이 열은 금액 기준 그대로다(2026-08-18 사용자 확정). 그래서 열 제목에 (억원)을 박는다.
+// ⚠ Chart.js로 그리지 말 것 — 행마다 미니 차트를 만들면 11개 인스턴스가 생겨 무겁고 인쇄도 깨진다.
+//   인라인 SVG로 그린다.
+const SPARK_W=240, SPARK_H=34, SPARK_GAP=2;
+function channelPlanActual(){
+  const sum=getSalesPlanData()?.__summary;
+  if(!sum?.ch) return null;
+  const byName=new Map();
+  const total={actual:[],plan:[]};
+  Object.values(sum.ch).forEach(c=>{
+    if(!c?.name) return;
+    const a=(c.actual||[]).map(v=>Number(v)||0), p=(c.plan||[]).map(v=>Number(v)||0);
+    byName.set(c.name,{actual:a,plan:p});
+    a.forEach((v,i)=>{total.actual[i]=(total.actual[i]||0)+v;});
+    p.forEach((v,i)=>{total.plan[i]=(total.plan[i]||0)+v;});
+  });
+  if(!byName.size) return null;
+  return {byName,total,actualMonths:sum.actualMonths||[],planMonths:sum.planMonths||[]};
+}
+// 채널 한 줄짜리 SVG 막대. 앞(실적)은 진하게, 뒤(계획)는 옅게, 사이에 점선 구분.
+function channelSparkCell(name,src){
+  const d=name==='전체'?src.total:src.byName.get(name);
+  if(!d||(!d.actual.length&&!d.plan.length)) return `<td class="cw-spark cw-na">—</td>`;
+  const A=d.actual, P=d.plan, all=[...A,...P];
+  const max=Math.max(...all,0.0001);
+  const n=all.length, bw=(SPARK_W-(n-1)*SPARK_GAP)/n;
+  const base=SPARK_H-2;
+  const bars=all.map((v,i)=>{
+    const h=Math.max(v>0?1.5:0,(v/max)*(SPARK_H-8));
+    const x=i*(bw+SPARK_GAP), y=base-h;
+    const plan=i>=A.length;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1" fill="${plan?'#B9C2EA':'#1D2783'}"></rect>`;
+  }).join('');
+  const divX=A.length*(bw+SPARK_GAP)-SPARK_GAP/2;
+  const divider=A.length&&P.length
+    ? `<line x1="${divX.toFixed(1)}" y1="2" x2="${divX.toFixed(1)}" y2="${base}" stroke="#C9CDDB" stroke-width="1" stroke-dasharray="2 2"></line>` : '';
+  const lbl=(arr,months,tag)=>arr.map((v,i)=>`${months[i]??(i+1)}월 ${v.toFixed(1)}`).join(' · ')&&
+    `${tag} ${arr.map((v,i)=>`${months[i]??(i+1)}월 ${v.toFixed(1)}`).join(' · ')}`;
+  const tip=[lbl(A,src.actualMonths,'실적'),lbl(P,src.planMonths,'계획')].filter(Boolean).join('\n')+`\n(단위: 억원)`;
+  return `<td class="cw-spark" title="${String(tip).replace(/"/g,'&quot;')}">
+    <svg width="${SPARK_W}" height="${SPARK_H}" viewBox="0 0 ${SPARK_W} ${SPARK_H}" role="img">
+      <line x1="0" y1="${base}" x2="${SPARK_W}" y2="${base}" stroke="#E7E9F0" stroke-width="1"></line>
+      ${bars}${divider}
+    </svg></td>`;
+}
+
 // ═══════════ 채널별 조치의견 ═══════════
 // 품목별 조치의견(hitAdjustMemo|채널|자재)과 달리 **채널 하나에 한 칸**이다.
 // ⚠ 같은 메모를 두 곳에서 쓴다 — 채널별 오차율 표의 '조치의견' 열과 보정 대상 리스트의 총계 행.
@@ -7693,31 +7745,39 @@ function renderChannelWape(){
     return `<td class="cw-click" onclick="openChDrill(${esc(ch)},${esc(mk)})" title="${ch} ${ml} 오차 상세 보기">${v.toFixed(0)}%</td>`;
   };
   // 표 전체 폭을 내용에 맞춰 잡는다 — 화면 폭에 맞춰 늘리면 숫자 사이가 벌어져 한눈에 안 들어온다.
-  const W_CH=132,W_MO=68,W_MEMO=280;
-  const tableW=W_CH+months.length*W_MO+W_MEMO;
+  // 오른쪽 여백에 채널별 12개월 흐름(실적 1~7 / 계획 8~12)을 스파크라인으로 붙인다.
+  // 판매계획 시트가 없으면 열 자체를 안 그린다(무회귀).
+  const spark=channelPlanActual();
+  const W_CH=132,W_MO=68,W_MEMO=280,W_SPARK=spark?SPARK_W+18:0;
+  const tableW=W_CH+months.length*W_MO+W_SPARK+W_MEMO;
+  const sparkHd=spark
+    ? `<th class="cw-spark-h">${spark.actualMonths[0]||1}~${spark.actualMonths[spark.actualMonths.length-1]||7}월 실적 · ${spark.planMonths[0]||8}~${spark.planMonths[spark.planMonths.length-1]||12}월 계획 (억원)</th>` : '';
   let h=`<table class="chwape" style="width:${tableW}px;">
-  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}<col style="width:${W_MEMO}px;"></colgroup>
+  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${spark?`<col style="width:${W_SPARK}px;">`:''}<col style="width:${W_MEMO}px;"></colgroup>
   <thead><tr>
     <th class="l sortable" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
     ${months.map(m=>`<th class="sortable" onclick="handleChWapeSort('${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="${m.key}"></span></th>`).join('')}
+    ${sparkHd}
     <th class="l">조치의견 ${_ymLabel(skuMemoMonth())}</th>
   </tr></thead><tbody>`;
   sorted.forEach(r=>{
     h+=`<tr class="cw-ch${r.ch===selCh?' cw-sel':''}">
       <td class="l"><button type="button" class="cw-name" onclick="openChDrill(${esc(r.ch)})" title="${r.ch}의 오차 상세 보기 (차이 큰 순)">${r.ch}</button></td>
       ${months.map(m=>cell(r.wape[m.key],r.ch,m.key,m.label)).join('')}
+      ${spark?channelSparkCell(r.ch,spark):''}
       ${hitChMemoCell(r.ch)}
     </tr>`;
   });
   h+=`<tr class="cw-total">
     <td class="l">전체</td>
     ${months.map(m=>totalWape[m.key]==null?`<td class="cw-na">—</td>`:`<td>${totalWape[m.key].toFixed(0)}%</td>`).join('')}
+    ${spark?channelSparkCell('전체',spark):''}
     ${hitChMemoCell('전체')}
   </tr></tbody></table>`;
   wrap.innerHTML=h;
   renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
   if(note){
-    note.innerHTML=`WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
+    note.innerHTML=`오른쪽 막대 = <strong>판매계획(SF) 시트</strong> 기준 채널별 월 흐름 (<strong>진한 막대 = 실적</strong>, 옅은 막대 = 계획 · <strong>금액(억원) 고정</strong>이라 위 수량 토글과 무관 · 마우스를 올리면 월별 숫자) · 세로 점선 = 실적/계획 경계 · 높이는 채널마다 따로 잡습니다(채널 간 크기 비교용 아님) · <strong>왼쪽 오차율은 오차율분석 시트</strong> 기준이라 두 시트의 실적 합계는 조금 다를 수 있습니다<br>WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
       +`위 트렌드 차트·보정 대상 리스트와 같은 기준입니다 · 판매계획이 없는 달은 <span style="color:var(--gray-m);">—</span><br>`
       +`⚠ 규모가 작은 채널은 오차율이 크게 흔들립니다 — 맨 오른쪽 계획금액과 같이 보세요 (기본 정렬이 계획규모 순입니다) · `
       +`<strong>숫자 칸</strong>을 누르면 그 채널·그 달의 품목이 차이 큰 순으로 뜹니다`;
