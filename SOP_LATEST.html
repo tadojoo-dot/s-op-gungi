@@ -759,7 +759,11 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
         <div class="sec-title">품목군별 전월대비 재고 증감</div>
         <div class="sec-sub" id="pkgDeltaSub"></div>
       </div></div>
-      <div class="no-print" style="display:flex;gap:6px;align-items:center;">
+      <div class="no-print" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <!-- 생산처 버튼은 ①탭 매트릭스의 sourceFilter와 **같은 상태**를 쓴다. 컨트롤이 두 벌이면
+             한쪽만 바뀐 채로 두 표가 다른 기준을 보게 된다. -->
+        <div id="pkgDeltaSrcBtns" style="display:none;gap:4px;align-items:center;"></div>
+        <div style="width:1px;height:18px;background:var(--border);"></div>
         <button class="aging-mode-btn on" id="pkgDeltaBtnAmt" onclick="setPkgDeltaUnit('amt')">금액</button>
         <button class="aging-mode-btn" id="pkgDeltaBtnQty" onclick="setPkgDeltaUnit('qty')">수량</button>
       </div>
@@ -4513,7 +4517,7 @@ function syncAgingMonthOptions(){
   if(opts.length<2){ sel.style.display='none'; return; }
   sel.style.display='';
   // '전체' 옵션이 의미 없는 축이라 _syncFilterSelect가 넣은 빈 옵션은 뺀다.
-  if(sel.options.length&&sel.options[0].value==='') sel.remove(0);
+  if(sel.options&&sel.options.length&&sel.options[0].value==='') sel.remove(0);
   sel.value=agingMonthKeyNow();
   const cur=opts.find(o=>o.key===sel.value);
   sel.title=cur?`기준일 ${cur.label} · ${cur.sheet||''} 시트 · 올린 Aging 파일 기준`:'';
@@ -4734,6 +4738,23 @@ function _pkgRate(p,c){
   if(Math.abs(c)<eps) return '소진';
   return ((c-p)/Math.abs(p)*100).toFixed(0)+'%';
 }
+// 카드 안의 생산처 버튼. 위 매트릭스 필터(sourceFilter)와 같은 값을 읽고 쓴다 —
+// 어느 쪽을 누르든 두 표가 같은 기준을 본다.
+function setPkgDeltaSource(v){
+  const sel=document.getElementById('sourceFilter');
+  if(sel) sel.value=v||'';
+  onAgingFilterChange();
+}
+function _renderPkgDeltaSrcBtns(active,enabled){
+  const box=document.getElementById('pkgDeltaSrcBtns');
+  if(!box) return;
+  const srcs=Object.keys(getInvSources()||{}).sort();
+  if(!enabled||srcs.length<2){ box.style.display='none'; return; }
+  box.style.display='flex';
+  const mk=(v,label)=>`<button class="aging-mode-btn${active===v?' on':''}" onclick="setPkgDeltaSource('${v}')">${label}</button>`;
+  box.innerHTML=`<span style="font-size:10.5px;color:var(--muted);margin-right:2px;">생산처</span>`
+    +mk('','전체')+srcs.map(v=>mk(v,v)).join('');
+}
 function renderPkgDelta(){
   const card=document.getElementById('pkgDeltaCard');
   const tbl=document.getElementById('pkgDeltaTbl');
@@ -4747,6 +4768,7 @@ function renderPkgDelta(){
   //   (26/7 파일 채널 수식을 고치기 전에는 횡성 전월이 통째로 0이라 '신규'로 보였다)
   const srcF=document.getElementById('sourceFilter')?.value||'';
   const EMPTY={total:{a:0,q:0},byPkg:{}};
+  _renderPkgDeltaSrcBtns(srcF,!!(prev.bySrc&&cur.bySrc));
   let P=prev, C=cur, srcNote='', scoped=!!srcF;
   if(srcF){
     if(prev.bySrc&&cur.bySrc){
