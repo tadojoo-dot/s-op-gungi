@@ -107,10 +107,15 @@ export function agingYearMonth(name) {
 //     26/7 파일: 기초재고 2026.06 / 현재고 2026.07 → 현재고(7/8, 52.40억) ✅ 트렌드 차트와 일치
 //     26/8 파일이 전월이 될 때: 기초재고 2026.08 / 현재고 2026.08 → 동률이면 기초재고 ✅ (월초 기준 유지)
 //   파일이 계속 쌓여도 이 규칙만으로 맞는다 — 파일명이 아니라 시트가 스스로 밝힌 기준월로 고르기 때문.
-export function readPrevPkgSnapshot(prevPath, base = LIVE_BASE, curYearMonth = null) {
+// srcMasterPath: 생산처(향남/횡성) 지정을 읽어올 파일. ⚠ **당월 파일을 넘겨야 한다.**
+//   '다이소 마스터'의 생산처 지정은 달마다 바뀌어(26/7→26/8에 22개 코드) 각 달의 마스터를 각각 쓰면
+//   이관 자체가 재고 증감으로 잡힌다. 안 넘기면 생산처 분해 없이(bySrc 없음) 스냅샷을 만든다.
+export function readPrevPkgSnapshot(prevPath, base = LIVE_BASE, curYearMonth = null, srcMasterPath = null) {
   const browser = createBrowser(base);
   browser.sandbox.__prevBin = fs.readFileSync(prevPath).toString('binary');
   browser.sandbox.__curYm = curYearMonth || null;
+  browser.sandbox.__srcBin = srcMasterPath && fs.existsSync(srcMasterPath)
+    ? fs.readFileSync(srcMasterPath).toString('binary') : null;
   const snap = browser.run(`(function(){
     const wb=XLSX.read(__prevBin,{type:'binary'});
     const refSheet=findSheetName(wb,'기준정보');
@@ -125,11 +130,19 @@ export function readPrevPkgSnapshot(prevPath, base = LIVE_BASE, curYearMonth = n
     const pick=usable.length
       ? usable.reduce((best,c)=>(c.ym>best.ym?c:best),usable[0])
       : cands[0];
+    // 생산처 맵은 **당월 파일**의 다이소 마스터에서 온다 — 양쪽 달을 같은 기준으로 묶기 위해서다.
+    let srcMap=null;
+    if(__srcBin){
+      const cw=XLSX.read(__srcBin,{type:'binary'});
+      const dm=cw.SheetNames.find(n=>String(n).replace(/\s/g,'')==='다이소마스터');
+      if(dm) srcMap=parseDaisoMasterSheet(cw.Sheets[dm]).plantByMaterial;
+    }
     const ws=wb.Sheets[pick.sheet];
-    const p=parseInventory(ws,pkgMap);
-    const snap=buildPkgSnapshot(p.pkgAgg,parseBaseLabel(ws),parseBaseYearMonth(ws));
+    const p=parseInventory(ws,pkgMap,srcMap);
+    const snap=buildPkgSnapshot(p.pkgAgg,parseBaseLabel(ws),parseBaseYearMonth(ws),p.pkgAggBySrc);
     if(!snap) return null;
     snap.sheet=pick.sheet;
+    snap.srcFrom=__srcBin?'당월 마스터':'(생산처 분해 없음)';
     snap.candidates=cands.map(c=>c.sheet+'('+(c.ym||'기준월 미상')+')');
     return JSON.parse(JSON.stringify(snap));
   })()`);

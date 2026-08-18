@@ -68,9 +68,11 @@ if (!codeOnly) {
     try {
       // 당월 기준월을 넘겨야 전월 파일 안에서 '당월보다 앞선 가장 최근 원장'을 고를 수 있다.
       // (26/7 파일은 기초재고가 6/1이라 그냥 두면 두 달이 벌어진다 — publish.mjs의 주석 참고)
-      prevPkg = readPrevPkgSnapshot(prevFound.path, base, agingYearMonth(path.basename(found.path)));
+      // 4번째 인자는 생산처 맵 소스 — 반드시 **당월 파일**이다(마스터의 생산처 지정이 달마다 바뀐다).
+      prevPkg = readPrevPkgSnapshot(prevFound.path, base, agingYearMonth(path.basename(found.path)), found.path);
       if (prevPkg) {
         say(`전월 원장 시트 ${prevPkg.sheet}${prevPkg.candidates ? ` (후보: ${prevPkg.candidates.join(' / ')})` : ''}`);
+        if (prevPkg.bySrc) say(`전월 생산처 분해 ${Object.entries(prevPkg.bySrc).map(([k, v]) => `${k} ${v.total.a.toFixed(2)}억`).join(' / ')} (${prevPkg.srcFrom})`);
         say(`전월 기준일 ${prevPkg.label} · 품목군 ${Object.keys(prevPkg.byPkg).length}개 · 합계 ${prevPkg.total.a.toFixed(2)}억`);
       }
       else say('⚠ 전월 파일에서 품목군 집계를 얻지 못했습니다 — 전월대비 표는 표시되지 않습니다');
