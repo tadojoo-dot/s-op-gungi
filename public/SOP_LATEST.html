@@ -577,6 +577,13 @@ table.base tr:last-child td{border-bottom:none;}
 .sku-memo-box textarea{width:100%;min-height:74px;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:12px;line-height:1.5;resize:vertical;}
 .sku-memo-box textarea:focus{outline:2px solid #b9c2ea;}
 .sku-memo-actions{display:flex;justify-content:flex-end;margin-top:6px;}
+.sku-memo-hist{margin-top:10px;border-top:1px dashed var(--border);padding-top:8px;}
+.sku-memo-hist-lbl{font-size:10.5px;font-weight:800;color:var(--muted);margin-bottom:5px;}
+.sku-memo-hist-row{display:flex;gap:8px;align-items:flex-start;padding:4px 0;border-bottom:1px solid #eef0f5;font-size:11.5px;line-height:1.5;}
+.sku-memo-hist-row:last-child{border-bottom:none;}
+.sku-memo-hist-mo{flex:0 0 44px;font-weight:800;color:var(--navy);}
+.sku-memo-hist-tx{flex:1;color:var(--text);white-space:pre-wrap;}
+.sku-memo-carry{font-size:10.5px;font-weight:700;color:var(--terra);margin-top:4px;}
 .sku-insight{background:#fff8f0;border:1px solid #f5c98a;border-radius:7px;padding:12px 14px;font-size:12px;line-height:1.7;color:#5a3000;margin-top:12px;}
 .sku-insight.good{background:#f0faf4;border-color:#7ec99a;color:#1a4d2e;}
 .dd-table tr.clickable-row{cursor:pointer;}
@@ -5205,26 +5212,92 @@ function closeSkuDetail(){
   safeDestroyChart('skuDetailChart');
   skuDetailChart=null;
 }
-// SKU별 담당 의견. 공유 상태 프리픽스('sopMemo_')를 그대로 써서 KV로 같이 올라간다.
+// SKU별 담당 의견 — **월별 이력**으로 쌓는다. 공유 상태 프리픽스('sopMemo_')를 그대로 써서 KV로 같이 올라간다.
+//   키: sopMemo_SKU|<자재코드>|<기준월>   예) sopMemo_SKU|7302460|2026.08
 // ⚠ 지울 때 removeItem을 쓰면 안 된다 — applySharedState는 payload에 있는 키만 처리해서,
 //   키를 빼면 다른 사람 브라우저에 남아 있던 옛 값이 다음 저장 때 되살아난다. 빈 문자열로 저장한다.
-function skuMemoKey(mat){return 'sopMemo_SKU|'+String(mat||'').trim();}
+// ⚠ 입력칸은 **항상 당월(base_yearmonth)** 이다. ①탭 월 필터로 과거월을 보다가 SKU를 열어도
+//   과거 이력을 덮어쓰지 않게 하려는 것 — 과거 기록은 읽기 전용으로만 보여준다.
+const SKU_MEMO_PREFIX='sopMemo_SKU|';
+function skuMemoMonth(){return UPLOADED?.base_yearmonth||'';}
+function skuMemoKey(mat,ym){
+  const m=String(mat||'').trim();
+  return ym?`${SKU_MEMO_PREFIX}${m}|${ym}`:`${SKU_MEMO_PREFIX}${m}`;   // ym 없으면 옛 형식(월 미상)
+}
+function _ymLabel(ym){const m=/^(\d{4})\.(\d{2})$/.exec(String(ym||''));return m?`${Number(m[2])}월`:'이전';}
+// 이 자재의 월별 기록 전부 (값이 있는 것만, 최신월 우선)
+function skuMemoHistory(mat){
+  const m=String(mat||'').trim();
+  const pre=`${SKU_MEMO_PREFIX}${m}|`;
+  const out=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(!k||!k.startsWith(pre)) continue;
+    const ym=k.slice(pre.length);
+    const v=localStorage.getItem(k)||'';
+    if(v.trim()) out.push({ym,label:_ymLabel(ym),text:v});
+  }
+  return out.sort((a,b)=>String(b.ym).localeCompare(String(a.ym)));
+}
 function loadSkuMemo(mat){
   const ta=document.getElementById('skuMemoInput');
   if(!ta) return;
-  ta.value=localStorage.getItem(skuMemoKey(mat))||'';
-  ta.readOnly=!isAdminMode();
+  const ym=skuMemoMonth();
+  const curKey=skuMemoKey(mat,ym);
+  const cur=ym?localStorage.getItem(curKey):null;
+  const legacy=localStorage.getItem(skuMemoKey(mat))||'';   // 월 표시가 없던 옛 메모
+  const hist=skuMemoHistory(mat).filter(h=>h.ym!==ym);
+  const carry=document.getElementById('skuMemoCarry');
+  // 이번 달에 아직 안 썼으면 **직전 기록을 그대로 이어받아** 채워준다(저장 전 상태).
+  // 자동 저장은 하지 않는다 — 그러면 손대지도 않은 달까지 이력에 같은 내용이 쌓여 이력이 무의미해진다.
+  let carriedFrom='';
+  if(cur==null||cur===''){
+    const src=hist[0]||(legacy.trim()?{label:'이전',text:legacy}:null);
+    ta.value=src?src.text:'';
+    carriedFrom=src?src.label:'';
+  }else{
+    ta.value=cur;
+  }
+  const admin=isAdminMode();
+  if(carry){
+    if(carriedFrom){
+      carry.style.display='block';
+      // 비관리자는 저장 버튼이 막혀 있으므로 '저장하세요'라고 하면 안 된다.
+      carry.textContent=admin
+        ? `↩ ${carriedFrom} 의견을 이어받았습니다 — 확인 후 [저장]을 눌러야 ${_ymLabel(ym)} 기록으로 남습니다`
+        : `↩ ${carriedFrom} 의견입니다 — ${_ymLabel(ym)} 기록은 아직 없습니다`;
+    }else carry.style.display='none';
+  }
+  ta.readOnly=!admin;
+  const mo=document.getElementById('skuMemoMonth');
+  if(mo) mo.textContent=ym?`· ${_ymLabel(ym)}`:'';
   const st=document.getElementById('skuMemoState');
-  if(st) st.textContent=isAdminMode()?(ta.value.trim()?'저장됨':''):'읽기 전용 (관리자 모드에서 수정)';
+  if(st) st.textContent=admin?((cur&&cur.trim())?'저장됨':''):'읽기 전용 (관리자 모드에서 수정)';
+  _renderSkuMemoHistory(hist,legacy,cur);
+}
+function _renderSkuMemoHistory(hist,legacy,cur){
+  const box=document.getElementById('skuMemoHist');
+  if(!box) return;
+  const rows=[...hist];
+  // 옛 메모(월 미상)는 이번 달에 아직 저장을 안 했으면 입력칸에 이미 이어받아 있으므로 중복 표시하지 않는다.
+  if(legacy.trim()&&cur!=null&&cur!=='') rows.push({label:'이전',text:legacy});
+  if(!rows.length){ box.style.display='none'; box.innerHTML=''; return; }
+  box.style.display='block';
+  box.innerHTML=`<div class="sku-memo-hist-lbl">이전 기록 (읽기 전용)</div>`
+    +rows.map(r=>`<div class="sku-memo-hist-row"><div class="sku-memo-hist-mo">${htmlSafe(r.label)}</div><div class="sku-memo-hist-tx">${htmlSafe(r.text)}</div></div>`).join('');
 }
 function saveSkuMemo(mat){
   if(!requireAdminMode()) return;
   const ta=document.getElementById('skuMemoInput');
   if(!ta) return;
-  localStorage.setItem(skuMemoKey(mat),ta.value);   // 빈 값도 그대로 저장 = 삭제가 공유된다
+  const ym=skuMemoMonth();
+  localStorage.setItem(skuMemoKey(mat,ym),ta.value);   // 빈 값도 그대로 저장 = 삭제가 공유된다
+  // 옛 형식(월 미상) 메모는 당월로 승계된 셈이므로 비운다 — 안 그러면 이력에 같은 내용이 두 번 보인다.
+  if(ym&&(localStorage.getItem(skuMemoKey(mat))||'').trim()) localStorage.setItem(skuMemoKey(mat),'');
   queueSharedStateSave();
   const st=document.getElementById('skuMemoState');
   if(st) st.textContent=ta.value.trim()?`저장됨 · ${new Date().toLocaleTimeString('ko-KR')}`:`비웠습니다 · ${new Date().toLocaleTimeString('ko-KR')}`;
+  loadSkuMemo(mat);   // 이력·이어받음 배지를 즉시 갱신
 }
 function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
   const soojin=computeSoojin(mat,qty,rem,ch,chRemMo||0);
@@ -5302,13 +5375,15 @@ function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
     <div class="sku-insight${soojin.status==='정상소진 가능'?' good':''}">${insight}</div>
     <div class="sku-memo-box">
       <div class="sku-memo-head">
-        <span>담당 의견</span>
+        <span>담당 의견 <span id="skuMemoMonth" style="color:var(--terra);"></span></span>
         <span class="sku-memo-state" id="skuMemoState"></span>
       </div>
       <textarea id="skuMemoInput" placeholder="이 품목에 대한 의견·조치 방향을 적고 저장하세요"></textarea>
+      <div class="sku-memo-carry" id="skuMemoCarry" style="display:none;"></div>
       <div class="sku-memo-actions">
         <button class="btn-print" onclick="saveSkuMemo('${String(mat).replace(/'/g,"\\'")}')">저장</button>
       </div>
+      <div class="sku-memo-hist" id="skuMemoHist" style="display:none;"></div>
     </div>`;
   loadSkuMemo(mat);
   safeDestroyChart('skuDetailChart');
