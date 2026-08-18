@@ -187,6 +187,7 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 | ③ 월별 판매계획 대비 실적(탭에 박힌 바차트) | `renderChAchieve` (canvas id `chAcc`) — 배지: `monthDiffLabelPlugin` |
 | ③ 월별 오차율 트렌드 (WAPE 바차트) | `renderHitTrend` (canvas id `hitTrendChart`), `buildHitTrend`, 금액/수량 토글 `hitTrendUnit`·`setHitTrendUnit`·`syncHitTrendUnitUI`. 수량 기준은 `hit.qty.hasPlan`이 true일 때만 산출 — false면 버튼을 잠그고 안내를 띄운다(선택 자체를 코드가 바꾸지는 않음) |
 | ③ 오차 기여 TOP10 / 판매계획 보정 대상 리스트 | `renderInsightTables`, `renderHT` |
+| ③ 채널별 조치의견(월별 이력) | `hitChMemoKey`, `hitChMemoView`, `hitChMemoCell`, `hitChMemoHistory` — 아래 "채널별 조치의견" 참고 |
 | 보정 대상 리스트 → 품목클릭 팝업(바차트) | `openPlanAdjustModal` (canvas id `planAdjustTrendChart`) — 배지: `modalDiffLabelPlugin`. **SKU상세팝업과 다른 별도 모달**임에 유의 |
 | 정렬 토글(오름↔내림) 공통 로직 | `nextSortState`, `sortValue`, `compareSortRows` — 여러 표(오차TOP10, 보정리스트)가 공유 |
 
@@ -336,6 +337,25 @@ sopMemo_SKU|<자재코드>|<기준월>     예) sopMemo_SKU|7302460|2026.08
 - ⚠ **입력칸은 항상 당월(`base_yearmonth`)** 이다. ①탭 월 필터로 과거월을 보다가 SKU를 열어도
   과거 이력을 덮어쓰지 않게 하려는 것. 과거 기록은 읽기 전용.
 - 옛 형식(월 없는 `sopMemo_SKU|<mat>`) 메모는 당월로 승계하고, 저장 시 옛 키를 비운다(이력 중복 방지).
+
+## ③탭 채널별 조치의견 (2026-08-18)
+
+품목별 조치의견(`hitAdjustMemo|채널|자재`)과 **다른 것**이다. 채널 하나에 한 칸.
+
+```
+hitChMemo|<채널>|<기준월>     예) hitChMemo|직영몰|2026.08
+```
+
+- ⚠ **같은 메모를 두 곳에서 쓴다** — 채널별 오차율(WAPE) 표의 `조치의견` 열과
+  보정 대상 리스트의 **총계 행**. 총계 행은 채널 필터(`fhc`)가 걸린 뒤의 값이라
+  직영몰을 고르면 곧 직영몰 총계다. 키를 공유하므로 어디서 쓰든 같은 내용.
+- ⚠ **입력 중 표를 다시 그리지 말 것** — 포커스가 날아간다. `saveSharedTextInput`이
+  같은 `data-memo-key`를 가진 다른 textarea의 **값만** 맞춰준다.
+- SKU 담당 의견과 같은 월별 이력 규칙(당월 비면 직전 달 이어받기, 자동 저장 금지).
+  자세한 건 "SKU 담당 의견 — 월별 이력" 절 참고.
+- 채널 목록이 달마다 바뀌어도 채널명이 키라 따라간다. 전체 합계용 키는 `hitChMemo|전체|<월>`.
+- ⚠ 채널별 오차율 표의 **오차 금액 발산 막대와 'N월 계획' 열은 2026-08-18에 제거**했다
+  (사용자 지시). 금액 규모는 셀 클릭 → 채널×월 상세 팝업에서 본다. 되살리지 말 것.
 
 ## 확립된 시각 패턴
 - **차이(diff) 배지**: 초록(`#33512E`)/빨강(`#D64545`) 배경 + 흰 텍스트 + `ctx.roundRect`로 둥근 모서리. `▲+`/`▼` 접두사. Chart.js `afterDraw` 플러그인으로 캔버스에 직접 그림 (Chart.js datalabels의 `backgroundColor`+`borderRadius` 조합도 동일 효과, `renderSkuDetailModal`의 3번째 dataset 참고).
