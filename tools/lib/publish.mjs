@@ -44,9 +44,18 @@ const AGING_RE = /aging|재고\s*aging|건기식/i;
 const STDCOST_RE = /재고자산\s*결산|자재수불/i;
 const OVERRIDE_RE = /이관\s*점검|횡성공장/i;
 
+// ⚠ "가장 최근에 수정된 Aging 파일"로 집으면 안 된다 — 지난달 파일을 고쳐서 다시 올리면
+//    그게 최신이 되어 **지난달 데이터가 당월로 발행된다**. 2026-08-18에 실제로 그렇게 될 뻔했다
+//    (26/7 파일의 채널 수식을 고치자 mtime이 26/8 파일보다 최신이 됨).
+//    파일명 기준월이 가장 늦은 것을 고르고, 같은 달 안에서만 mtime으로 고른다(v1.1 vs v1.4).
 export function findLatestExcel(dir = ROOT) {
-  const all = listExcels(dir);
-  return all.find(f => AGING_RE.test(f.name) && !STDCOST_RE.test(f.name) && !OVERRIDE_RE.test(f.name)) || null;
+  const all = listExcels(dir)
+    .filter(f => AGING_RE.test(f.name) && !STDCOST_RE.test(f.name) && !OVERRIDE_RE.test(f.name));
+  if (!all.length) return null;
+  const keyed = all.map(f => ({ ...f, key: agingMonthKey(f.name) })).filter(f => f.key !== null);
+  if (!keyed.length) return all[0];   // 파일명에 기준월이 없으면 옛 동작(mtime 최신)
+  const maxKey = Math.max(...keyed.map(f => f.key));
+  return keyed.filter(f => f.key === maxKey).sort((a, b) => b.mtime - a.mtime)[0];
 }
 
 // 표준원가 원본(재고자산 결산 파일). 없으면 null → 기존 재고금액 방식으로 폴백한다.
