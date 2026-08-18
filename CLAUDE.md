@@ -178,6 +178,7 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 | ① 품목군별 전월대비 재고 증감 (+SKU 드릴다운) | `renderPkgDelta`, `togglePkgDeltaRow`, `setPkgDeltaUnit` — 아래 "품목군 전월대비" 참고 |
 | 📡 Aging Sensing (M+N 예측) | `renderSensing`, `projectSensingInventory`, `computeSensInbound`(PSI 입고, 원가단가 기준) |
 | SKU 상세 팝업(라인차트, 실적vs계획) | `renderSkuDetailModal` — 배지: `diffVal`/`diffPos` 3번째 dataset |
+| SKU 담당 의견(월별 이력) | `skuMemoKey`, `skuMemoHistory`, `loadSkuMemo`, `saveSkuMemo` — 아래 "담당 의견 월별 이력" 참고 |
 | ② PSI 시뮬레이션 탭 | `renderPSI`, `_renderPsiTbody`, `calcPsiMonth` (건드리지 말 것 — 사용자가 최소화 지시) |
 | ② PSI 표 필터 (0건 진단 포함) | `PSI_FILTERS`, `applyPsiFilters`, `psiViewRows`, `diagnosePsiEmpty` — 필터 조건은 **`applyPsiFilters` 한 곳에만** 있어야 함. 인라인으로 복사하면 0건 진단이 실제 화면과 어긋난다 |
 | ② PSI 다이소 플랜트별 분해 | `buildPlantScopedPsiRows`, `decorateDaisoComponentRows`, `psiIntegratedSigByMonth` — 아래 "플랜트 분해 규칙" 참고 |
@@ -318,6 +319,23 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 - 필터 select id는 `sourceFilter`(생산처) / `typeFilter`(자재유형). **`sku.sp`로 거를 것** —
   `sku.p`(창고)로 거르면 향남 창고에 있는 횡성 품목 3.63억이 빠진다.
 - 품목군 전월대비(`renderPkgDelta`)와 Sensing에는 생산처 축이 없어 필터가 적용되지 않는다.
+
+## SKU 담당 의견 — 월별 이력 (2026-08-18)
+
+지난달 의견이 이번 달 입력에 덮어써져 사라지던 문제. **기준월별로 쌓는다.**
+
+```
+sopMemo_SKU|<자재코드>|<기준월>     예) sopMemo_SKU|7302460|2026.08
+```
+
+- 공유 프리픽스 `sopMemo_`를 그대로 써서 KV(`live`)로 같이 올라간다. 용량 여유 큼(2.6KB / 상한 256KB).
+- ⚠ **지울 때 `removeItem` 금지.** `applySharedState`는 payload에 있는 키만 처리해서, 키를 빼면
+  다른 사람 브라우저의 옛 값이 다음 저장 때 되살아난다. **빈 문자열로 저장**할 것.
+- **새 달에 처음 열면 직전 기록을 입력칸에 이어받는다**(`carriedFrom` 배지). ⚠ **자동 저장하지 말 것** —
+  손대지도 않은 달까지 같은 내용이 이력에 쌓여 이력이 무의미해진다. `[저장]`을 눌러야 그 달로 확정.
+- ⚠ **입력칸은 항상 당월(`base_yearmonth`)** 이다. ①탭 월 필터로 과거월을 보다가 SKU를 열어도
+  과거 이력을 덮어쓰지 않게 하려는 것. 과거 기록은 읽기 전용.
+- 옛 형식(월 없는 `sopMemo_SKU|<mat>`) 메모는 당월로 승계하고, 저장 시 옛 키를 비운다(이력 중복 방지).
 
 ## 확립된 시각 패턴
 - **차이(diff) 배지**: 초록(`#33512E`)/빨강(`#D64545`) 배경 + 흰 텍스트 + `ctx.roundRect`로 둥근 모서리. `▲+`/`▼` 접두사. Chart.js `afterDraw` 플러그인으로 캔버스에 직접 그림 (Chart.js datalabels의 `backgroundColor`+`borderRadius` 조합도 동일 효과, `renderSkuDetailModal`의 3번째 dataset 참고).
