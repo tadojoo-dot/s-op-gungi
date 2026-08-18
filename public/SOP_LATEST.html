@@ -9608,9 +9608,13 @@ function openPlanAdjustModal(row){
             const ds=chart.data.datasets[di];
             return !_modalLabelInside({dataset:ds,dataIndex:i,chart});
           });
-          const x=(m0.x+m1.x)/2, y=Math.min(m0.y,m1.y)-(outside?28:15);
           const w=ctx.measureText(text).width;
           const boxW=w+12, boxH=16;
+          // ⚠ 배지는 Chart.js가 아니라 캔버스에 직접 그린다 — 좌표가 캔버스 밖이면 그냥 잘린다.
+          //   막대가 위 여백까지 차오른 칸에서 실제로 잘렸다(2026-08-18). 위/좌우 모두 안으로 물린다.
+          const x0=(m0.x+m1.x)/2, y0=Math.min(m0.y,m1.y)-(outside?28:15);
+          const x=Math.min(Math.max(x0,boxW/2+2),chart.width-boxW/2-2);
+          const y=Math.max(y0,boxH/2+2);
           ctx.fillStyle=d.diff>=0?'#33512E':'#D64545';
           if(ctx.roundRect){
             ctx.beginPath();
@@ -9634,7 +9638,7 @@ function openPlanAdjustModal(row){
         {label:'실적',data:trend.map(t=>t.actual),backgroundColor:trend.map(t=>t.diff>=0?'#33512E':'#D64545'),borderRadius:5,borderSkipped:false,barPercentage:.78,categoryPercentage:.78,
           datalabels:_modalBarLabel('#8F3F2D')}
       ]},
-      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:26,right:14}},plugins:{legend:{position:'bottom'},datalabels:{},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}억`,afterBody:(items)=>{const d=trend[items?.[0]?.dataIndex||0];return `차이: ${diffText(d.diff)}`;}}}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>v+'억'}}}}
+      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:34,right:14}},plugins:{legend:{position:'bottom'},datalabels:{},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}억`,afterBody:(items)=>{const d=trend[items?.[0]?.dataIndex||0];return `차이: ${diffText(d.diff)}`;}}}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>v+'억'}}}}
     });
   }
 }
