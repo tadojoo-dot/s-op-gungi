@@ -80,12 +80,50 @@ export function findPrevAgingExcel(currentPath, dir = ROOT) {
   return earlier[0] || null;
 }
 
-// 전월 파일에서 품목군 스냅샷만 뽑는다. 파서를 새로 쓰지 않고 handleUpload을 그대로 한 번 더 돌린다.
-// 표준원가/정정표는 넘기지 않는다 — 재고 Aging 금액은 현재고 시트 금액을 그대로 쓰는 업무 기준이라
+// 파일명 기준월을 대시보드와 같은 표기('2026.08')로 바꾼다. 원장 시트의 base_yearmonth와 직접 비교하려는 것.
+export function agingYearMonth(name) {
+  const k = agingMonthKey(name);
+  return k === null ? null : `${2000 + Math.floor(k / 100)}.${String(k % 100).padStart(2, '0')}`;
+}
+
+// 전월 파일에서 품목군 스냅샷만 뽑는다. 파서는 새로 쓰지 않고 대시보드의 parseInventory/buildPkgSnapshot을 그대로 쓴다.
+// 표준원가/정정표는 넘기지 않는다 — 재고 Aging 금액은 원장 시트 금액을 그대로 쓰는 업무 기준이라
 // 두 달이 같은 방식으로 계산된다(2026-08-13 사용자 결정).
-export function readPrevPkgSnapshot(prevPath, base = LIVE_BASE) {
-  const b = parseExcel(prevPath, base);
-  const snap = b.uploaded?.pkg_snapshot || null;
+//
+// ⚠ 전월 파일에서 무조건 '기초재고'를 집으면 안 된다 (2026-08-18에 실제로 어긋났다).
+//   26/7 파일의 기초재고는 6/1 스냅샷이라, 8월분과 맞대면 두 달이 벌어지고 62.20억이 나온다.
+//   그런데 같은 파일의 '현황' 시트 트렌드(=①탭 KPI 카드·트렌드 차트의 원천)는 7월을 52.40억으로 잡고 있고,
+//   그게 7월 회의자료에 나간 숫자다. 한 화면 안에서 7월 값이 둘로 갈린다.
+//   → 전월 파일 안의 원장 시트 중 **당월보다 앞서면서 가장 최근인 달**을 고른다.
+//     26/7 파일: 기초재고 2026.06 / 현재고 2026.07 → 현재고(7/8, 52.40억) ✅ 트렌드 차트와 일치
+//     26/8 파일이 전월이 될 때: 기초재고 2026.08 / 현재고 2026.08 → 동률이면 기초재고 ✅ (월초 기준 유지)
+//   파일이 계속 쌓여도 이 규칙만으로 맞는다 — 파일명이 아니라 시트가 스스로 밝힌 기준월로 고르기 때문.
+export function readPrevPkgSnapshot(prevPath, base = LIVE_BASE, curYearMonth = null) {
+  const browser = createBrowser(base);
+  browser.sandbox.__prevBin = fs.readFileSync(prevPath).toString('binary');
+  browser.sandbox.__curYm = curYearMonth || null;
+  const snap = browser.run(`(function(){
+    const wb=XLSX.read(__prevBin,{type:'binary'});
+    const refSheet=findSheetName(wb,'기준정보');
+    const pkgMap=refSheet?parsePkgGroupMap(wb.Sheets[refSheet]):null;
+    // 우선순위가 아니라 '후보'다 — 실제 선택은 아래 기준월 비교가 한다. 동률이면 앞의 것(기초재고)이 이긴다.
+    const cands=['기초재고','현재고']
+      .map(n=>{const s=findSheetName(wb,n); return s?{sheet:s,ym:parseBaseYearMonth(wb.Sheets[s])||''}:null;})
+      .filter(Boolean);
+    if(!cands.length) return null;
+    const usable=cands.filter(c=>c.ym&&(!__curYm||c.ym<__curYm));
+    // 기준월을 못 읽거나 전부 당월 이후면 옛 동작(기초재고 우선) 그대로 — 무회귀.
+    const pick=usable.length
+      ? usable.reduce((best,c)=>(c.ym>best.ym?c:best),usable[0])
+      : cands[0];
+    const ws=wb.Sheets[pick.sheet];
+    const p=parseInventory(ws,pkgMap);
+    const snap=buildPkgSnapshot(p.pkgAgg,parseBaseLabel(ws),parseBaseYearMonth(ws));
+    if(!snap) return null;
+    snap.sheet=pick.sheet;
+    snap.candidates=cands.map(c=>c.sheet+'('+(c.ym||'기준월 미상')+')');
+    return JSON.parse(JSON.stringify(snap));
+  })()`);
   return snap && snap.byPkg && Object.keys(snap.byPkg).length ? snap : null;
 }
 
