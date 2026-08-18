@@ -4610,7 +4610,11 @@ function renderPkgDelta(){
   if(!cur?.byPkg||!prev?.byPkg){card.style.display='none';return;}
   card.style.display='';
   const unitTxt=pkgDeltaUnit==='amt'?'억원':'개';
-  const pLab=prev.label||'전월', cLab=cur.label||'당월';
+  // 표에 쓰는 이름은 '7/8/26' 같은 기준일이 아니라 '7월'/'8월'이다 — 회의에서 부르는 이름과 맞춘다.
+  // 기준일은 툴팁으로만 남긴다(어느 시점 스냅샷인지 확인은 되어야 하므로).
+  const _mLab=(ym,fallback)=>{const m=/^(\d{4})\.(\d{2})$/.exec(String(ym||''));return m?`${Number(m[2])}월`:(fallback||'');};
+  const pLab=_mLab(prev.yearmonth,prev.label||'전월'), cLab=_mLab(cur.yearmonth,cur.label||'당월');
+  const pDay=prev.label||'', cDay=cur.label||'';
   // 두 스냅샷이 꼭 한 달 차이라는 보장이 없다 — 26/7 파일의 기초재고는 6/1 기준이라 8/1과 두 달 벌어진다.
   // 그럴 때 '전월'이라고 부르면 거짓말이 되므로 머리말을 바꾼다(숫자·계산은 그대로).
   const _ym=v=>{const m=/^(\d{4})\.(\d{2})$/.exec(String(v||''));return m?Number(m[1])*12+Number(m[2]):null;};
@@ -4624,11 +4628,14 @@ function renderPkgDelta(){
   }).sort((x,y)=>y.d-x.d);
   const tp=_pkgVal(prev.total), tc=_pkgVal(cur.total), td=tc-tp;
   const sub=document.getElementById('pkgDeltaSub');
-  if(sub) sub.textContent=`${prevWord}(${pLab}) → 당월(${cLab}) · 전체 ${_pkgFmt(tp)} → ${_pkgFmt(tc)} ${unitTxt} (${_pkgFmtDiff(td)}) · 품목군 행을 클릭하면 SKU가 증감 큰 순으로 펼쳐집니다`;
+  if(sub){
+    sub.textContent=`${prevWord}(${pLab}) → 당월(${cLab}) · 전체 ${_pkgFmt(tp)} → ${_pkgFmt(tc)} ${unitTxt} (${_pkgFmtDiff(td)}) · 품목군 행을 클릭하면 SKU가 증감 큰 순으로 펼쳐집니다`;
+    sub.title=`기준일 ${pDay} → ${cDay}`;
+  }
   let h=`<colgroup><col style="width:200px"><col style="width:120px"><col style="width:120px"><col style="width:120px"><col style="width:90px"><col style="width:110px"></colgroup>
   <thead><tr>
     <th class="l">품목군 / SKU</th>
-    <th class="r">${prevWord} ${pLab}</th><th class="r">당월 ${cLab}</th>
+    <th class="r" title="기준일 ${pDay}">${prevWord}(${pLab})</th><th class="r" title="기준일 ${cDay}">당월(${cLab})</th>
     <th class="r">증감</th><th class="r">증감률</th><th class="r">증가 기여율</th>
   </tr></thead><tbody>`;
   rows.forEach(r=>{
