@@ -236,9 +236,14 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
   max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom;}
 .chwape .cw-name:hover{color:var(--navy);text-decoration-color:var(--navy);}
 /* 표(고정폭 700px) + 오른쪽 남는 폭에 오차 금액 차트. 좁아지면 아래로 접힌다. */
-.chwape td.cw-spark{padding:3px 8px!important;text-align:left;vertical-align:middle;}
-.chwape td.cw-spark svg{display:block;}
-.chwape th.cw-spark-h{text-align:left;}
+/* 2단 헤더 — 위: 구간 이름(오차율/실적/계획), 아래: 월. 월 라벨이 두 구간에 겹쳐 나오므로 필요하다. */
+.chwape th.cw-grp{font-size:10.5px;font-weight:800;color:#6B7290;letter-spacing:.02em;padding:6px 6px;
+  border-bottom:1px solid var(--border);background:#F1F3F7;}
+/* 판매계획 시트 기준 월별 실적·계획 숫자. 계획 구간은 옅게 칠해 실적과 눈으로 갈린다. */
+.chwape th.cw-mv{font-size:10.5px;padding:9px 4px;}
+.chwape td.cw-mv{font-size:11.5px;padding:10px 4px;color:var(--text);}
+.chwape th.cw-plan,.chwape td.cw-plan{background:#F7F8FC;color:#5A6180;}
+.chwape tr.cw-total td.cw-plan{background:#EFF1F7;}
 .chmemo-td{vertical-align:top;padding:4px 6px!important;}
 .chmemo-td textarea.action-memo{min-height:30px;height:30px;font-size:11.5px;}
 .chmemo-td textarea.action-memo:focus{height:80px;}
@@ -6769,7 +6774,7 @@ function saveSharedTextInput(el){
   queueSharedStateSave();
   // 채널 조치의견은 두 표(채널별 오차율 / 보정 대상 리스트 총계 행)가 같은 키를 공유한다.
   // 입력 중에 표를 다시 그리면 포커스가 날아가므로, 다른 표의 같은 키 칸만 값을 맞춰준다.
-  if(String(el.dataset.memoKey||'').startsWith(HIT_CH_MEMO_PREFIX)){
+  if(/^(hitChMemo|hitAdjustMemo)\|/.test(String(el.dataset.memoKey||''))){
     document.querySelectorAll(`textarea[data-memo-key="${el.dataset.memoKey}"]`).forEach(t=>{
       if(t!==el){ t.value=el.value; t.classList.toggle('saved',el.value.trim()!==''); }
     });
@@ -7392,7 +7397,6 @@ function buildHitTrend(){
 //   이 열은 금액 기준 그대로다(2026-08-18 사용자 확정). 그래서 열 제목에 (억원)을 박는다.
 // ⚠ Chart.js로 그리지 말 것 — 행마다 미니 차트를 만들면 11개 인스턴스가 생겨 무겁고 인쇄도 깨진다.
 //   인라인 SVG로 그린다.
-const SPARK_W=240, SPARK_H=34, SPARK_GAP=2;
 function channelPlanActual(){
   const sum=getSalesPlanData()?.__summary;
   if(!sum?.ch) return null;
@@ -7408,31 +7412,17 @@ function channelPlanActual(){
   if(!byName.size) return null;
   return {byName,total,actualMonths:sum.actualMonths||[],planMonths:sum.planMonths||[]};
 }
-// 채널 한 줄짜리 SVG 막대. 앞(실적)은 진하게, 뒤(계획)는 옅게, 사이에 점선 구분.
-function channelSparkCell(name,src){
+// 채널 한 줄의 월별 숫자 칸들. 실적 구간과 계획 구간을 색·구분선으로만 가른다.
+// ⚠ 2026-08-18에 SVG 막대 → 숫자로 바꿨다(사용자 지시: "그냥 숫자로 넣어주지 월별로 해서").
+//   막대는 채널 내 추세는 보였지만 값을 못 읽었다. 표는 숫자로 읽는다는 이 표의 원칙과도 맞다.
+function channelMonthCells(name,src){
   const d=name==='전체'?src.total:src.byName.get(name);
-  if(!d||(!d.actual.length&&!d.plan.length)) return `<td class="cw-spark cw-na">—</td>`;
-  const A=d.actual, P=d.plan, all=[...A,...P];
-  const max=Math.max(...all,0.0001);
-  const n=all.length, bw=(SPARK_W-(n-1)*SPARK_GAP)/n;
-  const base=SPARK_H-2;
-  const bars=all.map((v,i)=>{
-    const h=Math.max(v>0?1.5:0,(v/max)*(SPARK_H-8));
-    const x=i*(bw+SPARK_GAP), y=base-h;
-    const plan=i>=A.length;
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1" fill="${plan?'#B9C2EA':'#1D2783'}"></rect>`;
-  }).join('');
-  const divX=A.length*(bw+SPARK_GAP)-SPARK_GAP/2;
-  const divider=A.length&&P.length
-    ? `<line x1="${divX.toFixed(1)}" y1="2" x2="${divX.toFixed(1)}" y2="${base}" stroke="#C9CDDB" stroke-width="1" stroke-dasharray="2 2"></line>` : '';
-  const lbl=(arr,months,tag)=>arr.map((v,i)=>`${months[i]??(i+1)}월 ${v.toFixed(1)}`).join(' · ')&&
-    `${tag} ${arr.map((v,i)=>`${months[i]??(i+1)}월 ${v.toFixed(1)}`).join(' · ')}`;
-  const tip=[lbl(A,src.actualMonths,'실적'),lbl(P,src.planMonths,'계획')].filter(Boolean).join('\n')+`\n(단위: 억원)`;
-  return `<td class="cw-spark" title="${String(tip).replace(/"/g,'&quot;')}">
-    <svg width="${SPARK_W}" height="${SPARK_H}" viewBox="0 0 ${SPARK_W} ${SPARK_H}" role="img">
-      <line x1="0" y1="${base}" x2="${SPARK_W}" y2="${base}" stroke="#E7E9F0" stroke-width="1"></line>
-      ${bars}${divider}
-    </svg></td>`;
+  const n=src.actualMonths.length+src.planMonths.length;
+  if(!d) return Array.from({length:n},(_,i)=>`<td class="cw-mv cw-na${(i===0||i===src.actualMonths.length)?' cw-sep':''}">—</td>`).join('');
+  const fmt=v=>(v==null||!Number.isFinite(v))?'—':(Math.abs(v)<0.05?'0.0':v.toFixed(1));
+  const a=src.actualMonths.map((mo,i)=>`<td class="cw-mv${i===0?' cw-sep':''}" title="${mo}월 실적 ${fmt(d.actual[i])}억">${fmt(d.actual[i])}</td>`);
+  const p=src.planMonths.map((mo,i)=>`<td class="cw-mv cw-plan${i===0?' cw-sep':''}" title="${mo}월 계획 ${fmt(d.plan[i])}억">${fmt(d.plan[i])}</td>`);
+  return a.concat(p).join('');
 }
 
 // ═══════════ 채널별 조치의견 ═══════════
@@ -7633,6 +7623,7 @@ function renderChDrill(){
     <thead><tr>
       <th class="l">품목</th><th class="l">자재코드</th>
       <th>계획(${unit})</th><th>실적(${unit})</th><th>차이</th><th>오차율</th><th class="cw-sep">오차 기여도</th>
+      <th class="l cw-sep">조치의견</th>
     </tr></thead><tbody>
     ${rows.map(r=>{
       const contrib=absSum>0?Math.abs(r.diff)/absSum*100:0;
@@ -7645,6 +7636,7 @@ function renderChDrill(){
         <td style="color:${r.diff>=0?'var(--green)':'var(--red)'};font-weight:900;">${r.diff>=0?'+':''}${fmt(r.diff)}</td>
         <td>${r.hitAcc==null?'—':r.hitAcc.toFixed(0)+'%'}</td>
         <td class="cw-sep">${contrib.toFixed(1)}%</td>
+        ${_hitRowMemoCell(r)}
       </tr>`;
     }).join('')}
     <tr class="cw-total">
@@ -7653,15 +7645,27 @@ function renderChDrill(){
       <td>${net>=0?'+':''}${fmt(net)}</td>
       <td>${wape==null?'—':wape.toFixed(1)+'%'}</td>
       <td class="cw-sep">100.0%</td>
+      ${hitChMemoCell(ch)}
     </tr>
     </tbody></table>
     <div style="margin-top:10px;font-size:10.5px;color:var(--muted);line-height:1.6;">
       <strong>|차이| 큰 순</strong>으로 정렬했습니다 · 오차 기여도 = |차이| ÷ 그 채널·월의 |차이| 합계 —
       위쪽 몇 개가 그 채널 오차의 대부분을 만듭니다 · 차이가 <span style="color:var(--green);font-weight:700;">+면 계획 초과</span>,
       <span style="color:var(--red);font-weight:700;">−면 미달</span>입니다 ·
-      아래 '판매계획 보정 대상 리스트'와 같은 집계(계획 0인 행 제외)를 씁니다
+      아래 '판매계획 보정 대상 리스트'와 같은 집계(계획 0인 행 제외)를 씁니다<br>
+      <strong>조치의견은 아래 리스트와 같은 칸입니다</strong> — 여기서 쓰면 리스트에도 그대로 반영됩니다
+      (합계 행은 <strong>채널 조치의견</strong>, 위 오차율 표의 그 채널 칸과 연동)
     </div>`;
 }
+// 품목 조치의견 칸. ⚠ 키(hitAdjustMemo|채널|자재)를 **보정 대상 리스트와 똑같이** 만든다 —
+//   그래야 채널 팝업에서 쓴 게 리스트에 그대로 보인다. 새 키 체계를 만들지 말 것.
+function _hitRowMemoCell(row){
+  const key=`hitAdjustMemo|${hitRowKey(row)}`;
+  const v=(localStorage.getItem(key)||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  return `<td class="l chmemo-td"><textarea class="action-memo${v.trim()?' saved':''}" data-memo-key="${key}"
+    oninput="saveSharedTextInput(this)" placeholder="조치의견 입력">${v}</textarea></td>`;
+}
+
 // 팝업에서 보던 채널·월을 아래 보정 대상 리스트에 그대로 넘긴다
 function applyChDrillToList(){
   if(!chDrillState) return;
@@ -7748,36 +7752,42 @@ function renderChannelWape(){
   // 오른쪽 여백에 채널별 12개월 흐름(실적 1~7 / 계획 8~12)을 스파크라인으로 붙인다.
   // 판매계획 시트가 없으면 열 자체를 안 그린다(무회귀).
   const spark=channelPlanActual();
-  const W_CH=132,W_MO=68,W_MEMO=280,W_SPARK=spark?SPARK_W+18:0;
-  const tableW=W_CH+months.length*W_MO+W_SPARK+W_MEMO;
-  const sparkHd=spark
-    ? `<th class="cw-spark-h">${spark.actualMonths[0]||1}~${spark.actualMonths[spark.actualMonths.length-1]||7}월 실적 · ${spark.planMonths[0]||8}~${spark.planMonths[spark.planMonths.length-1]||12}월 계획 (억원)</th>` : '';
+  const mvMonths=spark?[...spark.actualMonths,...spark.planMonths]:[];
+  const W_CH=132,W_MO=68,W_MV=48,W_MEMO=280;
+  const tableW=W_CH+months.length*W_MO+mvMonths.length*W_MV+W_MEMO;
+  const nA=spark?spark.actualMonths.length:0;
   let h=`<table class="chwape" style="width:${tableW}px;">
-  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${spark?`<col style="width:${W_SPARK}px;">`:''}<col style="width:${W_MEMO}px;"></colgroup>
-  <thead><tr>
-    <th class="l sortable" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
+  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${mvMonths.map(()=>`<col style="width:${W_MV}px;">`).join('')}<col style="width:${W_MEMO}px;"></colgroup>
+  <thead>
+  <tr>
+    <th class="l sortable" rowspan="2" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
+    <th class="cw-grp" colspan="${months.length}">오차율 (%)</th>
+    ${nA?`<th class="cw-grp cw-sep" colspan="${nA}">실적 (억원)</th>`:''}
+    ${mvMonths.length-nA>0?`<th class="cw-grp cw-plan cw-sep" colspan="${mvMonths.length-nA}">판매계획 (억원)</th>`:''}
+    <th class="l" rowspan="2">조치의견 ${_ymLabel(skuMemoMonth())}</th>
+  </tr>
+  <tr>
     ${months.map(m=>`<th class="sortable" onclick="handleChWapeSort('${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="${m.key}"></span></th>`).join('')}
-    ${sparkHd}
-    <th class="l">조치의견 ${_ymLabel(skuMemoMonth())}</th>
+    ${mvMonths.map((mo,i)=>`<th class="cw-mv${i>=nA?' cw-plan':''}${i===0||i===nA?' cw-sep':''}" title="${i>=nA?'판매계획':'실적'} ${mo}월 (억원)">${mo}월</th>`).join('')}
   </tr></thead><tbody>`;
   sorted.forEach(r=>{
     h+=`<tr class="cw-ch${r.ch===selCh?' cw-sel':''}">
       <td class="l"><button type="button" class="cw-name" onclick="openChDrill(${esc(r.ch)})" title="${r.ch}의 오차 상세 보기 (차이 큰 순)">${r.ch}</button></td>
       ${months.map(m=>cell(r.wape[m.key],r.ch,m.key,m.label)).join('')}
-      ${spark?channelSparkCell(r.ch,spark):''}
+      ${spark?channelMonthCells(r.ch,spark):''}
       ${hitChMemoCell(r.ch)}
     </tr>`;
   });
   h+=`<tr class="cw-total">
     <td class="l">전체</td>
     ${months.map(m=>totalWape[m.key]==null?`<td class="cw-na">—</td>`:`<td>${totalWape[m.key].toFixed(0)}%</td>`).join('')}
-    ${spark?channelSparkCell('전체',spark):''}
+    ${spark?channelMonthCells('전체',spark):''}
     ${hitChMemoCell('전체')}
   </tr></tbody></table>`;
   wrap.innerHTML=h;
   renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
   if(note){
-    note.innerHTML=`오른쪽 막대 = <strong>판매계획(SF) 시트</strong> 기준 채널별 월 흐름 (<strong>진한 막대 = 실적</strong>, 옅은 막대 = 계획 · <strong>금액(억원) 고정</strong>이라 위 수량 토글과 무관 · 마우스를 올리면 월별 숫자) · 세로 점선 = 실적/계획 경계 · 높이는 채널마다 따로 잡습니다(채널 간 크기 비교용 아님)<br>WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
+    note.innerHTML=`오른쪽 월별 숫자 = <strong>판매계획(SF) 시트</strong> 기준 <strong>${spark?`${spark.actualMonths[0]}~${spark.actualMonths[spark.actualMonths.length-1]}월 실적`:'실적'}</strong> / <span style="background:#F7F8FC;padding:0 4px;border-radius:3px;">${spark?`${spark.planMonths[0]}~${spark.planMonths[spark.planMonths.length-1]}월 계획`:'계획'}</span> (억원) · 회색 칸이 계획 구간입니다 · <strong>금액 고정</strong>이라 위 수량 토글과 무관합니다<br>WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
       +`위 트렌드 차트·보정 대상 리스트와 같은 기준입니다 · 판매계획이 없는 달은 <span style="color:var(--gray-m);">—</span><br>`
       +`⚠ 규모가 작은 채널은 오차율이 크게 흔들립니다 — 맨 오른쪽 계획금액과 같이 보세요 (기본 정렬이 계획규모 순입니다) · `
       +`<strong>숫자 칸</strong>을 누르면 그 채널·그 달의 품목이 차이 큰 순으로 뜹니다`;
@@ -7966,12 +7976,17 @@ function subjectParticle(text){
   if(code<0xAC00||code>0xD7A3) return '이';
   return ((code-0xAC00)%28)===0?'가':'이';
 }
+// 오차 방향·평균 달성률을 볼 이력 개월 수(선택월 포함). 2026-08-18에 3 → 6으로 늘렸다(사용자 요청).
+// ⚠ 이 값을 바꾸면 '반복 초과/미달' 판정도 같이 움직인다. 임계값을 개월 수에 비례한 **과반**으로 잡아
+//   3개월이면 2회, 6개월이면 4회로 자동 스케일된다 — 상수만 바꿔도 판정 강도가 유지된다.
+//   ('연속 초과/미달'은 기간과 무관한 개념이라 마지막 3개월 연속 그대로 둔다 — summarizeRecentDirection)
+const HIT_HISTORY_MONTHS=6;
 function buildAdjustmentRows(){
   const selectedMo=normalizeMonthKey(document.getElementById('chAchieveMonth')?.value||'5월');
   const selectedNo=monthNoFromKey(selectedMo)||5;
   const nextMonth=selectedNo+1;
   const currentRows=getHitMonthRows(selectedMo);
-  const histMonths=HIT_MONTHS.slice(Math.max(0,selectedNo-3),selectedNo);
+  const histMonths=HIT_MONTHS.slice(Math.max(0,selectedNo-HIT_HISTORY_MONTHS),selectedNo);
   const histMaps=histMonths.map(m=>buildMonthAggMap(m));
   const matCurrentTotals=new Map();
   currentRows.forEach(row=>{
@@ -8003,8 +8018,10 @@ function buildAdjustmentRows(){
     const avg3Ach=validRates.length?validRates.reduce((s,v)=>s+v,0)/validRates.length:null;
     const overMonths=history.filter(h=>h.direction==='초과').length;
     const underMonths=history.filter(h=>h.direction==='미달').length;
-    const repeatOver=overMonths>=2;
-    const repeatUnder=underMonths>=2;
+    // 과반 이상이면 '반복'. 3개월이면 2회, 6개월이면 4회.
+    const repeatN=Math.max(2,Math.ceil(histMonths.length*2/3));
+    const repeatOver=overMonths>=repeatN;
+    const repeatUnder=underMonths>=repeatN;
     const channelAlloc=classifyChannelAllocation({...row,diff},currentRows);
     const baseForClass={...row,diff,errorRate:row.plan>0?Math.abs(diff)/row.plan*100:null};
     const recentDirection=summarizeRecentDirection(history);
@@ -8215,7 +8232,7 @@ let impactSort=IMPACT_DEFAULT_SORT.map(s=>({...s}));
 let htSort=HT_DEFAULT_SORT.map(s=>({...s}));
 const SORT_LABELS={
   ch:'채널',mat:'자재코드',name:'품목명',plan:'계획',actual:'실적',diff:'차이금액',absDiff:'차이금액 절대값',
-  over:'초과금액',under:'미달금액',errorRate:'오차율',recentDirection:'최근 3개월 방향',
+  over:'초과금액',under:'미달금액',errorRate:'오차율',recentDirection:'최근 6개월 방향',
   correctionType:'보정유형',correctionPriority:'보정유형 우선순위',recommendedAction:'권장조치',memo:'조치의견'
 };
 function defaultSortDir(key){
@@ -8470,7 +8487,7 @@ function renderHT(){
     <th class="r sortable" onclick="handleHTSort('actual',event)">당월 실적(${unitLabel})<span data-sort-table="ht" data-sort-key="actual"></span></th>
     <th class="r sortable" onclick="handleHTSort('diff',event)">차이금액<span data-sort-table="ht" data-sort-key="diff"></span></th>
     <th class="r sortable" onclick="handleHTSort('errorRate',event)">오차율<span data-sort-table="ht" data-sort-key="errorRate"></span></th>
-    <th class="c sortable" onclick="handleHTSort('recentDirection',event)">최근 3개월 방향<span data-sort-table="ht" data-sort-key="recentDirection"></span></th>
+    <th class="c sortable" onclick="handleHTSort('recentDirection',event)">최근 6개월 방향<span data-sort-table="ht" data-sort-key="recentDirection"></span></th>
     <th class="c sortable" onclick="handleHTSort('correctionPriority',event)">보정유형<span data-sort-table="ht" data-sort-key="correctionPriority"></span></th>
     <th class="l sortable" onclick="handleHTSort('recommendedAction',event)">권장조치<span data-sort-table="ht" data-sort-key="recommendedAction"></span></th>
     <th class="l sortable" onclick="handleHTSort('memo',event)">조치의견<span data-sort-table="ht" data-sort-key="memo"></span></th>
@@ -9448,10 +9465,10 @@ function openPlanAdjustModal(row){
     .sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff));
   const reason=[
     `오차 원인 추정: ${row.cause}`,
-    row.avg3Ach!=null?`최근 3개월 평균 달성율 ${row.avg3Ach.toFixed(1)}%`:'최근 3개월 데이터 부족',
+    row.avg3Ach!=null?`최근 6개월 평균 달성율 ${row.avg3Ach.toFixed(1)}%`:'최근 6개월 데이터 부족',
     `다음 계획 보정 제안: ${row.recommendedAction}`
   ].join(' · ');
-  const statement=`최근 3개월 기준, 해당 품목은 ${row.recentDirection} 흐름이며, 다음 판매계획은 ${row.recommendedAction}${subjectParticle(row.recommendedAction)} 필요합니다.`;
+  const statement=`최근 6개월 기준, 해당 품목은 ${row.recentDirection} 흐름이며, 다음 판매계획은 ${row.recommendedAction}${subjectParticle(row.recommendedAction)} 필요합니다.`;
   const memoKey=`hitAdjustMemo|${hitRowKey(row)}`;
   const memo=(localStorage.getItem(memoKey)||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   document.getElementById('planAdjustModalHeader').innerHTML=`
@@ -9463,7 +9480,7 @@ function openPlanAdjustModal(row){
       <div class="sku-info-item"><div class="sku-info-lbl">당월 실적</div><div class="sku-info-val">${amountFmtEokPlain(row.actual)}</div></div>
       <div class="sku-info-item"><div class="sku-info-lbl">차이금액</div><div class="sku-info-val ${row.diff<0?'red':''}">${amountFmtEok(row.diff)}</div></div>
       <div class="sku-info-item"><div class="sku-info-lbl">오차율</div><div class="sku-info-val">${row.errorRate==null?'계획없음':row.errorRate.toFixed(1)+'%'}</div></div>
-      <div class="sku-info-item"><div class="sku-info-lbl">최근 3개월 평균 달성률</div><div class="sku-info-val">${row.avg3Ach==null?'—':row.avg3Ach.toFixed(1)+'%'}</div></div>
+      <div class="sku-info-item"><div class="sku-info-lbl">최근 6개월 평균 달성률</div><div class="sku-info-val">${row.avg3Ach==null?'—':row.avg3Ach.toFixed(1)+'%'}</div></div>
       <div class="sku-info-item"><div class="sku-info-lbl">보정 필요 여부</div><div class="sku-info-val ${row.needCorrection?'red':''}">${row.needCorrection?'필요':'모니터링'}</div></div>
       <div class="sku-info-item"><div class="sku-info-lbl">보정유형</div><div class="sku-info-val">${row.correctionType}</div></div>
       <div class="sku-info-item"><div class="sku-info-lbl">권장조치</div><div class="sku-info-val">${row.recommendedAction}</div></div>
@@ -9475,7 +9492,7 @@ function openPlanAdjustModal(row){
     <div class="sku-insight">${reason}</div>
     <div class="analysis-grid">
       <div class="analysis-box">
-        <div class="analysis-title">최근 3개월 오차 방향</div>
+        <div class="analysis-title">최근 ${row.history.length}개월 오차 방향</div>
         <table class="analysis-table"><colgroup><col style="width:22%"><col style="width:26%"><col style="width:26%"><col style="width:26%"></colgroup><thead><tr><th class="l">월</th><th class="r">계획</th><th class="r">실적</th><th class="c">방향</th></tr></thead><tbody>
           ${row.history.map(h=>`<tr><td class="l">${h.month}</td><td class="r">${amountFmtEokPlain(h.plan)}</td><td class="r">${amountFmtEokPlain(h.actual)}</td><td class="c"><span class="tag ${h.direction==='초과'?'y':h.direction==='미달'?'r':'g'}">${h.direction}</span></td></tr>`).join('')}
         </tbody></table>
@@ -9496,7 +9513,7 @@ function openPlanAdjustModal(row){
         <div class="analysis-title">오차 원인·보정 판단</div>
         <table class="analysis-kv"><tbody>
           <tr><th>오차 원인 추정</th><td>${row.cause}</td></tr>
-          <tr><th>최근 3개월 방향</th><td>${row.recentDirection}</td></tr>
+          <tr><th>최근 6개월 방향</th><td>${row.recentDirection}</td></tr>
           <tr><th>보정유형</th><td>${row.correctionType}</td></tr>
         </tbody></table>
       </div>
