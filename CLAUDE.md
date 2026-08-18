@@ -213,6 +213,9 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
   그걸 다시 더하면 총액이 화면(80.4292억)과 어긋난다. 반드시 원본 `amt`로 더할 것.
 - `result.pkg_snapshot` = 당월(모든 경로에서 생성) / `result.pkg_prev` = 전월(배포 도구만 채움).
   둘 다 있어야 카드가 보이고, 없으면 `renderPkgDelta`가 카드를 숨긴다. **없다고 당월 값으로 대신 그리지 말 것.**
+- ⚠ **당월 파일도 mtime으로 고르지 않는다**(`findLatestExcel`). 지난달 파일을 고쳐서 다시 올리면
+  그게 최신이 되어 **지난달 데이터가 당월로 발행된다** — 2026-08-18에 26/7 파일의 채널 수식을 고치자
+  실제로 그렇게 됐다. 파일명 기준월이 가장 늦은 것을 고르고, **같은 달 안에서만** mtime으로 고른다(v1.1↔v1.4).
 - 전월 소스 우선순위 (`tools/deploy.mjs`): ① `--prev=` ② 리포에서 **파일명 기준월이 한 달 앞선** Aging 파일
   (`findPrevAgingExcel` — ⚠ "두 번째로 최근인 파일"로 집으면 같은 달 v1.1/v1.4를 전월로 오인한다)
   ③ 라이브 KV의 `pkg_snapshot`(`readLivePkgSnapshot` — **반드시 `publishParsed` 전에** 읽을 것, 올린 뒤엔 당월로 덮인다)
