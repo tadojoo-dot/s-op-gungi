@@ -9438,6 +9438,41 @@ function renderInsightTables(){
 }
 
 let planAdjustModalChart=null;
+// 품목 팝업 막대의 값 라벨.
+// ⚠ 계획·실적 라벨을 둘 다 막대 '위'에 두면 그 위의 차이 배지까지 3층이 되어 서로 먹는다.
+//   막대가 글자를 담을 만큼 높으면 **안쪽 상단**(흰 글씨)에 넣고, 짧은 막대만 위로 뺀다.
+//   단위('억')는 y축에 이미 있어 라벨에서 뺀다 — 글자 폭이 30% 줄어 이웃 라벨과 안 붙는다.
+function _modalLabelInside(ctx){
+  const v=Number(ctx.dataset.data[ctx.dataIndex]);
+  const y=ctx.chart?.scales?.y;
+  if(!y||!Number.isFinite(v)||v<=0) return false;
+  return Math.abs(y.getPixelForValue(0)-y.getPixelForValue(v))>=22;   // 9.5px 글자 + 여백
+}
+// 막대 안에 글자를 넣을 땐 **그 막대 색의 밝기**로 글자색을 정한다.
+// ⚠ 흰 글씨로 고정하면 미래 계획 막대(#D9DEEA)처럼 옅은 칸에서 글자가 사라진다.
+function _barTextColor(bg){
+  const m=/^#?([0-9a-f]{6})$/i.exec(String(bg||''));
+  if(!m) return '#fff';
+  const n=parseInt(m[1],16);
+  const lum=(0.299*((n>>16)&255)+0.587*((n>>8)&255)+0.114*(n&255))/255;
+  return lum>0.62?'#2A3050':'#fff';
+}
+function _modalBarLabel(outsideColor){
+  return {
+    display:ctx=>Number(ctx.dataset.data[ctx.dataIndex])>0,
+    anchor:'end',
+    align:ctx=>_modalLabelInside(ctx)?'start':'end',
+    offset:ctx=>_modalLabelInside(ctx)?3:2,
+    clamp:true,clip:false,
+    color:ctx=>{
+      if(!_modalLabelInside(ctx)) return outsideColor;
+      const bg=ctx.dataset.backgroundColor;
+      return _barTextColor(Array.isArray(bg)?bg[ctx.dataIndex]:bg);
+    },
+    font:{size:9.5,weight:'800'},
+    formatter:v=>Number(v).toFixed(1)
+  };
+}
 function openPlanAdjustModalByIndex(idx){
   const row=planAdjustRowsCache[idx];
   if(row) openPlanAdjustModal(row);
@@ -9568,7 +9603,12 @@ function openPlanAdjustModal(row){
           const m1=chart.getDatasetMeta(1).data[i];
           if(!m0||!m1) return;
           const text=`${d.diff>=0?'▲+':'▼'}${Math.abs(d.diff).toFixed(1)}억`;
-          const x=(m0.x+m1.x)/2, y=Math.min(m0.y,m1.y)-28;
+          // 값 라벨이 막대 밖(위)으로 나간 칸은 그만큼 배지를 더 띄운다 — 안 그러면 겹친다.
+          const outside=[0,1].some(di=>{
+            const ds=chart.data.datasets[di];
+            return !_modalLabelInside({dataset:ds,dataIndex:i,chart});
+          });
+          const x=(m0.x+m1.x)/2, y=Math.min(m0.y,m1.y)-(outside?28:15);
           const w=ctx.measureText(text).width;
           const boxW=w+12, boxH=16;
           ctx.fillStyle=d.diff>=0?'#33512E':'#D64545';
@@ -9589,22 +9629,12 @@ function openPlanAdjustModal(row){
       type:'bar',
       plugins:[ChartDataLabels,modalDiffLabelPlugin],
       data:{labels:trend.map(t=>t.month),datasets:[
-        {label:'계획',data:trend.map(t=>t.plan),backgroundColor:trend.map(t=>t.future?'#D9DEEA':'#AEB4C6'),borderRadius:5,borderSkipped:false,barPercentage:.62,categoryPercentage:.72,
-          datalabels:{
-            display:ctx=>(ctx.dataset.data[ctx.dataIndex]||0)>=0.1,
-            anchor:'end',align:'top',offset:3,clamp:true,clip:false,
-            color:'#555',font:{size:10,weight:'800'},
-            formatter:v=>v.toFixed(1)+'억'
-          }},
-        {label:'실적',data:trend.map(t=>t.actual),backgroundColor:trend.map(t=>t.diff>=0?'#33512E':'#D64545'),borderRadius:5,borderSkipped:false,barPercentage:.62,categoryPercentage:.72,
-          datalabels:{
-            display:ctx=>(ctx.dataset.data[ctx.dataIndex]||0)>=0.1,
-            anchor:'end',align:'top',offset:3,clamp:true,clip:false,
-            color:'#8F3F2D',font:{size:10,weight:'900'},
-            formatter:v=>v.toFixed(1)+'억'
-          }}
+        {label:'계획',data:trend.map(t=>t.plan),backgroundColor:trend.map(t=>t.future?'#D9DEEA':'#AEB4C6'),borderRadius:5,borderSkipped:false,barPercentage:.78,categoryPercentage:.78,
+          datalabels:_modalBarLabel('#6B7290')},
+        {label:'실적',data:trend.map(t=>t.actual),backgroundColor:trend.map(t=>t.diff>=0?'#33512E':'#D64545'),borderRadius:5,borderSkipped:false,barPercentage:.78,categoryPercentage:.78,
+          datalabels:_modalBarLabel('#8F3F2D')}
       ]},
-      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:36,right:14}},plugins:{legend:{position:'bottom'},datalabels:{},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}억`,afterBody:(items)=>{const d=trend[items?.[0]?.dataIndex||0];return `차이: ${diffText(d.diff)}`;}}}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>v+'억'}}}}
+      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:26,right:14}},plugins:{legend:{position:'bottom'},datalabels:{},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}억`,afterBody:(items)=>{const d=trend[items?.[0]?.dataIndex||0];return `차이: ${diffText(d.diff)}`;}}}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>v+'억'}}}}
     });
   }
 }
