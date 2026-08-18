@@ -7981,6 +7981,8 @@ function subjectParticle(text){
 //   3개월이면 2회, 6개월이면 4회로 자동 스케일된다 — 상수만 바꿔도 판정 강도가 유지된다.
 //   ('연속 초과/미달'은 기간과 무관한 개념이라 마지막 3개월 연속 그대로 둔다 — summarizeRecentDirection)
 const HIT_HISTORY_MONTHS=6;
+// 품목 팝업 추이에 덧붙일 '앞으로 N개월' 판매계획 수(2026-08-18 사용자 요청).
+const PLAN_FUTURE_MONTHS=3;
 function buildAdjustmentRows(){
   const selectedMo=normalizeMonthKey(document.getElementById('chAchieveMonth')?.value||'5월');
   const selectedNo=monthNoFromKey(selectedMo)||5;
@@ -9461,6 +9463,20 @@ function openPlanAdjustModal(row){
     return {month:m,plan:Number(data.plan)||0,actual:Number(data.actual)||0,diff:(Number(data.actual)||0)-(Number(data.plan)||0)};
   });
   const mat=String(row.mat||'').trim();
+  // 뒤에 **앞으로 3개월 판매계획**을 붙인다(2026-08-18 사용자 요청).
+  // ⚠ 반드시 채널별 계획(byChannel[row.ch])을 쓸 것 — 품목 전체 계획을 붙이면 한 채널 그래프에
+  //   전 채널 합계가 섞여 스케일이 어긋난다. 26/8 기준 228행 중 181행이 채널별 계획을 갖고 있고
+  //   나머지 47행은 계획 자체가 없어(품목 단위도 없음) 폴백이 필요 없다.
+  // 단위: 판매계획 시트는 원, 이 화면은 억이라 1e8로 나눈다.
+  const futurePlan=(getSalesPlanData()?.[mat]?.byChannel?.[row.ch]?.planAmt)||[];
+  for(let k=1;k<=PLAN_FUTURE_MONTHS;k++){
+    const no=selectedNo+k;
+    if(no>12) break;
+    const hitP=futurePlan.find(x=>Number(x.month)===no);
+    if(!hitP) continue;
+    trend.push({month:HIT_MONTHS[no-1],plan:(Number(hitP.amt)||0)/1e8,actual:null,diff:null,future:true});
+  }
+  const futureCount=trend.filter(t=>t.future).length;
   const channels=getHitMonthRows(row.selectedMo).filter(r=>String(r.mat||'').trim()===mat)
     .sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff));
   const reason=[
@@ -9486,7 +9502,7 @@ function openPlanAdjustModal(row){
       <div class="sku-info-item"><div class="sku-info-lbl">권장조치</div><div class="sku-info-val">${row.recommendedAction}</div></div>
     </div>
     <div class="analysis-box" style="margin-bottom:14px;">
-      <div class="analysis-title">최근 5개월 계획 vs 실적 추이</div>
+      <div class="analysis-title">최근 ${trend.length-futureCount}개월 계획 vs 실적${futureCount?` · 향후 ${futureCount}개월 판매계획`:''}</div>
       <div class="cw" style="height:250px;"><canvas id="planAdjustTrendChart"></canvas></div>
     </div>
     <div class="sku-insight">${reason}</div>
@@ -9547,6 +9563,7 @@ function openPlanAdjustModal(row){
         ctx.textBaseline='middle';
         ctx.font='900 10px '+UI_FONT_STACK;
         trend.forEach((d,i)=>{
+          if(d.future) return;   // 아직 실적이 없는 달 — 차이 배지를 그릴 수 없다
           const m0=chart.getDatasetMeta(0).data[i];
           const m1=chart.getDatasetMeta(1).data[i];
           if(!m0||!m1) return;
@@ -9572,7 +9589,7 @@ function openPlanAdjustModal(row){
       type:'bar',
       plugins:[ChartDataLabels,modalDiffLabelPlugin],
       data:{labels:trend.map(t=>t.month),datasets:[
-        {label:'계획',data:trend.map(t=>t.plan),backgroundColor:'#AEB4C6',borderRadius:5,borderSkipped:false,barPercentage:.62,categoryPercentage:.72,
+        {label:'계획',data:trend.map(t=>t.plan),backgroundColor:trend.map(t=>t.future?'#D9DEEA':'#AEB4C6'),borderRadius:5,borderSkipped:false,barPercentage:.62,categoryPercentage:.72,
           datalabels:{
             display:ctx=>(ctx.dataset.data[ctx.dataIndex]||0)>=0.1,
             anchor:'end',align:'top',offset:3,clamp:true,clip:false,
