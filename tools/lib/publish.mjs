@@ -89,6 +89,21 @@ export function findPrevAgingExcel(currentPath, dir = ROOT) {
   return earlier[0] || null;
 }
 
+// 당월보다 앞선 Aging 파일 전부(가까운 달 순). ①탭 월 필터가 파일 수만큼 달을 보여주는 데 쓴다.
+// 같은 달에 v1.1/v1.4가 있으면 최신 수정본 하나만 남긴다.
+export function findPrevAgingExcels(currentPath, dir = ROOT) {
+  const curKey = agingMonthKey(path.basename(currentPath));
+  if (curKey === null) return [];
+  const seen = new Set();
+  return listExcels(dir)
+    .filter(f => AGING_RE.test(f.name) && !STDCOST_RE.test(f.name) && !OVERRIDE_RE.test(f.name))
+    .filter(f => path.resolve(f.path) !== path.resolve(currentPath))
+    .map(f => ({ ...f, key: agingMonthKey(f.name) }))
+    .filter(f => f.key !== null && f.key < curKey)
+    .sort((a, b) => b.key - a.key || b.mtime - a.mtime)
+    .filter(f => (seen.has(f.key) ? false : (seen.add(f.key), true)));
+}
+
 // 파일명 기준월을 대시보드와 같은 표기('2026.08')로 바꾼다. 원장 시트의 base_yearmonth와 직접 비교하려는 것.
 export function agingYearMonth(name) {
   const k = agingMonthKey(name);
@@ -110,50 +125,57 @@ export function agingYearMonth(name) {
 // srcMasterPath: 생산처(향남/횡성) 지정을 읽어올 파일. ⚠ **당월 파일을 넘겨야 한다.**
 //   '다이소 마스터'의 생산처 지정은 달마다 바뀌어(26/7→26/8에 22개 코드) 각 달의 마스터를 각각 쓰면
 //   이관 자체가 재고 증감으로 잡힌다. 안 넘기면 생산처 분해 없이(bySrc 없음) 스냅샷을 만든다.
-export function readPrevPkgSnapshot(prevPath, base = LIVE_BASE, curYearMonth = null, srcMasterPath = null) {
+export function readPrevMonths(prevPaths, base = LIVE_BASE, curYearMonth = null, srcMasterPath = null) {
   const browser = createBrowser(base);
-  browser.sandbox.__prevBin = fs.readFileSync(prevPath).toString('binary');
   browser.sandbox.__curYm = curYearMonth || null;
   browser.sandbox.__srcBin = srcMasterPath && fs.existsSync(srcMasterPath)
     ? fs.readFileSync(srcMasterPath).toString('binary') : null;
-  const snap = browser.run(`(function(){
-    const wb=XLSX.read(__prevBin,{type:'binary'});
-    const refSheet=findSheetName(wb,'기준정보');
-    const pkgMap=refSheet?parsePkgGroupMap(wb.Sheets[refSheet]):null;
-    // 우선순위가 아니라 '후보'다 — 실제 선택은 아래 기준월 비교가 한다. 동률이면 앞의 것(기초재고)이 이긴다.
-    const cands=['기초재고','현재고']
-      .map(n=>{const s=findSheetName(wb,n); return s?{sheet:s,ym:parseBaseYearMonth(wb.Sheets[s])||''}:null;})
-      .filter(Boolean);
-    if(!cands.length) return null;
-    const usable=cands.filter(c=>c.ym&&(!__curYm||c.ym<__curYm));
-    // 기준월을 못 읽거나 전부 당월 이후면 옛 동작(기초재고 우선) 그대로 — 무회귀.
-    const pick=usable.length
-      ? usable.reduce((best,c)=>(c.ym>best.ym?c:best),usable[0])
-      : cands[0];
-    // 생산처 맵은 **당월 파일**의 다이소 마스터에서 온다 — 양쪽 달을 같은 기준으로 묶기 위해서다.
+  browser.sandbox.__bins = (Array.isArray(prevPaths) ? prevPaths : [prevPaths])
+    .filter(p => p && fs.existsSync(p))
+    .map(p => ({ name: path.basename(p), bin: fs.readFileSync(p).toString('binary') }));
+  const months = browser.run(`(function(){
+    // 생산처 맵은 **당월 파일**의 다이소 마스터에서 온다 — 두 달을 같은 기준으로 묶기 위해서다.
     let srcMap=null;
     if(__srcBin){
       const cw=XLSX.read(__srcBin,{type:'binary'});
       const dm=cw.SheetNames.find(n=>String(n).replace(/\s/g,'')==='다이소마스터');
       if(dm) srcMap=parseDaisoMasterSheet(cw.Sheets[dm]).plantByMaterial;
     }
-    const ws=wb.Sheets[pick.sheet];
-    const p=parseInventory(ws,pkgMap,srcMap);
-    const snap=buildPkgSnapshot(p.pkgAgg,parseBaseLabel(ws),parseBaseYearMonth(ws),p.pkgAggBySrc);
-    if(!snap) return null;
-    snap.sheet=pick.sheet;
-    snap.srcFrom=__srcBin?'당월 마스터':'(생산처 분해 없음)';
-    snap.candidates=cands.map(c=>c.sheet+'('+(c.ym||'기준월 미상')+')');
-    // ①탭 월 필터용 매트릭스. 전월 파일도 원장 전체를 갖고 있으므로 당월과 **똑같은 수준**으로 볼 수 있다
-    //   (채널 4개·수량·SKU 드릴다운·생산처 필터 전부). 현황 시트 요약과는 다른 소스다.
-    snap.month={
-      label:parseBaseLabel(ws), yearmonth:parseBaseYearMonth(ws), sheet:pick.sheet,
-      matrix:p.matrix, matrix_delivery:p.matrix_delivery,
-      ch_amt:p.ch_amt, ch_delivery:p.ch_delivery, kpi:p.kpi
-    };
-    return JSON.parse(JSON.stringify(snap));
+    const byYm=new Map();   // 기준월 → 그 달을 대표하는 원장 시트
+    __bins.forEach(f=>{
+      const wb=XLSX.read(f.bin,{type:'binary'});
+      const refSheet=findSheetName(wb,'기준정보');
+      const pkgMap=refSheet?parsePkgGroupMap(wb.Sheets[refSheet]):null;
+      // 한 파일이 여러 달을 담는다 — 26/7 파일은 기초재고=6/1, 현재고=7/8이다.
+      ['기초재고','현재고'].forEach(n=>{
+        const sheet=findSheetName(wb,n); if(!sheet) return;
+        const ws=wb.Sheets[sheet];
+        const ym=parseBaseYearMonth(ws);
+        if(!ym||(__curYm&&ym>=__curYm)) return;            // 당월 이후는 월 필터에 넣지 않는다
+        // 같은 달이 둘이면 '기초재고'(월초)를 남긴다 — 당월이 기초재고 기준이라 기준을 맞춘다.
+        const prev=byYm.get(ym);
+        if(prev&&!(n==='기초재고'&&prev.name!=='기초재고')) return;
+        byYm.set(ym,{name:n,sheet,ym,file:f.name,ws,pkgMap});
+      });
+    });
+    const out=[...byYm.values()].sort((a,b)=>b.ym.localeCompare(a.ym)).map(m=>{
+      const p=parseInventory(m.ws,m.pkgMap,srcMap);
+      const snap=buildPkgSnapshot(p.pkgAgg,parseBaseLabel(m.ws),m.ym,p.pkgAggBySrc);
+      if(!snap) return null;
+      snap.sheet=m.sheet; snap.file=m.file;
+      snap.srcFrom=__srcBin?'당월 마스터':'(생산처 분해 없음)';
+      // ①탭 월 필터용 매트릭스. 과거월 파일도 원장 전체를 갖고 있어 당월과 **똑같은 수준**으로 볼 수 있다
+      //   (채널 4개·수량·SKU 드릴다운·생산처 필터 전부). 현황 시트 요약과는 다른 소스다.
+      snap.month={
+        label:parseBaseLabel(m.ws), yearmonth:m.ym, sheet:m.sheet,
+        matrix:p.matrix, matrix_delivery:p.matrix_delivery,
+        ch_amt:p.ch_amt, ch_delivery:p.ch_delivery, kpi:p.kpi
+      };
+      return snap;
+    }).filter(x=>x&&x.byPkg&&Object.keys(x.byPkg).length);
+    return JSON.parse(JSON.stringify(out));
   })()`);
-  return snap && snap.byPkg && Object.keys(snap.byPkg).length ? snap : null;
+  return months || [];
 }
 
 // 전월 파일이 없을 때의 폴백: 지금 라이브(KV)에 올라가 있는 달의 품목군 스냅샷을 그대로 전월로 쓴다.
@@ -262,9 +284,11 @@ export function parseExcel(xlsxPath, base = LIVE_BASE, stdCostPath = null, overr
   if (prevPkg) {
     sandbox.__prevPkg = prevPkg;
     run('PKG_PREV_INPUT=__prevPkg;');
-    // 전월 매트릭스는 ①탭 월 필터가 쓴다. pkg 스냅샷과 같은 파싱에서 나온 것이라 숫자가 어긋나지 않는다.
-    if (prevPkg.month) {
-      sandbox.__prevMonths = [prevPkg.month];
+    // 과거월 매트릭스는 ①탭 월 필터가 쓴다. pkg 스냅샷과 같은 파싱에서 나온 것이라 숫자가 어긋나지 않는다.
+    // prevPkg.months가 있으면 여러 달(26/7 파일 하나가 6월·7월 둘을 준다), 없으면 자기 달 하나.
+    const months = prevPkg.months || (prevPkg.month ? [prevPkg.month] : null);
+    if (months && months.length) {
+      sandbox.__prevMonths = months;
       run('PREV_MONTHS_INPUT=__prevMonths;');
     }
   }

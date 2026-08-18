@@ -697,6 +697,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
         <div>
           <div class="trend-panel-title">[전체 재고 Aging 구성]</div>
           <div class="cw" style="height:240px;"><canvas id="trendChart"></canvas></div>
+          <div id="trendSourceNote" style="display:none;margin-top:6px;font-size:10.5px;color:var(--muted);"></div>
         </div>
         <div style="margin-top:20px;">
           <div class="trend-panel-title">[위험재고 합계 vs 목표 (1억원)]</div>
@@ -2207,6 +2208,27 @@ function handleUpload(file){
           warnings.push(`${trendSheet}: ${h.latestLabel} 당월 채널별 AGING 반영`);
         }
         warnings.push(`${trendSheet}: ${Object.keys(result.trend_data||{}).length}개 현황 스냅샷 반영`);
+        // ⚠ '현황' 시트는 **당월 블록만 수식**이고 과거월은 값으로 박혀 있다.
+        //   그래서 원본 파일을 고쳐도 안 따라온다 — 26/8 파일의 7월은 52.40억으로 박혀 있는데
+        //   26/7 파일의 채널 수식이 채워진 뒤 실제 7월은 62.23억이다(그 파일 자신의 현황은 수식이라 재계산됨).
+        //   원장을 갖고 있는 달은 원장 값으로 덮어써서 한 화면에서 같은 달이 두 값으로 갈리지 않게 한다.
+        //   (2026-08-18 사용자 확정: "62억이 맞으니 전월꺼를 다 62억으로 통일")
+        const ledgerMonths=[];
+        (result.month_options||[]).forEach(o=>{
+          const mm=/^(\d{4})\.(\d{2})$/.exec(String(o.yearmonth||''));
+          const mx=result.monthly_mx?.[o.key];
+          if(!mm||!mx) return;
+          const label=`${Number(mm[2])}월`;
+          const d={}; CATS.forEach(c=>{d[c]=0;});
+          for(const ch in mx) for(const c in mx[ch]) d[c]=(d[c]||0)+(mx[ch][c].a||0);
+          d['계']=CATS.reduce((t,c)=>t+(d[c]||0),0);
+          const before=result.trend_data?.[label]?.['계'];
+          result.trend_data[label]=d;
+          ledgerMonths.push(label);
+          if(before!=null&&Math.abs(before-d['계'])>0.005)
+            warnings.push(`추이 ${label}: 현황 ${before.toFixed(2)}억 → 원장 ${d['계'].toFixed(2)}억으로 보정 (${o.sheet} 시트)`);
+        });
+        result.trend_ledger_months=ledgerMonths.length?ledgerMonths:null;
       }
       let daisoMatSet=null;
       // PSI 기초재고에서 뺄 보류재고. PSI!BQ가 참조하는 바로 그 시트에서 읽어야 기준이 어긋나지 않는다.
@@ -4332,6 +4354,14 @@ function renderTrendChart(){
     barPercentage:0.55,categoryPercentage:0.75,
     datalabels:{display:false},
   }));
+  const _tsn=document.getElementById('trendSourceNote');
+  if(_tsn){
+    const led=UPLOADED?.trend_ledger_months;
+    if(led&&led.length){
+      _tsn.style.display='block';
+      _tsn.textContent=`※ ${[...led].reverse().join('·')}은 올린 Aging 파일의 재고 원장 기준입니다. 나머지 달은 현황 시트에 값으로 박힌 스냅샷이라, 원본 파일을 나중에 고쳐도 따라오지 않습니다.`;
+    }else _tsn.style.display='none';
+  }
   trendChart=new Chart(document.getElementById('trendChart'),{
     plugins:[ChartDataLabels,stackedTotalLabelPlugin('trendTotal','y')],
     data:{labels,datasets},
@@ -4594,8 +4624,9 @@ function renderMatrix(){
   document.getElementById('agingMatrix').innerHTML=html;
   const note=document.getElementById('matrixRevNote');
   if(note) note.style.display=costData?'block':'none';
-  // 필터를 걸면 이 표만 걸러진다. 상단 KPI 카드·재고 추이 차트는 '현황' 시트 SUMIFS 결과라
-  // 플랜트/자재유형 축이 없어 따라올 수 없다 — 말없이 두면 한 화면에서 총액이 갈린 것처럼 보인다.
+  // 필터를 걸면 이 표만 걸러진다. 상단 KPI 카드는 '현황' 시트 SUMIFS 결과라 생산처/자재유형 축이 없어
+  // 따라올 수 없다 — 말없이 두면 한 화면에서 총액이 갈린 것처럼 보인다.
+  // (추이 차트의 월별 총액은 원장 있는 달을 원장 값으로 맞춰뒀다 — 위 handleUpload 주석 참고)
   const fNote=document.getElementById('matrixFilterNote');
   if(fNote){
     const parts=[];

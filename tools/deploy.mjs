@@ -14,7 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   ROOT, LIVE_BASE, readPassword, findLatestExcel, findStdCostExcel, findPriceOverrideExcel,
-  findPrevAgingExcel, readPrevPkgSnapshot, readLivePkgSnapshot, agingYearMonth, parseExcel, publishParsed, summarize
+  findPrevAgingExcels, readPrevMonths, readLivePkgSnapshot, agingYearMonth, parseExcel, publishParsed, summarize
 } from './lib/publish.mjs';
 
 const args = process.argv.slice(2);
@@ -61,23 +61,27 @@ if (!codeOnly) {
 
   // 전월 Aging 파일 — 품목군별 전월대비 표에만 쓴다. 없으면 그 표만 안 보인다(나머지는 무영향).
   const prevFile = args.find(a => /--prev=/.test(a))?.split('=')[1];
-  const prevFound = prevFile ? { path: path.resolve(ROOT, prevFile) } : findPrevAgingExcel(found.path);
+  const prevPaths = prevFile
+    ? [path.resolve(ROOT, prevFile)]
+    : findPrevAgingExcels(found.path).map(f => f.path);
   let prevPkg = null;
-  if (prevFound && fs.existsSync(prevFound.path)) {
-    say(`전월 Aging 원본: ${path.relative(ROOT, prevFound.path)} (품목군 전월대비용)`);
+  if (prevPaths.length) {
+    say(`과거 Aging 원본: ${prevPaths.map(p => path.relative(ROOT, p)).join(', ')}`);
     try {
-      // 당월 기준월을 넘겨야 전월 파일 안에서 '당월보다 앞선 가장 최근 원장'을 고를 수 있다.
-      // (26/7 파일은 기초재고가 6/1이라 그냥 두면 두 달이 벌어진다 — publish.mjs의 주석 참고)
-      // 4번째 인자는 생산처 맵 소스 — 반드시 **당월 파일**이다(마스터의 생산처 지정이 달마다 바뀐다).
-      prevPkg = readPrevPkgSnapshot(prevFound.path, base, agingYearMonth(path.basename(found.path)), found.path);
-      if (prevPkg) {
-        say(`전월 원장 시트 ${prevPkg.sheet}${prevPkg.candidates ? ` (후보: ${prevPkg.candidates.join(' / ')})` : ''}`);
-        if (prevPkg.bySrc) say(`전월 생산처 분해 ${Object.entries(prevPkg.bySrc).map(([k, v]) => `${k} ${v.total.a.toFixed(2)}억`).join(' / ')} (${prevPkg.srcFrom})`);
-        say(`전월 기준일 ${prevPkg.label} · 품목군 ${Object.keys(prevPkg.byPkg).length}개 · 합계 ${prevPkg.total.a.toFixed(2)}억`);
-      }
-      else say('⚠ 전월 파일에서 품목군 집계를 얻지 못했습니다 — 전월대비 표는 표시되지 않습니다');
+      // ⚠ 한 파일이 여러 달을 담는다 — 26/7 파일은 기초재고=6/1, 현재고=7/8이다.
+      //    3번째 인자(당월 기준월)로 당월 이후를 걸러내고, 4번째(생산처 맵 소스)는 반드시 **당월 파일**이다
+      //    (다이소 마스터의 생산처 지정이 달마다 바뀌어, 각 달 마스터를 쓰면 이관이 증감으로 잡힌다).
+      const months = readPrevMonths(prevPaths, base, agingYearMonth(path.basename(found.path)), found.path);
+      months.forEach(m => say(
+        `과거월 ${m.yearmonth} (${m.label} · ${m.sheet} 시트) ${m.total.a.toFixed(2)}억` +
+        (m.bySrc ? ` · ${Object.entries(m.bySrc).map(([k, v]) => `${k} ${v.total.a.toFixed(2)}`).join(' / ')}` : '')
+      ));
+      // 품목군 전월대비 카드는 **바로 앞 달** 하나만 쓴다(readPrevMonths가 최신순으로 준다).
+      prevPkg = months[0] || null;
+      if (prevPkg) prevPkg.months = months.map(m => m.month);
+      else say('⚠ 과거 파일에서 품목군 집계를 얻지 못했습니다 — 전월대비 표는 표시되지 않습니다');
     } catch (e) {
-      say(`⚠ 전월 파일 파싱 실패(${String(e.message || e).slice(0, 80)}) — 전월대비 표만 생략합니다`);
+      say(`⚠ 과거 파일 파싱 실패(${String(e.message || e).slice(0, 80)}) — 전월대비 표만 생략합니다`);
     }
   }
   if (!prevPkg) {
@@ -114,6 +118,8 @@ if (!codeOnly) {
   }
   if (browser.missing) say(`⚠ 읽지 못한 시트: ${browser.missing} — 해당 화면은 이전 값이 남습니다`);
   browser.parserNotes.filter(t => /없음|오류|불일치|누락/.test(t)).forEach(t => say('⚠', t));
+  // 추이 보정은 사고가 아니라 정상 동작이라 ⚠ 없이 보여준다 — 다만 숫자가 바뀌므로 반드시 눈에 띄어야 한다.
+  browser.parserNotes.filter(t => /보정/.test(t)).forEach(t => say(t));
 
   if (dryRun) {
     say('--dry-run: 올리지 않고 종료합니다.');
