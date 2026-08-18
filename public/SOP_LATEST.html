@@ -236,8 +236,6 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
   max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom;}
 .chwape .cw-name:hover{color:var(--navy);text-decoration-color:var(--navy);}
 /* 표(고정폭 700px) + 오른쪽 남는 폭에 오차 금액 차트. 좁아지면 아래로 접힌다. */
-.chwape-split{display:grid;grid-template-columns:auto minmax(380px,1fr);gap:18px;align-items:start;}
-@media(max-width:1180px){.chwape-split{grid-template-columns:1fr;}}
 .chwape-side-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 4px 8px;
   font-size:12.5px;font-weight:900;color:var(--navy);}
 .chwape-side-hd select{height:26px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;}
@@ -1023,21 +1021,12 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
     </span>
   </div>
   <div class="panel" style="margin-bottom:14px;">
-    <!-- 왼쪽 = 오차율(%) 표, 오른쪽 = 오차 금액·방향 막대. 둘이 서로를 보완한다:
-         %만 보면 제로샵 107%가 최악 같지만 금액으론 0.6억(2%)이고, 진짜는 직영몰 10.3억(38%)이다. -->
-    <div class="chwape-split">
-      <div style="min-width:0;">
-        <div class="sort-toolbar"><span class="sort-summary" id="chWapeSortSummary">정렬: 기본</span><button onclick="resetChWapeSort()">정렬 초기화</button></div>
-        <div id="chWapeWrap" style="overflow-x:auto;"></div>
-      </div>
-      <div style="min-width:0;">
-        <div class="chwape-side-hd">
-          <span id="chWapeGapTitle">오차 금액 · 계획 대비</span>
-          <select id="chWapeGapMonth" onchange="renderChWapeGap()"></select>
-        </div>
-        <div class="cw" style="height:290px;"><canvas id="chWapeGapChart"></canvas></div>
-        <div id="chWapeGapNote" style="padding:6px 4px 0;font-size:10.5px;color:var(--muted);"></div>
-      </div>
+    <!-- 오차 금액 발산 막대(오른쪽 패널)와 'N월 계획' 열은 2026-08-18 사용자 지시로 제거했다.
+         %만 보면 규모가 안 보인다는 보완 장치였지만, 표를 숫자만으로 읽고 싶다는 판단이다.
+         금액 규모는 셀을 눌러 나오는 채널×월 상세 팝업에서 확인한다. -->
+    <div>
+      <div class="sort-toolbar"><span class="sort-summary" id="chWapeSortSummary">정렬: 기본</span><button onclick="resetChWapeSort()">정렬 초기화</button></div>
+      <div id="chWapeWrap" style="overflow-x:auto;"></div>
     </div>
     <div id="chWapeNote" style="padding:10px 14px 12px;font-size:10.5px;color:var(--muted);"></div>
   </div>
@@ -7462,115 +7451,6 @@ function resetChWapeSort(){
 // %만 보면 손볼 곳을 정반대로 짚는다. 그래서 이 차트는 '금액'을 그린다 — 표와 중복이 아니다.
 // 또 WAPE는 절대값이라 방향이 없다. 초과(+)/미달(−)로 갈라 그리면
 // 다이소(−4.8억 미달)와 쿠팡(+2.7억 초과)이 오차율은 비슷해도 대응이 반대임이 보인다.
-const CHWAPE_GAP_TOP_N=6;   // 나머지는 '기타 N개'로 묶는다 — 막대가 11개면 세로가 안 나온다
-let chWapeGapChart=null;
-function buildChWapeGap(monthKey){
-  const hit=hitTrendSource();
-  if(!hit?.byMonth||!monthKey) return null;
-  const rows=aggregateHitRows((hit.byMonth[monthKey]||[]).map(remapHitRowDaiso));
-  if(!rows.length) return null;
-  const byCh=new Map();
-  rows.forEach(r=>{
-    const ch=r.ch||'미분류';
-    if(!byCh.has(ch)) byCh.set(ch,{ch,over:0,under:0,abs:0,plan:0});
-    const t=byCh.get(ch);
-    const d=Number(r.diff)||0;
-    if(d>0) t.over+=d; else t.under+=d;
-    t.abs+=Math.abs(d); t.plan+=Number(r.plan)||0;
-  });
-  const all=[...byCh.values()].sort((a,b)=>b.abs-a.abs);
-  const top=all.slice(0,CHWAPE_GAP_TOP_N);
-  const rest=all.slice(CHWAPE_GAP_TOP_N);
-  if(rest.length){
-    top.push({ch:`기타 ${rest.length}개`,_rest:true,
-      over:rest.reduce((s,r)=>s+r.over,0),under:rest.reduce((s,r)=>s+r.under,0),
-      abs:rest.reduce((s,r)=>s+r.abs,0),plan:rest.reduce((s,r)=>s+r.plan,0)});
-  }
-  return {rows:top,totalAbs:all.reduce((s,r)=>s+r.abs,0)};
-}
-function syncChWapeGapMonth(){
-  const sel=document.getElementById('chWapeGapMonth');
-  const data=buildChannelWape();
-  if(!sel) return null;
-  const months=data?.months||[];
-  const want=months.map(m=>m.key).join(' ');
-  if([...sel.options].map(o=>o.value).join(' ')!==want){
-    const keep=sel.value;
-    sel.innerHTML=months.map(m=>`<option value="${m.key}">${m.label}</option>`).join('');
-    // 기본은 가장 최근 실적월. 사용자가 고른 달이 아직 유효하면 유지한다.
-    sel.value=months.some(m=>m.key===keep)?keep:(months[months.length-1]?.key||'');
-  }
-  return sel.value||null;
-}
-function renderChWapeGap(){
-  const monthKey=syncChWapeGapMonth();
-  const note=document.getElementById('chWapeGapNote');
-  const title=document.getElementById('chWapeGapTitle');
-  safeDestroyChart('chWapeGapChart'); chWapeGapChart=null;
-  const canvas=document.getElementById('chWapeGapChart');
-  if(!canvas) return;
-  canvas.style.display='';
-  canvas.parentElement?.querySelector('.chart-offline')?.remove();
-  const qty=hitTrendUnit==='qty';
-  const unit=qty?'개':'억';
-  const fmt=v=>qty?Math.round(v).toLocaleString():Number(v).toFixed(1);
-  if(title) title.textContent=`오차 ${qty?'수량':'금액'} · 계획 대비`;
-  if(!hasChart()){markChartOffline('chWapeGapChart','Chart.js가 차단되어 오차 금액 차트를 표시할 수 없습니다.');return;}
-  const data=buildChWapeGap(monthKey);
-  if(!data){
-    markChartOffline('chWapeGapChart','해당 월 데이터가 없습니다.');
-    if(note) note.textContent='';
-    return;
-  }
-  const {rows,totalAbs}=data;
-  chWapeGapChart=new Chart(canvas,{
-    type:'bar',
-    plugins:[ChartDataLabels],
-    data:{
-      labels:rows.map(r=>r.ch),
-      datasets:[
-        {label:'미달(계획 못 채움)',data:rows.map(r=>r.under),backgroundColor:'#D64545',
-         borderRadius:3,borderSkipped:false,stack:'gap',datalabels:{display:false}},
-        {label:'초과(계획 넘김)',data:rows.map(r=>r.over),backgroundColor:'#33512E',
-         borderRadius:3,borderSkipped:false,stack:'gap',
-         // 순차이(초과+미달)를 막대 오른쪽 끝에 한 번만 적는다
-         datalabels:{anchor:'end',align:'right',offset:4,clamp:true,
-           color:c=>{const r=rows[c.dataIndex];return (r.over+r.under)>=0?'#33512E':'#D64545';},
-           font:{size:10,weight:'900'},
-           formatter:(v,c)=>{const r=rows[c.dataIndex];const n=r.over+r.under;return `${n>=0?'+':''}${fmt(n)}${unit}`;}}}
-      ]
-    },
-    options:{
-      indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      layout:{padding:{right:52,left:4}},
-      interaction:{mode:'index',intersect:false},
-      plugins:{
-        legend:{position:'bottom',labels:{font:{size:10.5},boxWidth:11,padding:8}},
-        tooltip:{callbacks:{
-          label:c=>`${c.dataset.label}: ${fmt(Math.abs(c.parsed.x))}${unit}`,
-          afterBody:items=>{
-            const r=rows[items?.[0]?.dataIndex||0];
-            const w=r.plan>0?(r.abs/r.plan*100).toFixed(0)+'%':'—';
-            return `순차이 ${(r.over+r.under)>=0?'+':''}${fmt(r.over+r.under)}${unit} · 오차율 ${w} · 오차 기여 ${totalAbs>0?(r.abs/totalAbs*100).toFixed(1):'0'}%`;
-          }
-        }}
-      },
-      scales:{
-        x:{stacked:true,grid:{color:'#f0f1f5'},border:{display:false},
-           ticks:{callback:v=>fmt(Math.abs(v)),font:{size:10}},
-           title:{display:true,text:`← 미달        초과 →   (${unit})`,font:{size:10,weight:'700'},color:'#8A90A6'}},
-        y:{stacked:true,grid:{display:false},ticks:{font:{size:11,weight:'bold'},autoSkip:false}}
-      }
-    }
-  });
-  if(note){
-    const top=rows.filter(r=>!r._rest).slice(0,4);
-    const share=totalAbs>0?top.reduce((s,r)=>s+r.abs,0)/totalAbs*100:0;
-    note.innerHTML=`막대 길이 = 오차 <strong>${qty?'수량':'금액'}</strong>, 오른쪽 숫자 = 순차이 · `
-      +`상위 ${top.length}개가 그 달 오차의 <strong>${share.toFixed(0)}%</strong>를 만듭니다<br>`
-      +`왼쪽 표의 오차율(%)과 같이 보세요 — <strong>%가 높아도 금액이 작으면 손볼 필요가 적습니다</strong>`;
-  }
-}
 
 // ═══════════ 채널×월 오차 상세 팝업 ═══════════
 // 채널별 오차율 표에서 셀(채널×월)이나 채널명을 누르면, 그 조합의 품목을 |차이| 큰 순으로 보여준다.
@@ -7725,13 +7605,13 @@ function renderChannelWape(){
         ? '수량 판매계획(오차율분석 시트 [수량] 구획)이 비어 있어 수량 기준 오차율은 산출할 수 없습니다.'
         : '오차율 분석 데이터가 없습니다. 최신 엑셀을 업로드해 주세요.'}</div>`;
     if(note) note.textContent='';
-    renderChWapeGap();
     renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
     return;
   }
-  const {months,rows,totalWape,sizeLabel,totalSize}=data;
+  // sizeLabel/totalSize(=N월 계획 규모)는 열을 없앤 뒤로 화면에 안 쓴다.
+  // planSize는 여전히 기본 정렬 키('plan', 계획 큰 채널 우선)로 살아 있으니 데이터는 그대로 둔다.
+  const {months,rows,totalWape}=data;
   const unitTxt=hitTrendUnit==='qty'?'개':'억';
-  const fmtSize=v=>hitTrendUnit==='qty'?`${Math.round(v).toLocaleString()}개`:`${v.toFixed(1)}억`;
   const sorted=[...rows].sort((a,b)=>{
     for(const s of chWapeSort){
       const av=chWapeSortValue(a,s.key),bv=chWapeSortValue(b,s.key);
@@ -7750,29 +7630,25 @@ function renderChannelWape(){
     return `<td class="cw-click" onclick="openChDrill(${esc(ch)},${esc(mk)})" title="${ch} ${ml} 오차 상세 보기">${v.toFixed(0)}%</td>`;
   };
   // 표 전체 폭을 내용에 맞춰 잡는다 — 화면 폭에 맞춰 늘리면 숫자 사이가 벌어져 한눈에 안 들어온다.
-  const W_CH=132,W_MO=68,W_PLAN=hitTrendUnit==='qty'?110:92;
-  const tableW=W_CH+months.length*W_MO+W_PLAN;
+  const W_CH=132,W_MO=68;
+  const tableW=W_CH+months.length*W_MO;
   let h=`<table class="chwape" style="width:${tableW}px;">
-  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}<col style="width:${W_PLAN}px;"></colgroup>
+  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}</colgroup>
   <thead><tr>
     <th class="l sortable" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
     ${months.map(m=>`<th class="sortable" onclick="handleChWapeSort('${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="${m.key}"></span></th>`).join('')}
-    <th class="r cw-sep sortable" onclick="handleChWapeSort('plan',event)">${sizeLabel}계획<span data-sort-table="chwape" data-sort-key="plan"></span></th>
   </tr></thead><tbody>`;
   sorted.forEach(r=>{
     h+=`<tr class="cw-ch${r.ch===selCh?' cw-sel':''}">
       <td class="l"><button type="button" class="cw-name" onclick="openChDrill(${esc(r.ch)})" title="${r.ch}의 오차 상세 보기 (차이 큰 순)">${r.ch}</button></td>
       ${months.map(m=>cell(r.wape[m.key],r.ch,m.key,m.label)).join('')}
-      <td class="r cw-sep">${fmtSize(r.planSize)}</td>
     </tr>`;
   });
   h+=`<tr class="cw-total">
     <td class="l">전체</td>
     ${months.map(m=>totalWape[m.key]==null?`<td class="cw-na">—</td>`:`<td>${totalWape[m.key].toFixed(0)}%</td>`).join('')}
-    <td class="r cw-sep">${fmtSize(totalSize)}</td>
   </tr></tbody></table>`;
   wrap.innerHTML=h;
-  renderChWapeGap();
   renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
   if(note){
     note.innerHTML=`WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
