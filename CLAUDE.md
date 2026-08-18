@@ -86,6 +86,9 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
   파일에 따라 의약품 등 **타사업부 원장이 통째로 섞여 있을 수 있고 그건 채널이 없는 게 정상**이다.
   그래서 채널 공백 경고는 `pkgMap`(기준정보 품목군 맵)에 등록된 건기식 자재일 때만 사고로 센다
   (`stats.skippedNoChannelAmt` → 상태줄에 ⚠). 전건을 세면 매달 가짜 경고가 뜬다.
+- **플랜트**: D열=`플랜트`(코드), P열=`플랜트명`. ①탭 플랜트 필터용으로 `sku.p`(코드)와
+  `result.inventory_plants`(`{코드:이름}`)를 만든다. **드롭다운 목록을 코드에 박지 말 것** —
+  생산처가 늘어도(횡성이 그랬다) 데이터에서 그린다. 26/8: 향남 68.87 + 횡성 9.79 = 78.66억(전체와 일치)
 - 컬럼: B=자재, F=배치, **I=가용/J=가용금액, K=품질검사/L=검사금액, N=보류재고/O=보류금액**
   (열 위치는 `inventoryColMap(rows)`이 헤더에서 값으로 찾는다 — 두 시트의 중간 열 구성이 서로 다르다)
 - **수량/금액은 항상 I+K+N, J+L+O 합산** (가용만 쓰면 안 됨 — 2026-07-08에 이 버그로 "3개월↓ 리포트가 3개인데 실제 12개" 이슈 발생/수정함)
@@ -154,6 +157,7 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 | 화면/기능 | 함수 |
 |---|---|
 | ① 재고 Aging 매트릭스 + 드릴다운 | `renderMatrix`, `drilldown`, `_renderDDTbody` |
+| ① 매트릭스 필터(플랜트·자재유형) | `matrixSkuFilter`, `filterMatrixCell`, `syncMatrixFilterOptions`, `_syncFilterSelect` — 아래 "매트릭스 필터" 참고 |
 | ① 품목군별 전월대비 재고 증감 (+SKU 드릴다운) | `renderPkgDelta`, `togglePkgDeltaRow`, `setPkgDeltaUnit` — 아래 "품목군 전월대비" 참고 |
 | 📡 Aging Sensing (M+N 예측) | `renderSensing`, `projectSensingInventory`, `computeSensInbound`(PSI 입고, 원가단가 기준) |
 | SKU 상세 팝업(라인차트, 실적vs계획) | `renderSkuDetailModal` — 배지: `diffVal`/`diffPos` 3번째 dataset |
@@ -221,6 +225,24 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
   `전월`/`N개월 전`으로 바꾼다(숫자·계산은 그대로). 특정 달을 강제하려면 `--prev=`로 파일을 직접 지정할 것.
 - **검증 기준선: 전월 카드 합계 = `현황` 시트 트렌드의 그 달 값.** 어긋나면 원장 시트를 잘못 고른 것이다.
   (26/8 배포 기준: 트렌드 7월 52.40억 = 전월 스냅샷 52.40억 → 당월 78.66억, +26.27억)
+
+## ①탭 매트릭스 필터 (플랜트·자재유형, 2026-08-18)
+
+**조건은 `matrixSkuFilter()` 한 곳에만 있어야 한다.** `renderMatrix`와 `drilldown`이 같은 걸 쓴다 —
+예전엔 `drilldown`이 자재유형 필터를 통째로 무시해서, 걸러진 셀을 눌러도 전체 SKU가 나왔다.
+셀 접기는 `filterMatrixCell(raw,f)` (⚠ `sku.a`는 0.1백만원 단위라 억으로 되돌릴 때 `/100`).
+
+- **드롭다운 목록은 업로드 데이터에서 만든다**(`syncMatrixFilterOptions`). 하드코딩하면 조용히 깨진다 —
+  자재유형 옵션이 `(DW)상품`으로 박혀 있었는데 26/8 파일 값은 `상품`이라 **고르면 빈 표가 나오고 있었다.**
+- ⚠ **동기화는 `renderMatrix` 안에서 한다.** `handleUpload`에만 두면 업로드한 사람과 나머지 열람자의
+  화면이 갈린다(`chAchieveMonth` 사고와 같은 계열). 재빌드는 `dataset.sig`로 막는다 — 매 렌더마다
+  다시 그리면 사용자 선택이 튄다. 고를 게 1개 이하면 셀렉트를 숨긴다.
+- 필터가 걸리면 **해당 없는 채널은 행째로 뺀다**(필터 없을 땐 예전대로 전 채널). 횡성은
+  `건기식(다이소) | 18개월 이상` 한 칸뿐이라 안 그러면 `—`만 찬 빈 행이 3개 남는다.
+- ⚠ **KPI 카드·재고 추이 차트는 따라오지 않는다.** `kpi_curr`/`trend_data`는 `현황` 시트 SUMIFS라
+  플랜트·자재유형 축이 없다. 그래서 필터가 걸리면 `matrixFilterNote`에 "이 표만 걸러진 값"이라고 띄운다.
+  **카드 숫자를 필터에 맞춰 바꾸려 들지 말 것** — 원장 기준과 현황 기준이 섞인다.
+- 품목군 전월대비(`renderPkgDelta`)와 Sensing에는 플랜트 축이 없어 필터가 적용되지 않는다.
 
 ## 확립된 시각 패턴
 - **차이(diff) 배지**: 초록(`#33512E`)/빨강(`#D64545`) 배경 + 흰 텍스트 + `ctx.roundRect`로 둥근 모서리. `▲+`/`▼` 접두사. Chart.js `afterDraw` 플러그인으로 캔버스에 직접 그림 (Chart.js datalabels의 `backgroundColor`+`borderRadius` 조합도 동일 효과, `renderSkuDetailModal`의 3번째 dataset 참고).
