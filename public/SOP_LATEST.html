@@ -6303,8 +6303,18 @@ function buildPlantScopedPsiRows(plant){
       kids.forEach(c=>{const s=psiMonthOf(c,k);begin+=Number(s.begin)||0;buy+=Number(s.buy)||0;plan+=Number(s.plan)||0;});
       monthly[k]={begin:Math.round(begin),buy:Math.round(buy),plan:Math.round(plan),end:Math.round(begin+buy-plan)};
     });
+    // 그 플랜트에 자재코드만 등록돼 있고 재고·입고가 전 기간 0인 행에는 _plantInactive를 단다.
+    // 아직 그 공장으로 스위칭되지 않은 껍데기라, 남기면 '횡성 품목이 몇 개냐'를 세는 데 방해가 된다.
+    //   26/8 기준 횡성 14행 중 5행(프로폴리스 츄어블·콜라겐·비타민C·맥주효모비오틴·알파CD)이 해당 → 실제 9품목
+    //   향남도 같은 규칙으로 1행(가르시니아)이 걸린다 — 플랜트별로 다른 규칙을 두지 않는다
+    // ⚠ 여기서 배열에 안 담고 걸러버리면 안 된다. psiViewRows가 '스코프에 든 통합코드'를 원본 목록에서
+    //   빼는 데 이 배열을 쓰기 때문에, 빠진 코드 자리에 통합 원본 행이 되돌아 들어온다
+    //   (실제로 그래서 횡성이 9행이 아니라 14행 · 재고 747,788 대신 960,602로 부풀었다).
+    //   담아 두고 거르는 건 psiViewRows에서 한다.
+    const _inactive=!PSI_MONTH_KEYS.some(k=>(Number(monthly[k]?.begin)||0)>0||(Number(monthly[k]?.buy)||0)>0);
     const first=monthly[PSI_MONTH_KEYS[0]]||{};
     out.push({...g,
+      _plantInactive:_inactive,
       monthlyPsi:monthly,
       sourceMonthlyPsi:monthly,
       daysPlanSource:g.monthlyPsi||g.sourceMonthlyPsi||{},  // 분모 = 통합 판매계획
@@ -6990,8 +7000,10 @@ function psiViewRows(v){
   const all=getPSIData()||[];
   if(!v.fplant) return all;
   const scoped=buildPlantScopedPsiRows(v.fplant);
+  // ⚠ scopedMats는 거르기 **전**의 전체 스코프로 만든다 — 그래야 그 플랜트에 하위 코드를 가진
+  //   통합 행이 원본 목록에서 확실히 빠진다. 거른 뒤로 만들면 빠진 자리에 통합 원본이 되살아난다.
   const scopedMats=new Set(scoped.map(r=>String(r.mat)));
-  return [...all.filter(d=>!isPsiIntegrated(d)||!scopedMats.has(String(d.mat))),...scoped];
+  return [...all.filter(d=>!isPsiIntegrated(d)||!scopedMats.has(String(d.mat))),...scoped.filter(r=>!r._plantInactive)];
 }
 // 월별 신호등. 표에 그려지는 값과 반드시 같아야 하므로 _renderPsiTbody와 똑같이
 // 첫 달부터 calcPsiMonth를 굴리고 입고 조정값(getPsiSimBuy)도 같이 태운다.
@@ -7111,7 +7123,8 @@ function renderPSI(){
     h+=`<div style="padding:8px 12px;background:#fff8e8;border-bottom:1px solid #f0c36d;color:#8a5c00;font-size:11px;font-weight:700;">
       🏭 <strong>${fv.fplant} 몫</strong>으로 봅니다 — 기초·입고·판매·기말은 ${fv.fplant} 하위 코드 합계,
       <strong>재고일수는 통합 수요를 분모</strong>로 산출합니다(플랜트별 재고일수를 더하면 통합 재고일수가 됩니다).
-      신호등과 3평판은 <strong>통합 기준</strong>이며, 당월 진척율 기준 보조 열은 플랜트로 나눌 수 없어 <strong>—</strong>로 둡니다.
+      신호등과 3평판은 <strong>통합 기준</strong>이며, 당월 진척율 기준 보조 열은 플랜트로 나눌 수 없어 <strong>—</strong>로 둡니다.<br>
+      자재코드만 등록돼 있고 <strong>재고·입고가 전 기간 0</strong>인 품목(아직 이 공장으로 스위칭 전)은 목록에서 뺍니다 — 뺀 행이 전부 0이라 합계는 그대로입니다.
     </div>`;
   }
   if(fdaiso==='integrated'&&integratedCount===0){
