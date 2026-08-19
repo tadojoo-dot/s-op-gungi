@@ -204,16 +204,26 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .rem-chip{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;}
 /* 채널별 오차율 표 — 음영도 차트도 없이 숫자만으로 읽는다(2026-08-16 사용자 지시).
    색으로 칠하거나 라인을 그리지 않으므로, 가독성은 전부 타이포와 여백으로 만든다:
-   ① 숫자 13px + 자릿수 고정(tabular-nums) ② 넉넉한 행 높이 ③ 3행마다 옅은 가로 구분선
-   ④ 월 구간/계획 구간 세로선 ⑤ 채널명 열 고정 ⑥ hover 시 행 전체 강조(가로로 눈이 안 샘) */
-/* ⚠ width:100%로 두면 표가 화면 전체(1400px+)로 늘어나 9개 열이 흩어진다 —
-   숫자 사이가 멀어져 한눈에 안 들어온다. 열 너비를 px로 고정하고 표 전체 폭도
-   내용에 맞춰 잡는다(renderChannelWape가 월 개수로 계산). 좁은 화면에선 max-width:100%로 접힌다. */
-.chwape{border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;table-layout:fixed;max-width:100%;}
+   ① 오차율 15px/800 · 실적/계획 12.5px 보조색으로 **위계**를 준다(이 표의 주인공은 오차율)
+   ② 넉넉한 행 높이 ③ 3행마다 옅은 가로 구분선 ④ 월 구간/계획 구간 세로선
+   ⑤ 채널명 열 고정 ⑥ hover 시 행 전체 강조(가로로 눈이 안 샘) */
+/* ⚠ 폭 정책 (2026-08-19에 바꿈): 예전엔 표 폭을 내용에 맞춰 px로 고정해서(1,124px)
+   1,500px 패널 안에 **오른쪽 ~390px가 그냥 비었다**. 그러면서 정작 표 안에서는 월 열을 48px로
+   조이고 폰트를 11.5px까지 내리고 있었다 — 밖으로 버리고 안에서 굶는 상태.
+   지금은 숫자 열만 px로 고정하고 **조치의견 열을 width 미지정(auto)** 으로 둬서 남는 폭을
+   전부 흡수하게 한다(table-layout:fixed에서 auto 열이 잔여 폭을 가져간다).
+   ⚠ 그래도 width:100%만 두면 숫자 열까지 늘어나 값 사이가 벌어지므로, 숫자 열 px 고정은 유지할 것. */
+.chwape{border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;table-layout:fixed;}
 .chwape th{background:#F7F8FA;color:var(--navy);font-weight:700;padding:9px 8px;border-bottom:2px solid var(--border);font-size:11.5px;white-space:nowrap;text-align:center;}
 .chwape th.l{text-align:left;}
 .chwape td{padding:10px 8px;border-bottom:1px solid #f4f5f8;text-align:center;white-space:nowrap;color:var(--text);
   overflow:hidden;text-overflow:ellipsis;}
+/* ⚠ `.chwape`는 채널×월 오차 상세 **팝업**(openChDrill)에서도 쓴다. 거긴 SKU가 수십 줄이라
+   촘촘해야 하므로 크기 관련 규칙은 전부 `.chwape-lg`(채널별 오차율 표 전용)에만 건다.
+   `.chwape td{font-size:...}`처럼 base에 걸면 팝업이 같이 커진다(2026-08-19에 실제로 그럴 뻔했다). */
+.chwape.chwape-lg th{font-size:12.5px;padding:10px 8px;}
+/* 오차율 셀 = 이 표의 주인공. 월별 실적/계획(cw-mv)보다 확실히 크고 진하게. */
+.chwape.chwape-lg td{font-size:15px;font-weight:800;padding:12px 8px;}
 .chwape td.l{text-align:left;font-weight:700;}
 .chwape td.r{color:var(--muted);font-size:12px;}
 .chwape th.sortable{cursor:pointer;user-select:none;} .chwape th.sortable:hover{color:var(--terra);}
@@ -223,9 +233,13 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 /* 3행마다 조금 진한 선 — 행이 11개라 가로로 훑을 때 줄을 잃지 않게 */
 .chwape tbody tr:nth-child(3n) td{border-bottom-color:#e4e6ee;}
 .chwape tr.cw-total td{border-top:2px solid var(--border);border-bottom:none;font-weight:900;color:var(--navy);background:#F7F8FA;}
-/* 채널명 열 고정 — 월이 12개까지 늘어나면 가로 스크롤이 생긴다 */
-.chwape th.l,.chwape td.l{position:sticky;left:0;background:#fff;z-index:1;}
-.chwape th.l{background:#F7F8FA;}
+/* 채널명 열 고정 — 좁은 화면에서 가로 스크롤이 생겼을 때를 위한 것.
+   ⚠ :first-child로 좁힐 것. `.chwape td.l`만 쓰면 **조치의견 칸(class="l chmemo-td")까지** 왼쪽에
+   달라붙어 채널명 위에 겹쳐 그려진다(2026-08-19 수정). */
+.chwape th.l:first-child,.chwape td.l:first-child{position:sticky;left:0;background:#fff;z-index:1;}
+.chwape th.l:first-child{background:#F7F8FA;}
+/* ⚠ 고정 열 배경(#fff)이 합계 행 배경을 이기므로 합계 행은 따로 되돌린다 */
+.chwape tr.cw-total td.l:first-child{background:#F7F8FA;}
 /* hover: 행 전체를 옅게 — 가로로 눈이 새지 않게 하는 용도(데이터 인코딩 아님) */
 .chwape tr.cw-ch:hover td,.chwape tr.cw-ch:hover td.l{background:#f5f7ff;}
 /* 선택된 채널은 칠하지 않고 왼쪽 굵은 선 + 진한 글씨로만 표시 */
@@ -235,20 +249,29 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
   text-decoration:underline;text-decoration-color:var(--gray-l);text-underline-offset:3px;
   max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom;}
 .chwape .cw-name:hover{color:var(--navy);text-decoration-color:var(--navy);}
-/* 표(고정폭 700px) + 오른쪽 남는 폭에 오차 금액 차트. 좁아지면 아래로 접힌다. */
 /* 2단 헤더 — 위: 구간 이름(오차율/실적/계획), 아래: 월. 월 라벨이 두 구간에 겹쳐 나오므로 필요하다. */
-.chwape th.cw-grp{font-size:10.5px;font-weight:800;color:#6B7290;letter-spacing:.02em;padding:6px 6px;
-  border-bottom:1px solid var(--border);background:#F1F3F7;}
-/* 판매계획 시트 기준 월별 실적·계획 숫자. 계획 구간은 옅게 칠해 실적과 눈으로 갈린다. */
-.chwape th.cw-mv{font-size:10.5px;padding:9px 4px;}
-.chwape td.cw-mv{font-size:11.5px;padding:10px 4px;color:var(--text);}
-.chwape th.cw-plan,.chwape td.cw-plan{background:#F7F8FC;color:#5A6180;}
-.chwape tr.cw-total td.cw-plan{background:#EFF1F7;}
-.chmemo-td{vertical-align:top;padding:4px 6px!important;}
+/* 그룹 헤더 배경 3단계로 구간을 가른다 — 오차율(가장 진함) / 실적(옅은 남색) / 계획(옅은 회색) */
+.chwape th.cw-grp{font-size:11.5px;font-weight:800;color:#5B6280;letter-spacing:.02em;padding:7px 6px;
+  border-bottom:1px solid var(--border);background:#E8EBF3;}
+.chwape th.cw-grp.cw-act{background:#EEF1F8;}
+.chwape th.cw-grp.cw-plan{background:#F1F3F9;}
+/* 판매계획 시트 기준 월별 실적·계획 숫자. 오차율보다 한 단계 작고 옅은 **보조 정보**다.
+   ⚠ 계획 구간은 배경으로만 가른다 — 예전엔 글자색까지 #5A6180으로 내려 옅은 배경 위에서 잘 안 보였다. */
+.chwape.chwape-lg th.cw-mv{font-size:12px;padding:9px 5px;font-weight:700;}
+.chwape.chwape-lg td.cw-mv{font-size:12.5px;font-weight:600;padding:12px 5px;color:#454B63;}
+.chwape th.cw-plan,.chwape td.cw-plan{background:#F1F3F9;}
+.chwape tr.cw-total td.cw-plan{background:#E9ECF4;}
+.chmemo-td{vertical-align:top;padding:4px 6px!important;font-weight:400!important;}
 .chmemo-td textarea.action-memo{min-height:30px;height:30px;font-size:11.5px;}
 .chmemo-td textarea.action-memo:focus{height:80px;}
 .chmemo-carry{font-size:9.5px;font-weight:700;color:var(--terra);margin-top:2px;line-height:1.35;}
 .chmemo-hist{font-size:9.5px;color:var(--muted);margin-top:1px;cursor:help;}
+/* 채널별 오차율 표 쪽만 키운다 — 팝업(openChDrill)은 SKU가 수십 줄이라 촘촘한 채로 둔다 */
+.chwape-lg .chmemo-td{vertical-align:middle;padding:6px 8px!important;}
+.chwape-lg .chmemo-td textarea.action-memo{min-height:34px;height:34px;font-size:12.5px;}
+.chwape-lg .chmemo-td textarea.action-memo:focus{height:84px;}
+.chwape-lg .chmemo-carry{font-size:10.5px;margin-top:3px;}
+.chwape-lg .chmemo-hist{font-size:10.5px;margin-top:2px;}
 .chwape-side-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 4px 8px;
   font-size:12.5px;font-weight:900;color:var(--navy);}
 .chwape-side-hd select{height:26px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;}
@@ -1041,7 +1064,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
       <div class="sort-toolbar"><span class="sort-summary" id="chWapeSortSummary">정렬: 기본</span><button onclick="resetChWapeSort()">정렬 초기화</button></div>
       <div id="chWapeWrap" style="overflow-x:auto;"></div>
     </div>
-    <div id="chWapeNote" style="padding:10px 14px 12px;font-size:10.5px;color:var(--muted);"></div>
+    <div id="chWapeNote" style="padding:10px 14px 12px;font-size:11.5px;line-height:1.65;color:var(--muted);"></div>
   </div>
 
   <div class="grid-5-5">
@@ -7397,20 +7420,33 @@ function buildHitTrend(){
 //   이 열은 금액 기준 그대로다(2026-08-18 사용자 확정). 그래서 열 제목에 (억원)을 박는다.
 // ⚠ Chart.js로 그리지 말 것 — 행마다 미니 차트를 만들면 11개 인스턴스가 생겨 무겁고 인쇄도 깨진다.
 //   인라인 SVG로 그린다.
+// 표에 그릴 개월 수. 12개월(실적 7 + 계획 5)을 다 그리면 열 폭을 48px까지 조여야 해서
+// 폰트를 11.5px로 내리게 된다 — 그러면 정작 주인공인 오차율까지 같이 작아진다(2026-08-19).
+// 오차율을 최근 2개월만 그리는 CHWAPE_MONTHS_SHOWN과 같은 취지다. 값만 바꾸면 늘어난다.
+// 연초부터의 전체 흐름은 위 추이 차트와 셀 클릭 팝업에 그대로 남아 있다.
+const CHWAPE_ACTUAL_MONTHS_SHOWN=4;   // 실적은 **최근** N개월
+const CHWAPE_PLAN_MONTHS_SHOWN=3;     // 계획은 **향후** N개월
 function channelPlanActual(){
   const sum=getSalesPlanData()?.__summary;
   if(!sum?.ch) return null;
+  const aM=sum.actualMonths||[], pM=sum.planMonths||[];
+  // ⚠ 월 배열과 값 배열은 **같은 인덱스로 함께** 잘라야 한다. 값이 위치 기반이라
+  //   한쪽만 자르면 조용히 다른 달 숫자가 그 자리에 박힌다.
+  const aFrom=Math.max(0,aM.length-CHWAPE_ACTUAL_MONTHS_SHOWN);
+  const pTo=Math.min(pM.length,CHWAPE_PLAN_MONTHS_SHOWN);
   const byName=new Map();
   const total={actual:[],plan:[]};
   Object.values(sum.ch).forEach(c=>{
     if(!c?.name) return;
     const a=(c.actual||[]).map(v=>Number(v)||0), p=(c.plan||[]).map(v=>Number(v)||0);
-    byName.set(c.name,{actual:a,plan:p});
+    byName.set(c.name,{actual:a.slice(aFrom),plan:p.slice(0,pTo)});
     a.forEach((v,i)=>{total.actual[i]=(total.actual[i]||0)+v;});
     p.forEach((v,i)=>{total.plan[i]=(total.plan[i]||0)+v;});
   });
   if(!byName.size) return null;
-  return {byName,total,actualMonths:sum.actualMonths||[],planMonths:sum.planMonths||[]};
+  return {byName,
+    total:{actual:total.actual.slice(aFrom),plan:total.plan.slice(0,pTo)},
+    actualMonths:aM.slice(aFrom),planMonths:pM.slice(0,pTo)};
 }
 // 채널 한 줄의 월별 숫자 칸들. 실적 구간과 계획 구간을 색·구분선으로만 가른다.
 // ⚠ 2026-08-18에 SVG 막대 → 숫자로 바꿨다(사용자 지시: "그냥 숫자로 넣어주지 월별로 해서").
@@ -7753,16 +7789,19 @@ function renderChannelWape(){
   // 판매계획 시트가 없으면 열 자체를 안 그린다(무회귀).
   const spark=channelPlanActual();
   const mvMonths=spark?[...spark.actualMonths,...spark.planMonths]:[];
-  const W_CH=132,W_MO=68,W_MV=48,W_MEMO=280;
-  const tableW=W_CH+months.length*W_MO+mvMonths.length*W_MV+W_MEMO;
+  // ⚠ 숫자 열만 px로 고정하고 **조치의견 열은 width를 주지 않는다(auto)** —
+  //   table-layout:fixed에서 auto 열이 잔여 폭을 전부 가져가므로 오른쪽 여백이 남지 않는다.
+  //   숫자 열까지 %로 늘리면 값 사이가 벌어져 한눈에 안 들어온다(그래서 px 유지).
+  const W_CH=160,W_MO=92,W_MV=80,W_MEMO_MIN=280;
+  const fixedW=W_CH+months.length*W_MO+mvMonths.length*W_MV;
   const nA=spark?spark.actualMonths.length:0;
-  let h=`<table class="chwape" style="width:${tableW}px;">
-  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${mvMonths.map(()=>`<col style="width:${W_MV}px;">`).join('')}<col style="width:${W_MEMO}px;"></colgroup>
+  let h=`<table class="chwape chwape-lg" style="width:100%;min-width:${fixedW+W_MEMO_MIN}px;">
+  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${mvMonths.map(()=>`<col style="width:${W_MV}px;">`).join('')}<col></colgroup>
   <thead>
   <tr>
     <th class="l sortable" rowspan="2" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
     <th class="cw-grp" colspan="${months.length}">오차율 (%)</th>
-    ${nA?`<th class="cw-grp cw-sep" colspan="${nA}">실적 (억원)</th>`:''}
+    ${nA?`<th class="cw-grp cw-act cw-sep" colspan="${nA}">실적 (억원)</th>`:''}
     ${mvMonths.length-nA>0?`<th class="cw-grp cw-plan cw-sep" colspan="${mvMonths.length-nA}">판매계획 (억원)</th>`:''}
     <th class="l" rowspan="2">조치의견 ${_ymLabel(skuMemoMonth())}</th>
   </tr>
@@ -7787,7 +7826,7 @@ function renderChannelWape(){
   wrap.innerHTML=h;
   renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
   if(note){
-    note.innerHTML=`오른쪽 월별 숫자 = <strong>판매계획(SF) 시트</strong> 기준 <strong>${spark?`${spark.actualMonths[0]}~${spark.actualMonths[spark.actualMonths.length-1]}월 실적`:'실적'}</strong> / <span style="background:#F7F8FC;padding:0 4px;border-radius:3px;">${spark?`${spark.planMonths[0]}~${spark.planMonths[spark.planMonths.length-1]}월 계획`:'계획'}</span> (억원) · 회색 칸이 계획 구간입니다 · <strong>금액 고정</strong>이라 위 수량 토글과 무관합니다<br>WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
+    note.innerHTML=`오른쪽 월별 숫자 = <strong>판매계획(SF) 시트</strong> 기준 <strong>${spark?`${spark.actualMonths[0]}~${spark.actualMonths[spark.actualMonths.length-1]}월 실적`:'실적'}</strong> / <span style="background:#F1F3F9;padding:0 4px;border-radius:3px;">${spark?`${spark.planMonths[0]}~${spark.planMonths[spark.planMonths.length-1]}월 계획`:'계획'}</span> (억원) · 회색 칸이 계획 구간입니다 · <strong>금액 고정</strong>이라 위 수량 토글과 무관합니다<br>표에는 <strong>최근 ${CHWAPE_ACTUAL_MONTHS_SHOWN}개월 실적 · 향후 ${CHWAPE_PLAN_MONTHS_SHOWN}개월 계획</strong>만 그립니다 — 연초부터의 전체 흐름은 위 추이 차트와 셀 클릭 팝업에서 보세요<br>WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
       +`위 트렌드 차트·보정 대상 리스트와 같은 기준입니다 · 판매계획이 없는 달은 <span style="color:var(--gray-m);">—</span><br>`
       +`⚠ 규모가 작은 채널은 오차율이 크게 흔들립니다 — 맨 오른쪽 계획금액과 같이 보세요 (기본 정렬이 계획규모 순입니다) · `
       +`<strong>숫자 칸</strong>을 누르면 그 채널·그 달의 품목이 차이 큰 순으로 뜹니다`;
