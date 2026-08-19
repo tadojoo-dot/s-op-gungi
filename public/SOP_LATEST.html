@@ -278,6 +278,23 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 /* 셀 클릭 → 채널×월 오차 상세 팝업 */
 .chwape td.cw-click{cursor:pointer;}
 .chwape td.cw-click:hover{color:var(--navy);font-weight:900;text-decoration:underline;text-underline-offset:3px;}
+/* 적중률이 0%로 잘린 칸 = 오차율이 100%를 넘은 칸.
+   값 자체는 바로 옆 오차율 열에 그대로 있으므로 여기선 '실제 값이 아니다'라는 신호만 준다. */
+.chwape td.cw-hit0{color:var(--gray-m);}
+/* ═══ 채널×월 오차 상세 팝업 표 (.chwape-drill) ═══
+   2026-08-19 사용자 지정: 모든 열 가운데 정렬 · 여백 없이 넓게.
+   ⚠ 이 규칙들은 전부 `.chwape-drill` 안으로 가둔다. `.chwape td.l{text-align:left}`나
+      첫 열 sticky는 채널별 오차율 표(.chwape-lg)가 쓰는 공용 규칙이라 base에서 건드리면 같이 깨진다. */
+.chwape-drill{width:100%;min-width:1180px;}
+.chwape-drill th,.chwape-drill td,
+.chwape-drill th.l,.chwape-drill td.l{text-align:center;}
+.chwape-drill th.l:first-child,.chwape-drill td.l:first-child{position:static;background:transparent;}
+.chwape-drill tr.cw-total td.l:first-child{background:#F7F8FA;}
+.chwape-drill td.cw-item{white-space:normal;line-height:1.35;}
+/* 입력 중인 글자까지 가운데로 몰면 쓰기 불편하다 — 셀만 가운데, 입력 내용은 왼쪽. */
+.chwape-drill .chmemo-td{text-align:left;}
+.chwape-drill .chmemo-td textarea.action-memo{text-align:left;}
+#chDrillBody{padding:10px 12px 16px;overflow-x:auto;}
 .rem-r{background:var(--red-lt);color:var(--red);}
 .rem-y{background:var(--yellow-lt);color:#8a5c00;}
 .rem-g{background:var(--green-lt);color:var(--green);}
@@ -1050,7 +1067,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
   </div>
 
   <div class="sec-hdr" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-    <span>채널별 판매계획 오차율 (WAPE)</span>
+    <span>채널별 판매계획 적중률 · 오차율 (WAPE)</span>
     <span class="no-print" style="display:flex;gap:4px;">
       <button id="chWapeAmtBtn" class="aging-mode-btn on" onclick="setHitTrendUnit('amt',this)">금액</button>
       <button id="chWapeQtyBtn" class="aging-mode-btn" onclick="setHitTrendUnit('qty',this)">수량</button>
@@ -7565,24 +7582,45 @@ function buildChannelWape(){
   if(!months.length) return null;
   const sizeKey=months[months.length-1].key;   // 규모 기준 = 가장 최근 실적월
   const rows=[...byCh.values()].map(row=>{
-    const wape={};
+    const wape={},hit={};
     months.forEach(({key})=>{
       const c=row.cells[key];
       wape[key]=(c&&c.plan>0)?c.abs/c.plan*100:null;
+      hit[key]=hitRateFromWape(wape[key]);
     });
-    return {...row,wape,planSize:row.cells[sizeKey]?.plan||0};
+    return {...row,wape,hit,planSize:row.cells[sizeKey]?.plan||0};
   });
-  const totalWape={};
+  const totalWape={},totalHit={};
   months.forEach(({key})=>{
     const t=totals.get(key);
     totalWape[key]=(t&&t.plan>0)?t.abs/t.plan*100:null;
+    totalHit[key]=hitRateFromWape(totalWape[key]);
   });
-  return {months,rows,totalWape,sizeKey,sizeLabel:months[months.length-1].label,
+  return {months,rows,totalWape,totalHit,sizeKey,sizeLabel:months[months.length-1].label,
           totalSize:totals.get(sizeKey)?.plan||0};
 }
+// ═══════════ 적중률 = 1 − (품목 |오차| 합 ÷ 채널 판매계획 합) ═══════════
+// 2026-08-19 사용자 지정. 오차율(WAPE)의 정확한 뒤집기라 **적중률 + 오차율 = 100%**가 성립한다.
+// ⚠ **0에서 자른다.** 오차율은 100%를 넘을 수 있어(분모가 계획뿐이라 위쪽이 안 막힘) 그대로 빼면
+//   음수가 나온다. 26/8 파일 70칸 중 12칸이 그렇고, 표에 보이는 6·7월에서는 3칸(최대 −7%)이다.
+// ⚠ 100% 초과는 계산 사고가 아니다. 두 경로로 생긴다:
+//   ① 실적이 계획을 크게 초과 (26/8 4월 카카오: 계획 0.91억 → 실적 6.80억, 836%)
+//   ② 품목별 절대오차가 상쇄 없이 쌓임 — 채널 총액은 미달인데도 100%를 넘는다
+//      (26/8 7월 제로샵: 계획 0.538 · 실적 0.216인데 품목 |차이| 합 0.575 → 107%.
+//       계획한 품목은 안 팔리고 계획에 거의 없던 품목이 팔린 경우 = 구성까지 틀린 상태)
+//   그래서 잘린 칸(적중률 0%)은 옆의 오차율 열에서 실제 값을 읽는다 — 열을 나란히 둔 이유다.
+function hitRateFromWape(w){ return w==null?null:Math.max(0,100-w); }
+function isHitClamped(w){ return w!=null&&w>100; }
 function chWapeSortValue(row,key){
   if(key==='ch') return String(row.ch||'');
   if(key==='plan') return Number(row.planSize)||0;
+  // 적중률 열은 같은 월 키를 오차율 열과 공유하므로 'hr:' 프리픽스로 갈라 쓴다.
+  // ⚠ 적중률로 정렬한 결과는 오차율 정렬의 역순과 **완전히 같지 않다** — 100% 초과가 0%로 잘려
+  //   동률이 생기기 때문이다(26/8 6월 제로샵·오프라인기타). 그래서 별도 키가 필요하다.
+  if(key.startsWith('hr:')){
+    const v=row.hit?.[key.slice(3)];
+    return v==null?-Infinity:Number(v);
+  }
   const v=row.wape?.[key];
   return v==null?-Infinity:Number(v);
 }
@@ -7667,22 +7705,28 @@ function renderChDrill(){
     body.innerHTML=`<div style="padding:26px;text-align:center;color:var(--muted);font-size:12px;">${moLabel}에 ${ch} 판매계획이 없습니다.</div>`;
     return;
   }
-  body.innerHTML=`<table class="chwape" style="font-size:12px;">
+  // ⚠ 폭을 col로 명시한다. `.chwape`는 table-layout:fixed라 colgroup이 없으면 열이 균등 분할돼
+  //    품목명이 잘리고 숫자 열엔 쓸데없이 여백이 남는다. 품목/조치의견만 auto로 두어 잔여 폭을 나눈다.
+  body.innerHTML=`<table class="chwape chwape-drill" style="font-size:12px;">
+    <colgroup><col style="width:300px;"><col style="width:104px;">
+      <col style="width:84px;"><col style="width:84px;"><col style="width:92px;">
+      <col style="width:78px;"><col style="width:78px;"><col style="width:92px;"><col></colgroup>
     <thead><tr>
-      <th class="l">품목</th><th class="l">자재코드</th>
-      <th>계획(${unit})</th><th>실적(${unit})</th><th>차이</th><th>오차율</th><th class="cw-sep">오차 기여도</th>
+      <th class="l">품목</th><th class="l">품목코드</th>
+      <th>계획(${unit})</th><th>실적(${unit})</th><th>차이</th><th>오차율</th><th>적중률</th><th class="cw-sep">오차 기여도</th>
       <th class="l cw-sep">조치의견</th>
     </tr></thead><tbody>
     ${rows.map(r=>{
       const contrib=absSum>0?Math.abs(r.diff)/absSum*100:0;
       const daiso=r._daisoIntegrated?'<span class="tag b" style="font-size:9px;padding:0 4px;margin-left:4px;" title="다이소 통합코드">통합</span>':'';
       return `<tr>
-        <td class="l" title="${String(r.n||'').replace(/"/g,'&quot;')}">${String(r.n||'')}${daiso}</td>
+        <td class="l cw-item" title="${String(r.n||'').replace(/"/g,'&quot;')}">${String(r.n||'')}${daiso}</td>
         <td class="l" style="color:var(--muted);font-weight:400;">${r.mat||'—'}</td>
         <td>${fmt(r.plan)}</td>
         <td>${fmt(r.actual)}</td>
         <td style="color:${r.diff>=0?'var(--green)':'var(--red)'};font-weight:900;">${r.diff>=0?'+':''}${fmt(r.diff)}</td>
         <td>${r.hitAcc==null?'—':r.hitAcc.toFixed(0)+'%'}</td>
+        <td${isHitClamped(r.hitAcc)?` class="cw-hit0" title="오차(${r.hitAcc.toFixed(0)}%)가 계획보다 커서 0%로 표시합니다"`:''}>${hitRateFromWape(r.hitAcc)==null?'—':hitRateFromWape(r.hitAcc).toFixed(0)+'%'}</td>
         <td class="cw-sep">${contrib.toFixed(1)}%</td>
         ${_hitRowMemoCell(r)}
       </tr>`;
@@ -7692,6 +7736,7 @@ function renderChDrill(){
       <td>${fmt(plan)}</td><td>${fmt(rows.reduce((s,r)=>s+(Number(r.actual)||0),0))}</td>
       <td title="Σ|차이| · 초과·미달을 상쇄하지 않고 절대값으로 합산 (오차율의 분자와 동일)">${fmt(absSum)}</td>
       <td>${wape==null?'—':wape.toFixed(1)+'%'}</td>
+      <td${isHitClamped(wape)?` class="cw-hit0" title="오차(${wape.toFixed(1)}%)가 계획보다 커서 0%로 표시합니다"`:''}>${hitRateFromWape(wape)==null?'—':hitRateFromWape(wape).toFixed(1)+'%'}</td>
       <td class="cw-sep">100.0%</td>
       ${hitChMemoCell(ch)}
     </tr>
@@ -7777,7 +7822,7 @@ function renderChannelWape(){
   // planSize는 여전히 기본 정렬 키('plan', 계획 큰 채널 우선)로 살아 있으니 데이터는 그대로 둔다.
   // ⚠ 표에는 **최근 CHWAPE_MONTHS_SHOWN개월만** 그린다(2026-08-18 사용자 지시: "6,7월만 보여줘").
   //   buildChannelWape는 전 구간을 계속 계산한다 — 정렬 키와 셀 클릭 팝업이 과거월도 그대로 쓴다.
-  const {months:allMonths,rows,totalWape}=data;
+  const {months:allMonths,rows,totalWape,totalHit}=data;
   const months=allMonths.slice(-CHWAPE_MONTHS_SHOWN);
   const unitTxt=hitTrendUnit==='qty'?'개':'억';
   const sorted=[...rows].sort((a,b)=>{
@@ -7793,9 +7838,21 @@ function renderChannelWape(){
   const selCh=document.getElementById('fhc')?.value||'';
   const esc=s=>JSON.stringify(String(s)).replace(/"/g,'&quot;');
   // 셀 클릭 → 그 채널·그 달의 품목을 |차이| 큰 순으로 보여주는 팝업
-  const cell=(v,ch,mk,ml)=>{
-    if(v==null) return `<td class="cw-na" title="해당 월 판매계획 없음">—</td>`;
-    return `<td class="cw-click" onclick="openChDrill(${esc(ch)},${esc(mk)})" title="${ch} ${ml} 오차 상세 보기">${v.toFixed(0)}%</td>`;
+  const cell=(v,ch,mk,ml,sep)=>{
+    const cls=sep?' cw-sep':'';
+    if(v==null) return `<td class="cw-na${cls}" title="해당 월 판매계획 없음">—</td>`;
+    return `<td class="cw-click${cls}" onclick="openChDrill(${esc(ch)},${esc(mk)})" title="${ch} ${ml} 오차 상세 보기">${v.toFixed(0)}%</td>`;
+  };
+  // 적중률 칸. 오차율 칸과 **모양·크기가 같다**(2026-08-19 사용자 지정: "동일한 열로").
+  // 0%로 잘린 칸만 title로 실제 오차율을 알린다 — 값 자체는 바로 옆 오차율 열에 그대로 있다.
+  const hitCell=(v,w,ch,mk,ml,sep)=>{
+    const cls=sep?' cw-sep':'';
+    if(v==null) return `<td class="cw-na${cls}" title="해당 월 판매계획 없음">—</td>`;
+    const clamped=isHitClamped(w);
+    const tip=clamped
+      ? `${ch} ${ml} — 오차(${w.toFixed(0)}%)가 계획보다 커서 0%로 표시합니다. 계획한 품목 대신 다른 품목이 팔린 경우입니다. 눌러서 품목 보기`
+      : `${ch} ${ml} 오차 상세 보기`;
+    return `<td class="cw-click${cls}${clamped?' cw-hit0':''}" onclick="openChDrill(${esc(ch)},${esc(mk)})" title="${tip}">${v.toFixed(0)}%</td>`;
   };
   // 표 전체 폭을 내용에 맞춰 잡는다 — 화면 폭에 맞춰 늘리면 숫자 사이가 벌어져 한눈에 안 들어온다.
   // 오른쪽 여백에 채널별 12개월 흐름(실적 1~7 / 계획 8~12)을 스파크라인으로 붙인다.
@@ -7805,34 +7862,41 @@ function renderChannelWape(){
   // ⚠ 숫자 열만 px로 고정하고 **조치의견 열은 width를 주지 않는다(auto)** —
   //   table-layout:fixed에서 auto 열이 잔여 폭을 전부 가져가므로 오른쪽 여백이 남지 않는다.
   //   숫자 열까지 %로 늘리면 값 사이가 벌어져 한눈에 안 들어온다(그래서 px 유지).
+  // 적중률 열은 오차율 열과 **폭·타이포가 같다**(W_MO 공유). 둘은 짝이라 그룹 배경도 같은 톤을 쓰고,
+  // 경계는 cw-sep 세로선으로만 가른다.
   const W_CH=160,W_MO=92,W_MV=80,W_MEMO_MIN=280;
-  const fixedW=W_CH+months.length*W_MO+mvMonths.length*W_MV;
+  const fixedW=W_CH+months.length*W_MO*2+mvMonths.length*W_MV;
   const nA=spark?spark.actualMonths.length:0;
   let h=`<table class="chwape chwape-lg" style="width:100%;min-width:${fixedW+W_MEMO_MIN}px;">
-  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${mvMonths.map(()=>`<col style="width:${W_MV}px;">`).join('')}<col></colgroup>
+  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${mvMonths.map(()=>`<col style="width:${W_MV}px;">`).join('')}<col></colgroup>
   <thead>
   <tr>
     <th class="l sortable" rowspan="2" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
     <th class="cw-grp" colspan="${months.length}">오차율 (%)</th>
+    <th class="cw-grp cw-sep" colspan="${months.length}">적중률 (%)</th>
     ${nA?`<th class="cw-grp cw-act cw-sep" colspan="${nA}">실적 (억원)</th>`:''}
     ${mvMonths.length-nA>0?`<th class="cw-grp cw-plan cw-sep" colspan="${mvMonths.length-nA}">판매계획 (억원)</th>`:''}
     <th class="l" rowspan="2">조치의견 ${_ymLabel(skuMemoMonth())}</th>
   </tr>
   <tr>
     ${months.map(m=>`<th class="sortable" onclick="handleChWapeSort('${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="${m.key}"></span></th>`).join('')}
+    ${months.map((m,i)=>`<th class="sortable${i===0?' cw-sep':''}" onclick="handleChWapeSort('hr:${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="hr:${m.key}"></span></th>`).join('')}
     ${mvMonths.map((mo,i)=>`<th class="cw-mv${i>=nA?' cw-plan':''}${i===0||i===nA?' cw-sep':''}" title="${i>=nA?'판매계획':'실적'} ${mo}월 (억원)">${mo}월</th>`).join('')}
   </tr></thead><tbody>`;
   sorted.forEach(r=>{
     h+=`<tr class="cw-ch${r.ch===selCh?' cw-sel':''}">
       <td class="l"><button type="button" class="cw-name" onclick="openChDrill(${esc(r.ch)})" title="${r.ch}의 오차 상세 보기 (차이 큰 순)">${r.ch}</button></td>
       ${months.map(m=>cell(r.wape[m.key],r.ch,m.key,m.label)).join('')}
+      ${months.map((m,i)=>hitCell(r.hit[m.key],r.wape[m.key],r.ch,m.key,m.label,i===0)).join('')}
       ${spark?channelMonthCells(r.ch,spark):''}
       ${hitChMemoCell(r.ch)}
     </tr>`;
   });
+  const totCell=(v,sep)=>v==null?`<td class="cw-na${sep?' cw-sep':''}">—</td>`:`<td${sep?' class="cw-sep"':''}>${v.toFixed(0)}%</td>`;
   h+=`<tr class="cw-total">
     <td class="l">전체</td>
-    ${months.map(m=>totalWape[m.key]==null?`<td class="cw-na">—</td>`:`<td>${totalWape[m.key].toFixed(0)}%</td>`).join('')}
+    ${months.map(m=>totCell(totalWape[m.key],false)).join('')}
+    ${months.map((m,i)=>totCell(totalHit[m.key],i===0)).join('')}
     ${spark?channelMonthCells('전체',spark):''}
     ${hitChMemoCell('전체')}
   </tr></tbody></table>`;
@@ -7841,7 +7905,10 @@ function renderChannelWape(){
   if(note){
     note.innerHTML=`오른쪽 월별 숫자 = <strong>판매계획(SF) 시트</strong> 기준 <strong>${spark?`${spark.actualMonths[0]}~${spark.actualMonths[spark.actualMonths.length-1]}월 실적`:'실적'}</strong> / <span style="background:#F1F3F9;padding:0 4px;border-radius:3px;">${spark?`${spark.planMonths[0]}~${spark.planMonths[spark.planMonths.length-1]}월 계획`:'계획'}</span> (억원) · 회색 칸이 계획 구간입니다 · <strong>금액 고정</strong>이라 위 수량 토글과 무관합니다<br>표에는 <strong>최근 ${CHWAPE_ACTUAL_MONTHS_SHOWN}개월 실적 · 향후 ${CHWAPE_PLAN_MONTHS_SHOWN}개월 계획</strong>만 그립니다 — 연초부터의 전체 흐름은 위 추이 차트와 셀 클릭 팝업에서 보세요<br>WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
       +`위 트렌드 차트·보정 대상 리스트와 같은 기준입니다 · 판매계획이 없는 달은 <span style="color:var(--gray-m);">—</span><br>`
-      +`⚠ 규모가 작은 채널은 오차율이 크게 흔들립니다 — 맨 오른쪽 계획금액과 같이 보세요 (기본 정렬이 계획규모 순입니다) · `
+      +`<strong>적중률 = 1 − 오차율</strong> (품목별 |오차| 합 ÷ 채널 판매계획 합) · 두 열은 같은 값을 뒤집은 것이라 <strong>합이 100%</strong>입니다<br>`
+      +`⚠ 적중률이 <span style="color:var(--gray-m);">0%</span>인 칸은 오차가 계획보다 컸다는 뜻입니다(오차율 100% 초과) — `
+      +`계획한 품목은 안 팔리고 계획에 거의 없던 품목이 팔린 경우라, 실제 값은 왼쪽 오차율 열에서 보세요<br>`
+      +`⚠ 규모가 작은 채널은 오차율이 크게 흔들립니다 — 오른쪽 실적·계획 금액과 같이 보세요 (기본 정렬이 계획규모 순입니다) · `
       +`<strong>숫자 칸</strong>을 누르면 그 채널·그 달의 품목이 차이 큰 순으로 뜹니다`;
   }
 }
@@ -9738,7 +9805,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
 
 <!-- 채널×월 오차 상세 모달 (채널별 오차율 표에서 셀/채널명 클릭) -->
 <div id="chDrillModal" class="sku-modal-overlay" style="display:none;" onclick="if(event.target===this)closeChDrill()">
-  <div class="sku-modal" style="width:min(1080px,96vw);">
+  <div class="sku-modal" style="width:min(1480px,97vw);">
     <div class="sku-modal-header" id="chDrillHeader"></div>
     <div class="sku-modal-body" id="chDrillBody"></div>
   </div>
