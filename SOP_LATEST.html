@@ -1031,7 +1031,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
   <div class="grid-4" style="grid-template-columns:repeat(6,1fr);margin-bottom:14px;">
     <div class="tile"><div class="tile-label" id="hitKpiLabel1">총 판매 달성률</div><div class="tile-val terra" id="hitKpiVal1">—</div><div class="tile-sub" id="hitKpiSub1">파일 업로드 후 표시</div></div>
     <div class="tile"><div class="tile-label">판매계획 오차율</div><div class="tile-val green" id="hitAccKpi">—</div><div class="tile-sub" id="hitAccSub">Σ|차이| / Σ계획</div></div>
-    <div class="tile"><div class="tile-label">계획 대비 차이금액</div><div class="tile-val terra" id="hitBiasKpi">—</div><div class="tile-sub" id="hitBiasSub">실적합계 - 계획합계</div></div>
+    <div class="tile"><div class="tile-label">계획 대비 차이금액</div><div class="tile-val terra" id="hitBiasKpi">—</div><div class="tile-sub" id="hitBiasSub">Σ|차이| · 초과+미달 합산</div></div>
     <div class="tile"><div class="tile-label">계획 초과 금액</div><div class="tile-val green" id="hitKpiVal3">—</div><div class="tile-sub" id="hitKpiSub3">—</div></div>
     <div class="tile"><div class="tile-label">계획 미달 금액</div><div class="tile-val red" id="hitKpiVal4">—</div><div class="tile-sub" id="hitKpiSub4">—</div></div>
     <div class="tile"><div class="tile-label">보정 필요 품목 수</div><div class="tile-val navy" id="hitCorrectionKpi">—</div><div class="tile-sub" id="hitCorrectionSub">정상 제외 + 확인 필요</div></div>
@@ -7649,13 +7649,12 @@ function renderChDrill(){
   const unit=qty?'개':'억';
   const plan=rows.reduce((s,r)=>s+(Number(r.plan)||0),0);
   const absSum=rows.reduce((s,r)=>s+Math.abs(Number(r.diff)||0),0);
-  const net=rows.reduce((s,r)=>s+(Number(r.diff)||0),0);
   const wape=plan>0?absSum/plan*100:null;
   const moLabel=months.find(m=>m.key===monthKey)?.label||monthKey;
   head.innerHTML=`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <span style="font-size:15px;font-weight:900;color:var(--navy);">${ch} · ${moLabel} 오차 상세</span>
       <span class="tag ${wape==null?'gray':wape<30?'g':wape<50?'y':'r'}" style="font-size:12px;">WAPE ${wape==null?'—':wape.toFixed(1)+'%'}</span>
-      <span style="font-size:11px;color:var(--muted);">계획 ${fmt(plan)}${unit} · 차이합계 ${net>=0?'+':''}${fmt(net)}${unit} · ${rows.length.toLocaleString()}개 SKU</span>
+      <span style="font-size:11px;color:var(--muted);">계획 ${fmt(plan)}${unit} · 차이합계 ${fmt(absSum)}${unit} · ${rows.length.toLocaleString()}개 SKU</span>
     </div>
     <div style="display:flex;align-items:center;gap:6px;">
       <select onchange="setChDrillMonth(this.value)" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;">
@@ -7691,7 +7690,7 @@ function renderChDrill(){
     <tr class="cw-total">
       <td class="l">합계</td><td class="l"></td>
       <td>${fmt(plan)}</td><td>${fmt(rows.reduce((s,r)=>s+(Number(r.actual)||0),0))}</td>
-      <td>${net>=0?'+':''}${fmt(net)}</td>
+      <td title="Σ|차이| · 초과·미달을 상쇄하지 않고 절대값으로 합산 (오차율의 분자와 동일)">${fmt(absSum)}</td>
       <td>${wape==null?'—':wape.toFixed(1)+'%'}</td>
       <td class="cw-sep">100.0%</td>
       ${hitChMemoCell(ch)}
@@ -7701,6 +7700,7 @@ function renderChDrill(){
       <strong>|차이| 큰 순</strong>으로 정렬했습니다 · 오차 기여도 = |차이| ÷ 그 채널·월의 |차이| 합계 —
       위쪽 몇 개가 그 채널 오차의 대부분을 만듭니다 · 차이가 <span style="color:var(--green);font-weight:700;">+면 계획 초과</span>,
       <span style="color:var(--red);font-weight:700;">−면 미달</span>입니다 ·
+      <strong>합계 행의 차이는 Σ|차이|</strong>(초과·미달 상쇄 없음)라 오차율 × 계획과 일치합니다 ·
       아래 '판매계획 보정 대상 리스트'와 같은 집계(계획 0인 행 제외)를 씁니다<br>
       <strong>조치의견은 아래 리스트와 같은 칸입니다</strong> — 여기서 쓰면 리스트에도 그대로 반영됩니다
       (합계 행은 <strong>채널 조치의견</strong>, 위 오차율 표의 그 채널 칸과 연동)
@@ -8158,14 +8158,15 @@ function renderHitKpis(){
   const tUnder=rows.reduce((s,r)=>s+Math.min(Number(r.diff)||0,0),0);
   const ach=tPlan>0?tAct/tPlan*100:0;
   const wape=tPlan>0?rows.reduce((s,r)=>s+Math.abs(Number(r.diff)||0),0)/tPlan*100:0;
-  const bias=tAct-tPlan;
+  // ⚠ 차이금액은 Σ|차이| (초과·미달 상쇄 없음) — 보정 대상 리스트 총계·오차율 분자와 같은 기준(2026-08-19 사용자 지정)
+  const absDiff=tOver+Math.abs(tUnder);
   const needCount=rows.filter(r=>r.needCorrection).length;
   const prevRows=selNo>1?getHitMonthRows(`${selNo-1}월`):[];
   const pPlan=prevRows.reduce((s,r)=>s+(Number(r.plan)||0),0);
   const pAct=prevRows.reduce((s,r)=>s+(Number(r.actual)||0),0);
   const pWape=pPlan>0?prevRows.reduce((s,r)=>s+Math.abs((Number(r.actual)||0)-(Number(r.plan)||0)),0)/pPlan*100:null;
   const pAch=pPlan>0?pAct/pPlan*100:null;
-  const pBias=pAct-pPlan;
+  const pAbsDiff=prevRows.reduce((s,r)=>s+Math.abs((Number(r.actual)||0)-(Number(r.plan)||0)),0);
   const deltaPhrase=(cur,prev,unit='')=>prev==null?'기준월 데이터 기준':`${cur-prev>=0?'+':''}${(cur-prev).toFixed(1)}${unit} 전월 대비`;
   const accText=wape.toFixed(1)+'%';
   const target=50;
@@ -8199,8 +8200,8 @@ function renderHitKpis(){
   if(val1){val1.textContent=`${ach.toFixed(1)}%`;val1.className=`tile-val ${ach>=100?'green':ach>=80?'terra':'red'}`;}
   if(sub1) sub1.textContent=pAch==null?`계획 ${amountFmtEokPlain(tPlan)} → 실적 ${amountFmtEokPlain(tAct)}`:`전월 대비 ${ach-pAch>=0?'+':''}${(ach-pAch).toFixed(1)}%p`;
   const biasVal=document.getElementById('hitBiasKpi'), biasSub=document.getElementById('hitBiasSub');
-  if(biasVal){biasVal.textContent=amountFmtEok(bias);biasVal.className=`tile-val ${bias>=0?'green':'red'}`;}
-  if(biasSub) biasSub.textContent=prevRows.length?`${amountFmtEok(bias-pBias)} 전월 대비`:(bias>=0?'계획 대비 초과':'계획 대비 미달');
+  if(biasVal){biasVal.textContent=amountFmtEokPlain(absDiff);biasVal.className='tile-val terra';}
+  if(biasSub) biasSub.textContent=prevRows.length?`${amountFmtEok(absDiff-pAbsDiff)} 전월 대비`:'Σ|차이| · 초과+미달 합산';
   const v3=document.getElementById('hitKpiVal3'),s3=document.getElementById('hitKpiSub3');
   if(v3) v3.textContent=tOver>0?amountFmtEok(tOver):'—';
   if(s3) s3.textContent=`전체 오차 중 ${tOver+Math.abs(tUnder)>0?(tOver/(tOver+Math.abs(tUnder))*100).toFixed(1):'0.0'}%`;
@@ -8553,7 +8554,7 @@ function renderHT(){
       <td class="l" colspan="2">총계 · ${totals.skuCount.toLocaleString()}개 SKU</td>
       <td class="r">${fmtHTTotal(data,'plan')}</td>
       <td class="r">${fmtHTTotal(data,'actual')}</td>
-      <td class="r">${(()=>{const n=totals.actual-totals.plan;return `${n>0?'+':n<0?'-':''}${Math.abs(n).toFixed(2)}억`;})()}</td>
+      <td class="r" title="Σ|차이| · 초과·미달을 상쇄하지 않고 절대값으로 합산 (오차율의 분자와 동일)">${(totals.over+Math.abs(totals.under)).toFixed(2)}억</td>
       <td class="hit-rate-col">
         <div class="hit-rate-wrap"><span class="tag ${totalClass}" style="font-size:15px;font-weight:900;padding:3px 9px;">${displayWape.toFixed(1)}%</span></div>
         <div style="font-size:9px;color:var(--muted);margin-top:2px;">${displaySubText}</div>
