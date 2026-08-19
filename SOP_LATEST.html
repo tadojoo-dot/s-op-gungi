@@ -223,12 +223,20 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
    `.chwape td{font-size:...}`처럼 base에 걸면 팝업이 같이 커진다(2026-08-19에 실제로 그럴 뻔했다). */
 .chwape.chwape-lg th{font-size:12.5px;padding:10px 8px;}
 /* 오차율 셀 = 이 표의 주인공. 월별 실적/계획(cw-mv)보다 확실히 크고 진하게. */
-.chwape.chwape-lg td{font-size:15px;font-weight:800;padding:12px 8px;}
+.chwape.chwape-lg td{font-size:15px;font-weight:800;padding:13px 8px;}
 .chwape td.l{text-align:left;font-weight:700;}
+/* ⚠ 2026-08-19 사용자 지정: **모든 열 가운데 정렬**(채널명·조치의견 포함).
+   입력 중인 글자까지 가운데로 몰면 쓰기 불편하므로 textarea 안만 왼쪽으로 되돌린다. */
+.chwape.chwape-lg th,.chwape.chwape-lg td,
+.chwape.chwape-lg th.l,.chwape.chwape-lg td.l{text-align:center;}
+.chwape.chwape-lg .chmemo-td{text-align:left;}
+.chwape.chwape-lg .chmemo-td textarea.action-memo{text-align:left;}
 .chwape td.r{color:var(--muted);font-size:12px;}
 .chwape th.sortable{cursor:pointer;user-select:none;} .chwape th.sortable:hover{color:var(--terra);}
-/* 월 구간과 계획금액 구간을 세로선으로 가른다 */
+/* 월 구간과 계획금액 구간을 세로선으로 가른다.
+   ⚠ 음영을 한 톤으로 통일한 뒤로는 **구간을 가르는 일을 이 선이 전담**한다(2026-08-19). 굵게 유지할 것. */
 .chwape th.cw-sep,.chwape td.cw-sep{border-left:1px solid var(--border);}
+.chwape.chwape-lg th.cw-sep,.chwape.chwape-lg td.cw-sep{border-left:2px solid #D6DAE6;}
 .chwape .cw-na{color:var(--gray-m);}
 /* 3행마다 조금 진한 선 — 행이 11개라 가로로 훑을 때 줄을 잃지 않게 */
 .chwape tbody tr:nth-child(3n) td{border-bottom-color:#e4e6ee;}
@@ -249,18 +257,19 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
   text-decoration:underline;text-decoration-color:var(--gray-l);text-underline-offset:3px;
   max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom;}
 .chwape .cw-name:hover{color:var(--navy);text-decoration-color:var(--navy);}
-/* 2단 헤더 — 위: 구간 이름(오차율/실적/계획), 아래: 월. 월 라벨이 두 구간에 겹쳐 나오므로 필요하다. */
-/* 그룹 헤더 배경 3단계로 구간을 가른다 — 오차율(가장 진함) / 실적(옅은 남색) / 계획(옅은 회색) */
-.chwape th.cw-grp{font-size:11.5px;font-weight:800;color:#5B6280;letter-spacing:.02em;padding:7px 6px;
-  border-bottom:1px solid var(--border);background:#E8EBF3;}
-.chwape th.cw-grp.cw-act{background:#EEF1F8;}
-.chwape th.cw-grp.cw-plan{background:#F1F3F9;}
+/* 2단 헤더 — 위: 구간 이름(오차율/적중률/실적/계획), 아래: 월. 월 라벨이 여러 구간에 겹쳐 나오므로 필요하다. */
+/* ⚠ 음영은 **한 톤으로 통일한다**(2026-08-19 사용자 지적 "칼럼 음영이 제각각").
+   예전엔 그룹 헤더가 오차율 #E8EBF3 / 실적 #EEF1F8 / 계획 #F1F3F9 세 톤이었고 계획 데이터 셀까지
+   따로 칠해져 있어 표가 얼룩덜룩했다. 구간 구분은 이제 **세로 구분선(cw-sep)과 그룹 헤더 글자**가 맡는다.
+   → `.cw-act`/`.cw-plan`은 클래스만 남기고 배경을 주지 않는다(마크업은 그대로 두어 되돌리기 쉽게). */
+.chwape th.cw-grp{font-size:11.5px;font-weight:800;color:#4B5268;letter-spacing:.02em;padding:7px 6px;
+  border-bottom:1px solid var(--border);background:#EAEDF4;}
 /* 판매계획 시트 기준 월별 실적·계획 숫자. 오차율보다 한 단계 작고 옅은 **보조 정보**다.
    ⚠ 계획 구간은 배경으로만 가른다 — 예전엔 글자색까지 #5A6180으로 내려 옅은 배경 위에서 잘 안 보였다. */
 .chwape.chwape-lg th.cw-mv{font-size:12px;padding:9px 5px;font-weight:700;}
 .chwape.chwape-lg td.cw-mv{font-size:12.5px;font-weight:600;padding:12px 5px;color:#454B63;}
-.chwape th.cw-plan,.chwape td.cw-plan{background:#F1F3F9;}
-.chwape tr.cw-total td.cw-plan{background:#E9ECF4;}
+/* ⚠ 계획 구간 데이터 셀 음영은 뺐다(2026-08-19) — 위 cw-grp 주석 참고.
+   구간은 그룹 헤더 '판매계획 (억원)'과 세로 구분선으로 읽는다. */
 .chmemo-td{vertical-align:top;padding:4px 6px!important;font-weight:400!important;}
 .chmemo-td textarea.action-memo{min-height:30px;height:30px;font-size:11.5px;}
 .chmemo-td textarea.action-memo:focus{height:80px;}
@@ -285,12 +294,15 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
    2026-08-19 사용자 지정: 모든 열 가운데 정렬 · 여백 없이 넓게.
    ⚠ 이 규칙들은 전부 `.chwape-drill` 안으로 가둔다. `.chwape td.l{text-align:left}`나
       첫 열 sticky는 채널별 오차율 표(.chwape-lg)가 쓰는 공용 규칙이라 base에서 건드리면 같이 깨진다. */
-.chwape-drill{width:100%;min-width:1180px;}
+.chwape-drill{width:100%;min-width:1184px;}
 .chwape-drill th,.chwape-drill td,
 .chwape-drill th.l,.chwape-drill td.l{text-align:center;}
-.chwape-drill th.l:first-child,.chwape-drill td.l:first-child{position:static;background:transparent;}
-.chwape-drill tr.cw-total td.l:first-child{background:#F7F8FA;}
-.chwape-drill td.cw-item{white-space:normal;line-height:1.35;}
+/* ⚠ sticky만 끄고 **background는 건드리지 않는다.** 예전에 여기서 `background:transparent`를 걸었더니
+   첫 열(품목코드) 헤더만 음영이 빠져 "칼럼 음영이 제각각"으로 보였다(2026-08-19에 잡음).
+   합계 행 첫 칸 배경은 base의 `.chwape tr.cw-total td.l:first-child` 규칙이 이미 맞춰준다. */
+.chwape-drill th.l:first-child,.chwape-drill td.l:first-child{position:static;}
+.chwape-drill td.cw-item{white-space:normal;line-height:1.4;}
+.chwape-drill td{padding:9px 8px;}
 /* 입력 중인 글자까지 가운데로 몰면 쓰기 불편하다 — 셀만 가운데, 입력 내용은 왼쪽. */
 .chwape-drill .chmemo-td{text-align:left;}
 .chwape-drill .chmemo-td textarea.action-memo{text-align:left;}
@@ -642,8 +654,16 @@ table.base tr:last-child td{border-bottom:none;}
 .admin-btn{height:28px;border:1px solid rgba(255,255,255,.35);border-radius:6px;background:rgba(255,255,255,.12);color:#fff;font-size:11px;font-weight:800;padding:0 10px;cursor:pointer;}
 .admin-btn.on{background:#E3B341;border-color:#E3B341;color:#111827;}
 .admin-lock-note{font-size:10px;color:rgba(255,255,255,.62);font-weight:700;}
-body:not(.admin-mode) .admin-editable{opacity:.68;}
-body:not(.admin-mode) .psi-buy-input,body:not(.admin-mode) textarea.action-memo,body:not(.admin-mode) #meetingMemo,body:not(.admin-mode) #decisionMemo{background:#f3f4f6!important;color:#6b7280!important;cursor:not-allowed;}
+/* ⚠ 읽기 전용 표시는 **배경과 커서로만** 한다 — 글자를 흐리게 하면 안 된다 (2026-08-19 수정).
+   예전엔 비관리자에게 `.admin-editable{opacity:.68}` + textarea `color:#6b7280`(회색 글자 + 회색 배경)이
+   걸려 있었다. 편집 불가를 알리려던 스타일인데, **읽으라고 써 놓은 내용까지 흐려져** 열람자가
+   "소진계획 글자가 안 보인다"고 신고했다. 대다수 열람자는 관리자가 아니라 **읽는 사람**이다 —
+   그들에게 가장 잘 보여야 하는 게 이 칸이다. 되돌리지 말 것. */
+body:not(.admin-mode) .psi-buy-input,body:not(.admin-mode) textarea.action-memo,body:not(.admin-mode) #meetingMemo,body:not(.admin-mode) #decisionMemo{background:#f7f8fa!important;color:var(--text)!important;cursor:default;}
+/* 비관리자에겐 '입력하세요' 안내를 띄우지 않는다 — 입력할 수 없는데 뜨면 빈 칸이 미입력인지
+   권한 문제인지 헷갈린다. 빈 칸은 그냥 비워 둔다. */
+body:not(.admin-mode) .plan-cell:empty::before{content:'';}
+body:not(.admin-mode) .plan-clear-btn{display:none;}
 body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel button{opacity:.55;cursor:not-allowed;}
 /* PRINT */
 @page{size:A4 landscape;margin:8mm;}
@@ -1898,9 +1918,20 @@ function savePlanAction(meta, text){
 function bindPlanCells(root){
   (root||document).querySelectorAll('.plan-cell[data-plan-key]').forEach(cell=>{
     const key=cell.dataset.planKey;
-    const saved=getPlanActions().find(a=>a.key===key);
+    const actions=getPlanActions();
+    // 새 키에 기록이 있으면 그것이 우선. **빈 문자열로 지운 기록도 기록이다** —
+    // 여기서 옛 키로 폴백하면 지운 메모가 되살아난다(find는 없을 때만 undefined를 준다).
+    const legacyKey=cell.dataset.planLegacyKey||'';
+    const saved=actions.find(a=>a.key===key)
+      ||(legacyKey?actions.find(a=>a.key===legacyKey&&String(a.plan||'').trim()!==''):null);
     if(saved){cell.textContent=saved.plan;cell.classList.add('saved');}
+    // ⚠ 편집 권한은 **바인딩 시점에** 건다. 마크업이 contenteditable="true"로 고정돼 있어서,
+    //    보드 렌더 뒤에 그려지는 칸(드릴다운 등)은 updateAdminModeUI()를 못 만나 비관리자도
+    //    고칠 수 있었다. 그런데 saveSharedState()는 관리자가 아니면 그냥 return이라
+    //    **입력이 조용히 사라진다** — 본인 브라우저에만 남고 아무에게도 안 간다.
+    cell.contentEditable=isAdminMode()?'true':'false';
     cell.addEventListener('input',()=>{
+      if(!isAdminMode()) return;
       cell.classList.add('saved');
       savePlanAction({
         key,
@@ -2472,6 +2503,12 @@ function inventoryColMap(rows){
   };
   return {
     MAT:find('자재',1), NAME:find('자재 내역',2),
+    // 배치·저장 위치는 ①탭 드릴다운 '소진계획' 메모를 **행 단위로 구분**하는 데만 쓴다.
+    // ⚠ (채널|구간|자재)만으로는 26/8 기준 495행 중 359행이 키가 겹친다 — 한 칸에 쓰면 같은 품목의
+    //    모든 배치 행에 같은 글자가 뜨고 지우면 다 지워졌다(2026-08-19 사용자 신고).
+    //    (채널|구간|자재|배치|플랜트|저장위치)면 495행 495키로 **중복 0**이다(기초재고·현재고 둘 다 확인).
+    //    헤더에 '배치생산일'·'배치만료일'·'공급업체 배치'가 같이 있어 정확일치로만 찾아야 한다.
+    BATCH:find('배치',5), LOC:find('저장 위치',4),
     // 플랜트는 ①탭 필터에만 쓴다. 헤더에 '플랜트'와 '플랜트명'이 따로 있어 정확일치로 갈린다.
     PLANT:find('플랜트',3), PLANT_NAME:find('플랜트명',15),
     AVAIL:find('가용',8), AVAIL_AMT:find('가용재고 금액',9),
@@ -2577,7 +2614,9 @@ function parseInventory(ws,pkgMap,srcMap){
     const chRemMo=Math.round(parseNum(row[C.CHDL_MO]))||0;
     const plant=String(row[C.PLANT]||'').trim();
     if(plant&&!plants[plant]) plants[plant]=String(row[C.PLANT_NAME]||'').trim()||plant;
-    const sku={m:mat,n:name,q:qty,av,qc,hd,a:Math.round(amt*1e8/1e6*10)/10,t:matType,r:rem,chRemMo,p:plant,sp:src};
+    const sku={m:mat,n:name,q:qty,av,qc,hd,a:Math.round(amt*1e8/1e6*10)/10,t:matType,r:rem,chRemMo,p:plant,sp:src,
+      // b/lc는 화면에 안 그린다 — 드릴다운 소진계획 메모 키를 행 단위로 만들기 위한 식별자다.
+      b:String(row[C.BATCH]||'').trim(), lc:String(row[C.LOC]||'').trim()};
     // 유통기한 기준 (AO열)
     if(!ch_amt[ch]) ch_amt[ch]={};
     if(!ch_amt[ch][aoType]) ch_amt[ch][aoType]={a:0,q:0};
@@ -4715,7 +4754,9 @@ function drilldown(ch, cat){
 
   if(!skus.length){body.innerHTML=`<div style="padding:12px;color:var(--muted);">해당 데이터 없음</div>`;panel.classList.add('show');return;}
 
-  _ddSort={col:'',dir:0};
+  // 기본 정렬은 **금액 큰 순**(2026-08-19 사용자 지정). 예전엔 원장 행 순서 그대로라
+  // 큰 금액이 아래에 묻혔다. dir:-1 = 내림차순(_applySort).
+  _ddSort={col:'amt',dir:-1};
   let overflowNote='';
   if(cat==='18개월 이상'&&(mxData[ch]||{})['18개월 이상']){
     const total=(d.q||0);
@@ -4943,6 +4984,19 @@ function _renderDDTbody(){
     }
   };
   const sorted=_applySort(skus,_ddSort,getKey);
+  // ⚠ 소진계획 메모 키는 **행(배치) 단위**여야 한다. (채널|구간|자재)만 쓰면 같은 품목의 배치 행이
+  //    키를 공유해 한 칸에 쓰면 전부 써지고 지우면 전부 지워진다(2026-08-19 수정).
+  // 옛 형식(배치 없는 키)으로 저장된 기록은 **금액이 가장 큰 행 한 곳에만** 이어받아 보여준다 —
+  //    전 행에 이어받으면 고친 뒤에도 나머지 행에 옛 글자가 남아 예전 증상 그대로 보인다.
+  //    ⚠ 옛 키를 지우거나 새 키로 옮겨 쓰지는 않는다. 렌더가 데이터를 고치면 열람자마다 결과가 갈린다.
+  const _legacyTop=new Map();
+  skus.forEach(x=>{
+    const k=String(x.m||'');
+    const cur=_legacyTop.get(k);
+    if(!cur||(x.a||0)>(cur.a||0)) _legacyTop.set(k,x);
+  });
+  const planKeyOf=x=>`AGING|${ch}|${cat}|${x.m}|${x.b||''}|${x.p||''}|${x.lc||''}`;
+  const legacyKeyOf=x=>_legacyTop.get(String(x.m||''))===x?`AGING|${ch}|${cat}|${x.m}`:'';
   let rows='';
   sorted.forEach(s=>{
     let rem='—', remCls='rem-b';
@@ -4974,7 +5028,7 @@ function _renderDDTbody(){
       <td class="c" style="font-size:11px;color:var(--muted);">${s.e||'—'}</td>
       <td class="c"><span class="tag" style="background:${AGING_COL[cat]||'#eee'};color:#fff;font-size:10px;">${grade}</span></td>
       <td class="c">${soojinChip}</td>
-      <td class="l plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="AGING|${ch}|${cat}|${s.m}" data-screen="재고 Aging" data-bucket="${cat}" data-channel="${ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button></td>
+      <td class="l plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="${planKeyOf(s)}" data-plan-legacy-key="${legacyKeyOf(s)}" data-screen="재고 Aging" data-bucket="${cat}" data-channel="${ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button></td>
     </tr>`;
   });
   const tbody=document.querySelector('#ddBody .dd-table tbody');
@@ -4986,7 +5040,7 @@ function _renderDDTbody(){
 }
 
 // ─ 드릴다운 / Sensing 컬럼 정렬 공통 ─
-let _ddSort={col:'',dir:0};
+let _ddSort={col:'amt',dir:-1};
 let _ddState={skus:[],ch:'',cat:''};
 let _senSort={col:'',dir:0};
 let _senData={allSkus:[],cat:'',sensingLabel:''};
@@ -6101,8 +6155,8 @@ function renderPsiSubtotal(){
   h+=`<th class="psi-sub c"></th>`;
   PSI_MONTHS.forEach((m,i)=>{
     const a=per[i];
-    h+=`<th class="psi-sub r month-start">${val(a.begin,a.beginA)}</th>`
-      +`<th class="psi-sub r">${val(a.buy,a.buyA)}</th>`
+    h+=(psiHasBeginCol(m)?`<th class="psi-sub r month-start">${val(a.begin,a.beginA)}</th>`:'')
+      +`<th class="psi-sub r${psiHasBeginCol(m)?'':' month-start'}">${val(a.buy,a.buyA)}</th>`
       +`<th class="psi-sub r">${val(a.plan,a.planA)}</th>`
       +`<th class="psi-sub r">${val(a.end,a.endA)}</th>`
       +daysCell(a.end,a.nextPlan,m.progress?'':'month-end');
@@ -6156,13 +6210,18 @@ function _renderPsiTbody(){
       // 정의되지 않아서다(조정은 통합 기준으로만 한다).
       const buyLocked=psiUnitMode!=='qty'||d._plantScoped;
       const lockWhy=d._plantScoped?'입고 조정은 플랜트 전체(통합) 기준에서만 가능합니다':'입고 조정은 수량 모드에서만 가능합니다';
-      const buyCell=!buyLocked
+      let buyCell=!buyLocked
         ?`<td class="r"><input type="text" class="psi-buy-input${buyCls?' '+buyCls:''}" onclick="event.stopPropagation()" data-mat="${d.mat}" data-mo="${m.key}" data-orig-buy="${origBuy}" value="${r.buy.toLocaleString('ko-KR')}"><button type="button" class="psi-buy-reset" title="이 입고 조정을 원래값(${fmtPsiInt(origBuy)})으로 초기화" onclick="event.stopPropagation();resetPsiBuyCell(this)">↺</button></td>`
         :`<td class="r"${buyOvOn?' style="color:#8a5c00;font-weight:900;"':''} title="수량 ${fmtPsiInt(r.buy)}개${buyOvOn?' · 직접 조정한 값':''} · ${lockWhy}">${fmtPsiCell(r.buy,d.mat)}</td>`;
       const daysTitle=d._plantScoped
         ? ` title="${d._plantOf} 몫 기말재고 ${fmtPsiInt(r.end)}개 ÷ 통합 다음달 판매계획 × 30 · 신호등은 통합 기준 판정"`
         : (d._sharedDemand?` title="자체 판매계획이 없어 소속 통합코드(${d._sharedFrom})의 수요를 분모로 산출"`:'');
-      return `<td class="r month-start"${psiCellTitle(r.begin,d.mat)}>${fmtPsiCell(r.begin,d.mat)}</td>${buyCell}<td class="r"${psiCellTitle(r.plan,d.mat)}>${fmtPsiCell(r.plan,d.mat)}</td><td class="r"${endCls}${psiCellTitle(r.end,d.mat)}>${fmtPsiCell(r.end,d.mat)}</td><td class="c${m.progress?'':' month-end'}"${daysTitle}><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig,r.noStock)}</td>${basisCells}`;
+      // 기초 셀은 당월에만. 차월 이후는 전월 기말과 같은 값이라 월 경계선(month-start)을 입고로 옮긴다.
+      const beginCell=psiHasBeginCol(m)
+        ?`<td class="r month-start"${psiCellTitle(r.begin,d.mat)}>${fmtPsiCell(r.begin,d.mat)}</td>`
+        :'';
+      if(!psiHasBeginCol(m)&&!/class="r month-start"/.test(buyCell)) buyCell=buyCell.replace('<td class="r"','<td class="r month-start"');
+      return `${beginCell}${buyCell}<td class="r"${psiCellTitle(r.plan,d.mat)}>${fmtPsiCell(r.plan,d.mat)}</td><td class="r"${endCls}${psiCellTitle(r.end,d.mat)}>${fmtPsiCell(r.end,d.mat)}</td><td class="c${m.progress?'':' month-end'}"${daysTitle}><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig,r.noStock)}</td>${basisCells}`;
     }).join('');
     const sCls=_psiSoojinCls[soojinStatus]||'gray';
     const sLbl=_psiSoojinLabel[soojinStatus]||'판단필요';
@@ -6192,9 +6251,14 @@ const PSI_MONTHS=[
   {key:'9월',buy:0.60,plan:1.06},
 ];
 // 보조 기준 열(기말재고 오른쪽 2칸)은 당월(진척율 기준)에만 둔다 — 차월 이후 3평판 기준은 제거함.
-// ⚠ 그래서 월 블록 폭이 당월 7칸 / 이후 5칸으로 다르다. 셀 인덱스를 직접 세는 코드(recalcPsiRow)는
-//   반드시 psiMonthCellOffset()을 쓸 것. `7+mi*7` 같은 고정식은 두 번째 달부터 어긋난다.
-const psiMonthSpan=m=>m.progress?7:5;
+// ⚠ **기초 열도 당월에만 둔다** (2026-08-19 사용자 지적). calcPsiMonth이
+//   `begin = prevEnd != null ? prevEnd : exact.begin` 이라 **차월 이후 기초 = 전월 기말과 항상 같은 값**이다.
+//   같은 숫자를 두 칸에 쓰면서 폭만 먹고 있었다. 첫 달(당월)만 기초가 독립적인 값(PSI!BQ − 6개월↓ − 보류)이다.
+// ⚠ 그래서 월 블록 폭이 당월 7칸 / 이후 4칸으로 다르다. 셀 인덱스를 직접 세는 코드(recalcPsiRow)는
+//   반드시 psiMonthCellOffset()을 쓰고, 블록 안 위치도 `hasBegin` 여부로 한 칸 밀어야 한다.
+//   `7+mi*7`이나 `bi+3` 같은 고정식은 두 번째 달부터 어긋난다.
+const psiHasBeginCol=m=>!!m.progress;
+const psiMonthSpan=m=>m.progress?7:4;
 const PSI_FIXED_COLS=7;                                   // 자재코드~소진판단
 const psiMonthCellOffset=mi=>PSI_MONTHS.slice(0,mi).reduce((s,m)=>s+psiMonthSpan(m),PSI_FIXED_COLS);
 const psiTotalCols=()=>PSI_FIXED_COLS+PSI_MONTHS.reduce((s,m)=>s+psiMonthSpan(m),0)+1; // +1 = 소진계획
@@ -6498,12 +6562,15 @@ function recalcPsiRow(mat){
   });
   const tds=tr.querySelectorAll('td');
   results.forEach(({r},mi)=>{
-    const bi=psiMonthCellOffset(mi);   // 월 블록 폭이 다르므로(당월 7칸 / 이후 5칸) 고정식 금지
+    const m=PSI_MONTHS[mi];
+    const bi=psiMonthCellOffset(mi);   // 월 블록 폭이 다르므로(당월 7칸 / 이후 4칸) 고정식 금지
+    // 블록 안 위치도 기초 열 유무로 한 칸 밀린다: [기초?] 입고 판매 기말 재고일수 [보조2]
+    const o=psiHasBeginCol(m)?1:0;
     const sig=r.sig==='red'?'sig-r':r.sig==='yellow'?'sig-y':r.sig==='excess'?'sig-x':r.sig==='green'?'sig-g':'sig-gray';
-    tds[bi].textContent=fmtPsiInt(r.begin);
+    if(o) tds[bi].textContent=fmtPsiInt(r.begin);
     const ec=r.end<0?'color:var(--red);font-weight:900;':'';
-    tds[bi+3].setAttribute('style',ec);tds[bi+3].textContent=fmtPsiInt(r.end);
-    tds[bi+4].innerHTML=`<span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig,r.noStock)}`;
+    tds[bi+o+2].setAttribute('style',ec);tds[bi+o+2].textContent=fmtPsiInt(r.end);
+    tds[bi+o+3].innerHTML=`<span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig,r.noStock)}`;
   });
   renderPsiSubtotal();   // 입고를 조정하면 소계도 같이 움직여야 한다
 }
@@ -7185,7 +7252,7 @@ function renderPSI(){
         <th rowspan="3" class="l" style="min-width:130px;">소진계획</th>
       </tr>
       <tr>
-        ${months.map(m=>`<th rowspan="2" class="plan-hd r month-start psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-begin')" data-scol="${m.key}-begin">기초 ${si(m.key+'-begin')}</th><th rowspan="2" class="plan-hd r psi-col-buy" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-buy')" data-scol="${m.key}-buy">입고 ${si(m.key+'-buy')}</th><th rowspan="2" class="plan-hd r psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-plan')" data-scol="${m.key}-plan">판매 ${si(m.key+'-plan')}</th><th colspan="2" class="plan-hd c${m.progress?'':' month-end'}">기말재고</th>${m.progress?'<th colspan="2" class="plan-hd c month-end">진척율 기준</th>':''}`).join('')}
+        ${months.map(m=>`${psiHasBeginCol(m)?`<th rowspan="2" class="plan-hd r month-start psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-begin')" data-scol="${m.key}-begin">기초 ${si(m.key+'-begin')}</th>`:''}<th rowspan="2" class="plan-hd r${psiHasBeginCol(m)?'':' month-start'} psi-col-buy" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-buy')" data-scol="${m.key}-buy" title="${psiHasBeginCol(m)?'':'기초재고는 전월 기말재고와 같은 값이라 열을 생략했습니다'}">입고 ${si(m.key+'-buy')}</th><th rowspan="2" class="plan-hd r psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-plan')" data-scol="${m.key}-plan">판매 ${si(m.key+'-plan')}</th><th colspan="2" class="plan-hd c${m.progress?'':' month-end'}">기말재고</th>${m.progress?'<th colspan="2" class="plan-hd c month-end">진척율 기준</th>':''}`).join('')}
       </tr>
       <tr>
         ${months.map(m=>`<th class="plan-hd r psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-end')" data-scol="${m.key}-end">${unitHd} ${si(m.key+'-end')}</th><th class="plan-hd c psi-col${m.progress?'':' month-end'}" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-days')" data-scol="${m.key}-days">재고일수 ${si(m.key+'-days')}</th>${m.progress?`<th class="plan-hd r psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisEnd')" data-scol="${m.key}-basisEnd">${unitHd} ${si(m.key+'-basisEnd')}</th><th class="plan-hd c month-end psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisDays')" data-scol="${m.key}-basisDays">재고일수 ${si(m.key+'-basisDays')}</th>`:''}`).join('')}
@@ -7707,12 +7774,15 @@ function renderChDrill(){
   }
   // ⚠ 폭을 col로 명시한다. `.chwape`는 table-layout:fixed라 colgroup이 없으면 열이 균등 분할돼
   //    품목명이 잘리고 숫자 열엔 쓸데없이 여백이 남는다. 품목/조치의견만 auto로 두어 잔여 폭을 나눈다.
-  body.innerHTML=`<table class="chwape chwape-drill" style="font-size:12px;">
-    <colgroup><col style="width:300px;"><col style="width:104px;">
-      <col style="width:84px;"><col style="width:84px;"><col style="width:92px;">
-      <col style="width:78px;"><col style="width:78px;"><col style="width:92px;"><col></colgroup>
+  // ⚠ **품목코드가 맨 왼쪽, 그 옆이 품목명**이다(2026-08-19 사용자 지정).
+  // ⚠ 잔여 폭은 **품목명 열**이 가져간다 — 여기만 width를 비워 둔다. 조치의견을 auto로 두면
+  //    1480px 모달에서 544px까지 부풀어 정작 품목명이 잘렸다.
+  body.innerHTML=`<table class="chwape chwape-drill" style="font-size:12.5px;">
+    <colgroup><col style="width:116px;"><col>
+      <col style="width:92px;"><col style="width:92px;"><col style="width:96px;">
+      <col style="width:86px;"><col style="width:86px;"><col style="width:96px;"><col style="width:240px;"></colgroup>
     <thead><tr>
-      <th class="l">품목</th><th class="l">품목코드</th>
+      <th class="l">품목코드</th><th class="l">품목</th>
       <th>계획(${unit})</th><th>실적(${unit})</th><th>차이</th><th>오차율</th><th>적중률</th><th class="cw-sep">오차 기여도</th>
       <th class="l cw-sep">조치의견</th>
     </tr></thead><tbody>
@@ -7720,8 +7790,8 @@ function renderChDrill(){
       const contrib=absSum>0?Math.abs(r.diff)/absSum*100:0;
       const daiso=r._daisoIntegrated?'<span class="tag b" style="font-size:9px;padding:0 4px;margin-left:4px;" title="다이소 통합코드">통합</span>':'';
       return `<tr>
-        <td class="l cw-item" title="${String(r.n||'').replace(/"/g,'&quot;')}">${String(r.n||'')}${daiso}</td>
         <td class="l" style="color:var(--muted);font-weight:400;">${r.mat||'—'}</td>
+        <td class="l cw-item" title="${String(r.n||'').replace(/"/g,'&quot;')}">${String(r.n||'')}${daiso}</td>
         <td>${fmt(r.plan)}</td>
         <td>${fmt(r.actual)}</td>
         <td style="color:${r.diff>=0?'var(--green)':'var(--red)'};font-weight:900;">${r.diff>=0?'+':''}${fmt(r.diff)}</td>
@@ -7732,7 +7802,7 @@ function renderChDrill(){
       </tr>`;
     }).join('')}
     <tr class="cw-total">
-      <td class="l">합계</td><td class="l"></td>
+      <td class="l"></td><td class="l">합계</td>
       <td>${fmt(plan)}</td><td>${fmt(rows.reduce((s,r)=>s+(Number(r.actual)||0),0))}</td>
       <td title="Σ|차이| · 초과·미달을 상쇄하지 않고 절대값으로 합산 (오차율의 분자와 동일)">${fmt(absSum)}</td>
       <td>${wape==null?'—':wape.toFixed(1)+'%'}</td>
@@ -7864,7 +7934,10 @@ function renderChannelWape(){
   //   숫자 열까지 %로 늘리면 값 사이가 벌어져 한눈에 안 들어온다(그래서 px 유지).
   // 적중률 열은 오차율 열과 **폭·타이포가 같다**(W_MO 공유). 둘은 짝이라 그룹 배경도 같은 톤을 쓰고,
   // 경계는 cw-sep 세로선으로만 가른다.
-  const W_CH=160,W_MO=92,W_MV=80,W_MEMO_MIN=280;
+  // ⚠ 조치의견 열은 계속 auto(잔여 폭 흡수)로 둔다 — px로 고정하면 넓은 화면에서 오른쪽이 다시 빈다.
+  //    "조치의견을 좁혀 달라"는 요구는 **숫자 열을 키워서** 푼다(2026-08-19). 1500px 패널 기준
+  //    조치의견 412 → 300px로 줄고, 줄어든 폭이 그대로 숫자 사이 여백이 된다.
+  const W_CH=140,W_MO=104,W_MV=92,W_MEMO_MIN=220;
   const fixedW=W_CH+months.length*W_MO*2+mvMonths.length*W_MV;
   const nA=spark?spark.actualMonths.length:0;
   let h=`<table class="chwape chwape-lg" style="width:100%;min-width:${fixedW+W_MEMO_MIN}px;">
@@ -7903,7 +7976,7 @@ function renderChannelWape(){
   wrap.innerHTML=h;
   renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
   if(note){
-    note.innerHTML=`오른쪽 월별 숫자 = <strong>판매계획(SF) 시트</strong> 기준 <strong>${spark?`${spark.actualMonths[0]}~${spark.actualMonths[spark.actualMonths.length-1]}월 실적`:'실적'}</strong> / <span style="background:#F1F3F9;padding:0 4px;border-radius:3px;">${spark?`${spark.planMonths[0]}~${spark.planMonths[spark.planMonths.length-1]}월 계획`:'계획'}</span> (억원) · 회색 칸이 계획 구간입니다 · <strong>금액 고정</strong>이라 위 수량 토글과 무관합니다<br>표에는 <strong>최근 ${CHWAPE_ACTUAL_MONTHS_SHOWN}개월 실적 · 향후 ${CHWAPE_PLAN_MONTHS_SHOWN}개월 계획</strong>만 그립니다 — 연초부터의 전체 흐름은 위 추이 차트와 셀 클릭 팝업에서 보세요<br>WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
+    note.innerHTML=`오른쪽 월별 숫자 = <strong>판매계획(SF) 시트</strong> 기준 <strong>${spark?`${spark.actualMonths[0]}~${spark.actualMonths[spark.actualMonths.length-1]}월 실적`:'실적'}</strong> / <strong>${spark?`${spark.planMonths[0]}~${spark.planMonths[spark.planMonths.length-1]}월 계획`:'계획'}</strong> (억원) · 구간은 <strong>세로 구분선</strong>과 위 그룹 머리글로 나뉩니다 · <strong>금액 고정</strong>이라 위 수량 토글과 무관합니다<br>표에는 <strong>최근 ${CHWAPE_ACTUAL_MONTHS_SHOWN}개월 실적 · 향후 ${CHWAPE_PLAN_MONTHS_SHOWN}개월 계획</strong>만 그립니다 — 연초부터의 전체 흐름은 위 추이 차트와 셀 클릭 팝업에서 보세요<br>WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
       +`위 트렌드 차트·보정 대상 리스트와 같은 기준입니다 · 판매계획이 없는 달은 <span style="color:var(--gray-m);">—</span><br>`
       +`<strong>적중률 = 1 − 오차율</strong> (품목별 |오차| 합 ÷ 채널 판매계획 합) · 두 열은 같은 값을 뒤집은 것이라 <strong>합이 100%</strong>입니다<br>`
       +`⚠ 적중률이 <span style="color:var(--gray-m);">0%</span>인 칸은 오차가 계획보다 컸다는 뜻입니다(오차율 100% 초과) — `

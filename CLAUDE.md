@@ -172,7 +172,8 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 ## 렌더 함수 지도 (기능 → 함수명, Grep으로 찾기)
 | 화면/기능 | 함수 |
 |---|---|
-| ① 재고 Aging 매트릭스 + 드릴다운 | `renderMatrix`, `drilldown`, `_renderDDTbody` |
+| ① 재고 Aging 매트릭스 + 드릴다운 | `renderMatrix`, `drilldown`, `_renderDDTbody` — 기본 정렬은 **금액 내림차순**(`_ddSort={col:'amt',dir:-1}`) |
+| ① 드릴다운 소진계획 메모 | `bindPlanCells`, `savePlanAction`, `clearPlanCell` — 아래 "소진계획 메모 키" 참고 |
 | ① 매트릭스 월 필터 | `agingViewMonth`, `agingMonthKeyNow`, `setAgingViewMonth`, `syncAgingMonthOptions` — 아래 "월 필터" 참고 |
 | ① 매트릭스 필터(생산처·자재유형) | `matrixSkuFilter`, `filterMatrixCell`, `syncMatrixFilterOptions`, `_syncFilterSelect`, `normalizeSourcePlant` — 아래 "매트릭스 필터" 참고 |
 | ① 품목군별 전월대비 재고 증감 (+SKU 드릴다운) | `renderPkgDelta`, `togglePkgDeltaRow`, `setPkgDeltaUnit` — 아래 "품목군 전월대비" 참고 |
@@ -183,7 +184,7 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 | ② PSI 표 필터 (0건 진단 포함) | `PSI_FILTERS`, `applyPsiFilters`, `psiViewRows`, `diagnosePsiEmpty` — 필터 조건은 **`applyPsiFilters` 한 곳에만** 있어야 함. 인라인으로 복사하면 0건 진단이 실제 화면과 어긋난다 |
 | ② PSI 다이소 플랜트별 분해 | `buildPlantScopedPsiRows`, `decorateDaisoComponentRows`, `psiIntegratedSigByMonth` — 아래 "플랜트 분해 규칙" 참고 |
 | ② PSI 표 수량/원가/매출 토글 | `psiUnitMode`, `getPsiPriceMap`, `fmtPsiCell`, `setPsiUnitMode` |
-| ② PSI 표 월 블록 폭 (당월 7칸 / 이후 5칸) | `psiMonthSpan`, `psiMonthCellOffset`, `psiTotalCols` — 보조 기준 열은 **당월(진척율 기준)에만** 있다(차월 이후 3평판 기준은 2026-08-13에 제거). ⚠ 셀 인덱스를 세는 코드(`recalcPsiRow`)는 반드시 `psiMonthCellOffset(mi)`를 쓸 것. `7+mi*7` 같은 고정식은 두 번째 달부터 어긋나 입고 조정 결과가 엉뚱한 칸에 박힌다 |
+| ② PSI 표 월 블록 폭 (당월 7칸 / 이후 4칸) | `psiMonthSpan`, `psiHasBeginCol`, `psiMonthCellOffset`, `psiTotalCols` — 아래 "PSI 월 블록 폭" 참고 |
 | ③ 월별 판매계획 대비 실적(탭에 박힌 바차트) | `renderChAchieve` (canvas id `chAcc`) — 배지: `monthDiffLabelPlugin` |
 | ③ 월별 오차율 트렌드 (WAPE 바차트) | `renderHitTrend` (canvas id `hitTrendChart`), `buildHitTrend`, 금액/수량 토글 `hitTrendUnit`·`setHitTrendUnit`·`syncHitTrendUnitUI`. 수량 기준은 `hit.qty.hasPlan`이 true일 때만 산출 — false면 버튼을 잠그고 안내를 띄운다(선택 자체를 코드가 바꾸지는 않음) |
 | ③ 오차 기여 TOP10 / 판매계획 보정 대상 리스트 | `renderInsightTables`, `renderHT` |
@@ -482,6 +483,63 @@ scratchpad 폴더에 재사용 가능한 스크립트들 남겨둠(세션마다 
 - 열: 품목 · **품목코드**(옛 라벨 `자재코드`) · 계획 · 실적 · 차이 · 오차율 · **적중률** · 오차 기여도 · 조치의견.
   품목별 적중률도 `hitRateFromWape(r.hitAcc)`로 같은 식·같은 클램프를 쓴다.
 - 입력 중인 글자까지 가운데로 몰지 않는다 — `.chmemo-td`와 그 안 textarea만 왼쪽 정렬로 되돌린다.
+
+
+## PSI 월 블록 폭 — 당월 7칸 / 차월 이후 4칸 (2026-08-19)
+
+**차월 이후에는 `기초` 열이 없다.** `calcPsiMonth`이 `begin = prevEnd!=null ? prevEnd : exact.begin`이라
+**차월 이후 기초 = 전월 기말과 항상 같은 값**이다(26/8 파일 402쌍 전건 일치, 불일치 0).
+같은 숫자를 두 칸에 쓰면서 폭만 먹고 있어서 뺐다(사용자 지적). 첫 달(당월)만 기초가 독립적인 값
+(`PSI!BQ − 6개월↓ − 보류`)이라 남는다. 보조 기준 2열(진척율)도 당월에만 있다.
+
+- 폭 판단은 **`psiHasBeginCol(m)`과 `psiMonthSpan(m)` 두 헬퍼로만** 한다. 총열 30 → **27**
+- ⚠ **셀 인덱스를 세는 코드(`recalcPsiRow`)는 두 단계로 밀린다:**
+  블록 시작은 `psiMonthCellOffset(mi)`, 블록 **안** 위치는 `o=psiHasBeginCol(m)?1:0`으로 한 칸 더.
+  기말 = `bi+o+2`, 재고일수 = `bi+o+3`. **`bi+3` 같은 고정식은 차월부터 엉뚱한 칸에 박힌다**
+- ⚠ 월 경계선(`month-start`)도 같이 옮겨야 한다 — 기초가 없으면 **입고**가 블록의 첫 칸이다
+  (헤더·tbody·소계 3곳 모두). tbody는 `buyCell` 문자열에 클래스를 끼워 넣으므로 `let`이어야 한다
+- 26/8 검증: thead colspan합 27 = tbody 134행 전부 27칸 = 소계 23th(colspan 5 포함) ·
+  필터 27조합 예외 0 · `recalcPsiRow` 인덱스 대조 전부 일치
+
+## ①탭 소진계획 메모 키 — 행(배치) 단위 (2026-08-19)
+
+```
+AGING|<채널>|<구간>|<자재코드>|<배치>|<플랜트>|<저장위치>
+```
+
+**예전 키는 `AGING|채널|구간|자재`였고 배치를 구분하지 않았다.** 드릴다운은 원장 행(배치)마다 한 줄이라
+26/8 기준 495행 중 **359행이 키를 공유**했고, 한 칸에 쓰면 같은 품목의 모든 배치 행에 같은 글자가 뜨고
+지우면 다 지워졌다(사용자 신고). 배치만 더해도 187행이 겹쳐서 **플랜트·저장위치까지** 넣어야 한다 —
+그러면 495행 495키로 **중복 0**(기초재고·현재고 두 시트 모두 확인).
+
+- 열은 `inventoryColMap`의 `BATCH`/`LOC`(정확일치 — 헤더에 `배치생산일`·`배치만료일`·`공급업체 배치`가 같이 있다),
+  sku 객체에는 `b`/`lc`로 실린다(화면에 안 그린다, 키 전용)
+- **옛 키 기록은 그 자재의 금액 최대 행 한 곳에만 이어받는다**(`data-plan-legacy-key`).
+  전 행에 이어받으면 고친 뒤에도 나머지에 옛 글자가 남아 예전 증상 그대로 보인다.
+  ⚠ **렌더가 옛 키를 지우거나 새 키로 옮겨 쓰지 않는다** — 렌더가 데이터를 고치면 열람자마다 결과가 갈린다
+- ⚠ **폴백은 새 키에 기록이 "아예 없을 때"만.** 빈 문자열로 지운 것도 기록이다(`find`는 없을 때만 undefined) —
+  안 그러면 지운 메모가 되살아난다
+- ⚠ 키에 **Aging 구간(`cat`)이 들어 있어 품목이 구간을 옮기면 메모가 안 보인다.** 26/8 기준 저장된 8건 중
+  2건(`구강|유효기간 초과|7000376`, `건기식|6개월 미만|7302302`)이 이미 그 상태다. 예전부터 그랬고 아직 미해결
+
+## 읽기 전용 표시 — 글자를 흐리게 하지 말 것 (2026-08-19)
+
+열람자(비관리자)가 "소진계획 글자가 안 보인다"고 신고했다. 원인은 CSS 두 줄이었다:
+
+```css
+body:not(.admin-mode) .admin-editable{opacity:.68;}                       /* 삭제 */
+body:not(.admin-mode) textarea.action-memo{color:#6b7280!important;}      /* 본문색으로 */
+```
+
+편집 불가를 알리려던 스타일인데 **읽으라고 써 놓은 내용까지 흐려졌다.**
+대다수 열람자는 관리자가 아니라 **읽는 사람**이다 — 그들에게 가장 잘 보여야 하는 칸이다.
+지금은 배경(`#f7f8fa`)과 커서로만 구분하고, 빈 칸 안내(`소진계획 입력`)와 ✕ 버튼은 비관리자에게 숨긴다.
+**되돌리지 말 것.**
+
+- 같이 고친 것: `bindPlanCells`가 **바인딩 시점에** `contentEditable`을 건다. 마크업이
+  `contenteditable="true"` 고정이라 보드 렌더 뒤에 그려지는 칸(드릴다운)은 `updateAdminModeUI()`를 못 만나
+  비관리자도 고칠 수 있었는데, `saveSharedState()`는 관리자가 아니면 그냥 return이라 **입력이 조용히 사라졌다**
+- ⚠ 소진계획(`sopPlanActions_v1`)은 KV `live`에 정상적으로 올라간다 — 공유가 안 되는 게 아니라 **안 보였던 것**이다
 
 ## 업무 규칙 요약 (자세한 건 memory 참고)
 - Aging 리포트/Sensing = 가용+품질검사+보류재고 합산 (총 보유재고 관점)
