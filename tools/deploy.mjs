@@ -8,13 +8,18 @@
 //   npm run deploy -- --dry-run          아무것도 올리지 않고 파싱 결과만 확인
 //   npm run deploy -- --prev=파일.xlsx    품목군 전월대비 표의 전월 파일을 직접 지정
 //                                        (기본: 리포에서 기준월이 한 달 앞선 Aging 파일 → 없으면 라이브 KV의 직전 달)
+//   npm run deploy -- --rebuild-risk     월별 Risk 이력을 과거월까지 **다시 계산해서 덮는다**
+//                                        (평소 과거월은 얼려 둔다 — 회의에 나간 숫자가 안 바뀌게)
+//   npm run deploy -- --force-shrink     Risk 이력 개월 수가 줄어도 진행 (기본은 중단)
 import { execFileSync } from 'child_process';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import {
   ROOT, LIVE_BASE, readPassword, findLatestExcel, findStdCostExcel, findPriceOverrideExcel,
-  findPrevAgingExcels, readPrevMonths, readLivePkgSnapshot, agingYearMonth, parseExcel, publishParsed, summarize
+  findPrevAgingExcels, readPrevMonths, readLivePkgSnapshot, agingYearMonth, parseExcel, publishParsed, summarize,
+  readRepoRiskHistory, writeRepoRiskHistory, readLiveRiskHistory, mergeRiskHistories, readPrevRiskSnapshots,
+  RISK_HISTORY_FILE
 } from './lib/publish.mjs';
 
 const args = process.argv.slice(2);
@@ -22,6 +27,8 @@ const has = f => args.includes(f);
 const flagValue = (name, def) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : def; };
 const base = String(flagValue('--base', LIVE_BASE)).replace(/\/$/, '');
 const dryRun = has('--dry-run');
+const rebuildRisk = has('--rebuild-risk');
+const forceShrink = has('--force-shrink');
 const dataOnly = has('--data-only');
 const codeOnly = has('--code-only');
 
@@ -65,6 +72,7 @@ if (!codeOnly) {
     ? [path.resolve(ROOT, prevFile)]
     : findPrevAgingExcels(found.path).map(f => f.path);
   let prevPkg = null;
+  let prevMonthRecords = [];
   if (prevPaths.length) {
     say(`과거 Aging 원본: ${prevPaths.map(p => path.relative(ROOT, p)).join(', ')}`);
     try {
@@ -76,6 +84,9 @@ if (!codeOnly) {
         `과거월 ${m.yearmonth} (${m.label} · ${m.sheet} 시트) ${m.total.a.toFixed(2)}억` +
         (m.bySrc ? ` · ${Object.entries(m.bySrc).map(([k, v]) => `${k} ${v.total.a.toFixed(2)}`).join(' / ')}` : '')
       ));
+      // Risk 이력은 **모든 과거월**을 쓴다(품목군 카드는 바로 앞 달 하나만).
+      //   어느 파일의 어느 시트가 그 달을 대표하는지 여기서 이미 정해졌으므로 그 결정을 그대로 넘긴다.
+      prevMonthRecords = months.map(m => ({ yearmonth: m.yearmonth, sheet: m.sheet, file: m.file, label: m.label }));
       // 품목군 전월대비 카드는 **바로 앞 달** 하나만 쓴다(readPrevMonths가 최신순으로 준다).
       prevPkg = months[0] || null;
       if (prevPkg) prevPkg.months = months.map(m => m.month);
@@ -95,12 +106,53 @@ if (!codeOnly) {
     }
   }
 
+  // ── 월별 Risk 이력 3중 저장 ────────────────────────────────────────────
+  // 1차 리포 JSON(원본) ∪ 2차 라이브 KV ∪ 과거 파일 재계산 → 합쳐서 실어 준다.
+  // ⚠ KV는 반드시 **발행 전에** 읽는다. 올린 뒤엔 당월로 덮여 있다.
+  let riskHistory = null;
+  {
+    const repoHist = readRepoRiskHistory();          // 깨져 있으면 여기서 throw → 덮어쓰기 사고 방지
+    if (repoHist) say(`Risk 이력(리포): ${Object.keys(repoHist).sort().join(', ')}`);
+    const live = await readLiveRiskHistory(base);
+    if (!live.ok) {
+      // ⚠ 조용히 넘어가면 빈 이력으로 KV를 덮는다. 여기서 멈춘다.
+      console.error(`      ❌ Risk 이력을 지키기 위해 중단합니다 — ${live.reason}`);
+      console.error('         네트워크를 확인한 뒤 다시 실행하세요. (이력을 포기하고 진행하려면 --rebuild-risk)');
+      if (!rebuildRisk) process.exit(1);
+    }
+    if (live.history) say(`Risk 이력(라이브): ${Object.keys(live.history).sort().join(', ')}`);
+    else if (live.reason) say(`Risk 이력(라이브): ${live.reason}`);
+
+    // 과거월은 이미 있으면 얼려 둔다. 없는 달만, 또는 --rebuild-risk면 전부 다시 계산한다.
+    let fileHist = null;
+    if (prevMonthRecords.length) {
+      const known = new Set(Object.keys(mergeRiskHistories(repoHist, live.history) || {}));
+      const todo = rebuildRisk ? prevMonthRecords : prevMonthRecords.filter(m => !known.has(m.yearmonth));
+      if (todo.length) {
+        say(`과거월 Risk 계산: ${todo.map(m => `${m.yearmonth}(${m.sheet})`).join(', ')}`);
+        const got = readPrevRiskSnapshots(todo, prevPaths, base,
+          stdFound && fs.existsSync(stdFound.path) ? stdFound.path : null,
+          ovFound && fs.existsSync(ovFound.path) ? ovFound.path : null);
+        Object.entries(got).forEach(([ym, snap]) => {
+          if (!snap) { say(`⚠ ${ym} Risk 계산 실패 — 그 달은 건너뜁니다`); return; }
+          say(`  ${ym} ${snap.label} · ${snap.meta.riskCount}건 / ${snap.meta.riskAmtCost.toFixed(1)}백만(원가)`);
+        });
+        fileHist = Object.fromEntries(Object.entries(got).filter(([, v]) => v));
+      } else {
+        say('과거월 Risk는 이미 얼려 둔 값을 씁니다 (다시 계산하려면 --rebuild-risk)');
+      }
+    }
+    riskHistory = mergeRiskHistories(repoHist, live.history, fileHist);
+    say(`Risk 이력 반영: ${riskHistory ? Object.keys(riskHistory).sort().join(', ') : '(없음 — 이번 발행부터 쌓입니다)'}`);
+  }
+
   step(++n, total, '데이터 반영');
   const browser = parseExcel(
     found.path, base,
     stdFound && fs.existsSync(stdFound.path) ? stdFound.path : null,
     ovFound && fs.existsSync(ovFound.path) ? ovFound.path : null,
-    prevPkg
+    prevPkg,
+    { riskHistory, rebuildRisk }
   );
   const s = summarize(browser.uploaded);
   if (browser.stdCost) say(`표준원가 ${browser.stdCost.mats.toLocaleString('ko-KR')}개 자재 적용 (${browser.stdCost.sheet})`);
@@ -120,6 +172,35 @@ if (!codeOnly) {
   browser.parserNotes.filter(t => /없음|오류|불일치|누락/.test(t)).forEach(t => say('⚠', t));
   // 추이 보정은 사고가 아니라 정상 동작이라 ⚠ 없이 보여준다 — 다만 숫자가 바뀌므로 반드시 눈에 띄어야 한다.
   browser.parserNotes.filter(t => /보정/.test(t)).forEach(t => say(t));
+
+  // ── Risk 이력: 축소 가드 + 1차 저장소(리포 JSON)에 기록 ────────────────
+  {
+    const out = browser.uploaded.risk_history || null;
+    const before = riskHistory ? Object.keys(riskHistory).length : 0;
+    const after = out ? Object.keys(out).length : 0;
+    if (after < before && !forceShrink) {
+      // ⚠ 이력이 줄어드는 정상 경로는 없다. 병합 버그이거나 이어받기가 끊긴 것이다.
+      console.error(`      ❌ Risk 이력이 ${before}개월 → ${after}개월로 줄었습니다. 덮어쓰지 않고 중단합니다.`);
+      console.error(`         남아 있는 원본: ${path.relative(ROOT, RISK_HISTORY_FILE)} · 의도한 축소라면 --force-shrink`);
+      process.exit(1);
+    }
+    if (out) {
+      const months = Object.keys(out).sort();
+      say(`Risk 이력 ${after}개월 (${months.join(', ')})`);
+      months.forEach(ym => {
+        const sn = out[ym];
+        say(`  ${ym} ${sn.label || ''} · ${sn.meta?.riskCount ?? '?'}건 / ${(sn.meta?.riskAmtCost ?? 0).toFixed(1)}백만(원가)${ym === browser.uploaded.base_yearmonth ? ' ← 당월(매번 갱신)' : ' (동결)'}`);
+      });
+      if (!dryRun) {
+        const f = writeRepoRiskHistory(out);
+        if (f) say(`원본 저장: ${path.relative(ROOT, f)} — **커밋해 두세요**. KV가 비어도 여기서 복원됩니다`);
+      } else {
+        say(`--dry-run: ${path.relative(ROOT, RISK_HISTORY_FILE)} 도 쓰지 않습니다`);
+      }
+    } else {
+      say('⚠ Risk 이력이 비어 있습니다 — 월별 Risk 추적 표는 표시되지 않습니다');
+    }
+  }
 
   if (dryRun) {
     say('--dry-run: 올리지 않고 종료합니다.');

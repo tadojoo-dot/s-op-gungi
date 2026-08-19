@@ -278,9 +278,21 @@ function createBrowser(base) {
   return { sandbox, run, els, logs };
 }
 
-export function parseExcel(xlsxPath, base = LIVE_BASE, stdCostPath = null, overridePath = null, prevPkg = null) {
+export function parseExcel(xlsxPath, base = LIVE_BASE, stdCostPath = null, overridePath = null, prevPkg = null, opts = {}) {
   const browser = createBrowser(base);
   const { sandbox, run, els } = browser;
+  // 월별 Risk 이력 — 이어받을 이력과 '과거월까지 다시 계산' 여부.
+  // ⚠ handleUpload이 UPLOADED를 덮기 전에 읽으므로 반드시 handleUpload **호출 전에** 실어야 한다.
+  if (opts.riskHistory) {
+    sandbox.__riskHist = opts.riskHistory;
+    run('RISK_HISTORY_INPUT=__riskHist;');
+  }
+  if (opts.rebuildRisk) run('RISK_REBUILD_INPUT=true;');
+  // 원장 시트 강제 지정 — 한 파일이 두 달(기초재고/현재고)을 담을 때 어느 달을 볼지 고른다.
+  if (opts.inventorySheet) {
+    sandbox.__invSheet = String(opts.inventorySheet);
+    run('INVENTORY_SHEET_INPUT=__invSheet;');
+  }
   // 전월 품목군 스냅샷 — handleUpload이 result.pkg_prev로 실어 KV까지 같이 올라간다.
   // 같은 달 스냅샷이면 handleUpload 안에서 버려진다(base_yearmonth 비교).
   if (prevPkg) {
@@ -327,6 +339,100 @@ export function parseExcel(xlsxPath, base = LIVE_BASE, stdCostPath = null, overr
   const parserNotes = (browser.logs.find(l => l.text.startsWith('[SOP upload]'))?.text || '')
     .replace('[SOP upload] ', '').split(' / ').filter(Boolean);
   return { ...browser, uploaded, status: raw, missing, parserNotes, stdCost, priceOverride };
+}
+
+
+// ═══════════ 월별 Risk 이력 — 3중 저장 ═══════════════════════════════════
+// 1차: 리포에 커밋되는 JSON(data/risk_history.json) — **원본**. git 히스토리가 곧 세대별 백업이다.
+// 2차: KV dashboard:live의 risk_history — 화면이 읽는 사본.
+// 3차: 아래 가드 — KV 읽기 실패 시 중단 / 달 수 감소 시 중단 / 합집합 병합.
+// ⚠ 이력은 "회의에 나간 숫자"다. 조용히 사라지거나 바뀌면 기능 자체가 무의미해진다.
+export const RISK_HISTORY_FILE = path.join(ROOT, 'data', 'risk_history.json');
+
+export function readRepoRiskHistory() {
+  try {
+    if (!fs.existsSync(RISK_HISTORY_FILE)) return null;
+    const j = JSON.parse(fs.readFileSync(RISK_HISTORY_FILE, 'utf8'));
+    return j && typeof j === 'object' && Object.keys(j).length ? j : null;
+  } catch (e) {
+    // ⚠ 파일이 깨졌으면 조용히 넘어가지 않는다 — 덮어쓰면 원본이 날아간다.
+    throw new Error(`data/risk_history.json 을 읽지 못했습니다: ${e.message}`);
+  }
+}
+
+export function writeRepoRiskHistory(history) {
+  if (!history || !Object.keys(history).length) return null;
+  fs.mkdirSync(path.dirname(RISK_HISTORY_FILE), { recursive: true });
+  fs.writeFileSync(RISK_HISTORY_FILE, JSON.stringify(history, null, 1) + '\n', 'utf8');
+  return RISK_HISTORY_FILE;
+}
+
+// 라이브 KV의 risk 이력. ⚠ **반드시 publishParsed 전에** 호출할 것 — 올린 뒤엔 당월로 덮여 있다.
+// readLivePkgSnapshot과 달리 **네트워크 실패와 '데이터 없음'을 구분해서** 돌려준다.
+// 실패를 null로 뭉개면 빈 이력으로 덮어쓰는 사고가 난다(품목군 스냅샷이 지금 그 구멍이다).
+export async function readLiveRiskHistory(base = LIVE_BASE) {
+  // ⚠ loadSharedDashboardData()를 그냥 부르면 안 된다 — 그 함수는 **네트워크 실패도 false로 삼킨다**
+  //   (`catch(e){console.warn(...);return false;}`). '데이터 없음'과 구분이 안 되므로,
+  //   서버가 안 잡히는 상황에서 "이력 없음"으로 오인해 **빈 이력으로 KV를 덮는다**.
+  //   그래서 먼저 meta 엔드포인트로 도달 가능성과 데이터 유무를 직접 확인한다.
+  let meta;
+  try {
+    const res = await fetch(`${base}/api/dashboard-data?meta=1`, { cache: 'no-store' });
+    if (!res.ok) return { ok: false, reason: `라이브 meta 응답 HTTP ${res.status}`, history: null };
+    meta = await res.json();
+  } catch (e) {
+    return { ok: false, reason: `라이브에 연결하지 못했습니다: ${String(e.message || e).slice(0, 80)}`, history: null };
+  }
+  if (!meta || !meta.has) return { ok: true, reason: '라이브에 데이터 없음(첫 발행)', history: null };
+
+  const b = createBrowser(base);
+  const got = await b.run('loadSharedDashboardData()');
+  // 데이터가 **있다고 했는데** 못 읽었다 → 여기서 멈춰야 한다. 이력이 있는데 못 본 상황이다.
+  if (!got) return { ok: false, reason: '라이브에 데이터가 있는데 내려받지 못했습니다', history: null };
+  const raw = b.run('UPLOADED&&UPLOADED.risk_history?JSON.stringify(UPLOADED.risk_history):""');
+  if (!raw) return { ok: true, reason: '라이브에 risk 이력 없음(첫 발행)', history: null };
+  try {
+    return { ok: true, reason: '', history: JSON.parse(raw) };
+  } catch (e) {
+    return { ok: false, reason: `라이브 risk 이력 파싱 실패: ${e.message}`, history: null };
+  }
+}
+
+// 합집합. 같은 달이 양쪽에 있으면 **더 최근에 만든 것**(builtAt)을 남긴다.
+export function mergeRiskHistories(...sources) {
+  const out = {};
+  sources.filter(Boolean).forEach(src => {
+    Object.entries(src).forEach(([ym, snap]) => {
+      if (!snap || !snap.rows) return;
+      const cur = out[ym];
+      if (!cur || String(snap.builtAt || '') > String(cur.builtAt || '')) out[ym] = snap;
+    });
+  });
+  return Object.keys(out).length ? out : null;
+}
+
+// 과거 Aging 파일에서 그 달의 risk 스냅샷을 뽑는다.
+// months = readPrevMonths가 돌려준 [{yearmonth, sheet, file, ...}] — 어느 파일의 어느 시트가
+// 그 달을 대표하는지 이미 정해져 있으므로 **그 결정을 그대로 따른다**(①탭 월 필터와 같은 달을 보게).
+export function readPrevRiskSnapshots(months, prevPaths, base = LIVE_BASE, stdCostPath = null, overridePath = null) {
+  const byName = new Map((prevPaths || []).map(p => [path.basename(p), p]));
+  const out = {};
+  (months || []).forEach(m => {
+    const file = byName.get(m.file);
+    if (!file || !fs.existsSync(file)) return;
+    try {
+      const b = parseExcel(file, base, stdCostPath, overridePath, null, { inventorySheet: m.sheet });
+      const hist = b.run('UPLOADED&&UPLOADED.risk_history?JSON.stringify(UPLOADED.risk_history):""');
+      if (!hist) return;
+      const parsed = JSON.parse(hist);
+      const snap = parsed[m.yearmonth];
+      // ⚠ 요청한 달이 안 나왔으면 버린다 — 시트 지정이 안 먹어 다른 달이 잡힌 것이다.
+      if (snap) out[m.yearmonth] = snap;
+    } catch (e) {
+      out[m.yearmonth] = null;   // 호출부가 경고를 띄우도록 자리만 남긴다
+    }
+  });
+  return out;
 }
 
 export async function publishParsed(browser, { base = LIVE_BASE, password }) {
