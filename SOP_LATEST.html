@@ -5373,6 +5373,18 @@ function _renderSenTbody(){
     }
   };
   const sorted=_applySort(allSkus,_senSort,getKey);
+  // ⚠ 소진계획 키는 **행 단위**여야 한다 — ①탭 드릴다운과 같은 규칙(CLAUDE.md "①탭 소진계획 메모 키").
+  //   `SENSING|월|구간|채널|자재`만 쓰면 배치 행이 키를 공유해 한 칸에 쓰면 전부 써지고 지우면 전부 지워진다
+  //   (26/8 '18개월 이상' M+0: 259행에 고유키 72개). 배치|플랜트|저장위치까지 붙이면 1,093행 중복 0.
+  const _senLegacyTop=new Map();
+  allSkus.forEach(x=>{
+    const k=String(x.m||'')+'|'+String(x.ch||'');
+    const cur=_senLegacyTop.get(k);
+    if(!cur||(x.a||0)>(cur.a||0)) _senLegacyTop.set(k,x);
+  });
+  const senPlanKey=x=>`SENSING|${sensingLabel}|${cat}|${x.ch}|${x.m}|${x.b||''}|${x.p||''}|${x.lc||''}`;
+  const senLegacyKey=x=>_senLegacyTop.get(String(x.m||'')+'|'+String(x.ch||''))===x
+    ?`SENSING|${sensingLabel}|${cat}|${x.ch}|${x.m}`:'';
   let rows='';
   sorted.forEach(s=>{
     const remCls=s.futureCat==='환입'?'rem-y':s.futureDays<180?'rem-r':s.futureDays<270?'rem-y':'rem-g';
@@ -5395,7 +5407,7 @@ function _renderSenTbody(){
       <td class="c"><span class="tag gray">${s.nowCat}</span></td>
       <td class="c"><span class="tag" style="background:${catCol};color:#fff;font-size:10px;">${s.futureCat}</span></td>
       <td class="c">${soojinChip}</td>
-      <td class="l plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="SENSING|${sensingLabel}|${cat}|${s.ch}|${s.m}" data-screen="Aging Sensing" data-bucket="${sensingLabel} ${cat}" data-channel="${s.ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button></td>
+      <td class="l plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="${senPlanKey(s)}" data-plan-legacy-key="${senLegacyKey(s)}" data-screen="Aging Sensing" data-bucket="${sensingLabel} ${cat}" data-channel="${s.ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button></td>
     </tr>`;
   });
   const tbody=document.querySelector('#senCategoryRows tbody');
