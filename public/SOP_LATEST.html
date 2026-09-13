@@ -627,7 +627,7 @@ table.base tr:last-child td{border-bottom:none;}
 .sku-info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
 .sku-info-item{background:var(--gray-bg);border-radius:6px;padding:10px 12px;border:1px solid var(--gray-bd);}
 .sku-info-lbl{font-size:10px;color:var(--muted);font-weight:600;margin-bottom:3px;}
-.sku-info-val{font-size:14px;font-weight:800;color:var(--navy);}
+.sku-info-val{font-size:14px;font-weight:800;color:var(--navy);text-align:right;}
 .sku-info-val.red{color:var(--red);}
 /* 팝업(.sku-modal)이 스크롤되는데 의견란이 240px 차트 아래라 저장 버튼이 화면 밖에 있었다.
    바닥에 고정해 스크롤 위치와 무관하게 항상 보이게 한다. */
@@ -646,6 +646,13 @@ table.base tr:last-child td{border-bottom:none;}
 .sku-memo-hist-row:last-child{border-bottom:none;}
 .sku-memo-hist-mo{flex:0 0 44px;font-weight:800;color:var(--navy);}
 .sku-memo-hist-tx{flex:1;color:var(--text);white-space:pre-wrap;}
+.sku-memo-hist-main{flex:1;min-width:0;}
+.sku-memo-history-input{display:block;width:100%;min-height:50px;box-sizing:border-box;border:1px solid var(--border);border-radius:5px;padding:6px 8px;background:#fff;font:inherit;line-height:1.5;color:var(--text);resize:vertical;}
+.sku-memo-history-input[readonly]{border-color:transparent;background:transparent;padding:0;resize:none;}
+.sku-memo-history-actions{display:flex;justify-content:flex-end;gap:5px;margin-top:5px;}
+.sku-memo-history-actions button{height:24px;border:1px solid var(--border);border-radius:4px;background:#fff;color:var(--navy);font-size:10.5px;font-weight:800;padding:0 8px;cursor:pointer;}
+.sku-memo-history-actions button.danger{border-color:#e7b4b4;color:var(--red);}
+.sku-memo-history-actions button.save{border-color:#9bc9aa;color:var(--green);}
 .sku-memo-carry{font-size:10.5px;font-weight:700;color:var(--terra);margin-top:4px;}
 .sku-insight{background:#fff8f0;border:1px solid #f5c98a;border-radius:7px;padding:12px 14px;font-size:12px;line-height:1.7;color:#5a3000;margin-top:12px;}
 .sku-insight.good{background:#f0faf4;border-color:#7ec99a;color:#1a4d2e;}
@@ -658,6 +665,8 @@ table.base tr:last-child td{border-bottom:none;}
 .risk-trend-tbl th{background:#fff;font-size:10.5px;color:var(--muted);font-weight:800;padding:6px 8px;line-height:1.3;}
 .risk-trend-tbl th span{font-weight:700;font-size:9.5px;}
 .risk-trend-tbl td{padding:7px 8px;font-variant-numeric:tabular-nums;}
+.risk-trend-tbl th.r,.risk-trend-tbl td.r{text-align:right;}
+.risk-plan-window{display:block;margin-top:2px;font-size:9px;line-height:1.2;color:var(--muted);font-weight:700;text-align:right;white-space:nowrap;}
 .risk-trend-tbl tr:last-child td{font-weight:800;background:#FAFBFF;}
 .risk-trend-note{padding:9px 12px;border-top:1px solid var(--border);background:#FFFCF5;
   font-size:11.5px;line-height:1.6;color:#5a3000;}
@@ -1657,6 +1666,7 @@ function updateAdminModeUI(){
     el.classList.toggle('admin-editable',true);
   });
   document.querySelectorAll('#snapshotSelect,.snap-panel button').forEach(el=>{el.disabled=!isAdminMode();});
+  refreshOpenSkuMemoHistory();
   const shareBtn=document.getElementById('shareDataBtn');
   if(shareBtn){
     shareBtn.disabled=!isAdminMode();
@@ -2862,6 +2872,17 @@ function riskHistoryMonths(){
   return h?Object.keys(h).sort():[];
 }
 
+// 월평균 계획의 실제 대상 기간. PSI 내부 키(6월~9월)는 고정된 달 이름이 아니라
+// 기준월부터 이어지는 1~4번째 월 블록이므로, 기준월에서 달력을 계산해 표시한다.
+function riskPlanWindowLabel(yearmonth){
+  const m=String(yearmonth||'').match(/^(\d{4})[.\/-](\d{1,2})$/);
+  if(!m) return '기준월부터 4개월';
+  const start=new Date(Number(m[1]),Number(m[2])-1,1);
+  const end=new Date(Number(m[1]),Number(m[2])-1+3,1);
+  const fmt=d=>`${String(d.getFullYear()).slice(2)}년 ${d.getMonth()+1}월`;
+  return `${fmt(start)}~${fmt(end)} 평균`;
+}
+
 // 그 (자재|채널)의 그 달 실적수량. ⚠ **당월 파일의 hit.qty에서 live로 읽는다** —
 // 과거월 파일의 실적은 미확정본이라 당월 파일 쪽이 항상 더 최신이다.
 function riskMonthActualQty(mat,ch,yearmonth){
@@ -2907,8 +2928,8 @@ function renderRiskTrend(mat,ch){
     <td class="c">${stTag(r.st)}</td>
     <td class="r"${r.expRem>0?' style="color:var(--red);font-weight:900;"':''}>${f(r.expRem)}</td>
     <td class="r"${r.amtCost>0?' style="color:var(--red);font-weight:900;"':''}${r.amtCost>0?` title="미소진 ${f(r.expRem)}개 × 원가단가 ${f(r.unit)}원${r.src?` (${r.src})`:''}"`:''}>${r.amtCost>0?r.amtCost.toFixed(1):'—'}</td>
-    <td class="r">${f(r.avgPlan)}</td>
-    <td class="r">${f(r.act)}</td>
+    <td class="r risk-plan-cell" title="${riskPlanWindowLabel(r.ym)}에 해당하는 PSI 판매계획 평균"><strong>${f(r.avgPlan)}</strong><span class="risk-plan-window">${riskPlanWindowLabel(r.ym)}</span></td>
+    <td class="r" title="${r.label}의 전체 판매채널 실제 판매수량">${f(r.act)}</td>
   </tr>`).join('');
   // 마지막 두 달의 변화를 문장으로 풀어 준다 — 이게 이 표의 핵심이다.
   let note='';
@@ -2937,7 +2958,7 @@ function renderRiskTrend(mat,ch){
       <thead><tr>
         <th class="l">기준월</th><th class="r">재고</th><th class="c">잔여일</th><th class="c">소진판단</th>
         <th class="r">미소진 예상</th><th class="r">Risk금액<br><span>백만(원가)</span></th>
-        <th class="r">월평균 계획</th><th class="r">그달 실적</th>
+        <th class="r" title="기준월부터 4개월간 PSI 판매계획의 평균">월평균 계획<br><span>아래 기간 평균</span></th><th class="r" title="해당 기준월의 전체 판매채널 실제 판매수량">해당월 실제 판매수량<br><span>전체 판매채널 합계</span></th>
       </tr></thead>
       <tbody>${body}</tbody>
     </table>
@@ -5622,7 +5643,7 @@ function closeSkuDetail(){
 // ⚠ 지울 때 removeItem을 쓰면 안 된다 — applySharedState는 payload에 있는 키만 처리해서,
 //   키를 빼면 다른 사람 브라우저에 남아 있던 옛 값이 다음 저장 때 되살아난다. 빈 문자열로 저장한다.
 // ⚠ 입력칸은 **항상 당월(base_yearmonth)** 이다. ①탭 월 필터로 과거월을 보다가 SKU를 열어도
-//   과거 이력을 덮어쓰지 않게 하려는 것 — 과거 기록은 읽기 전용으로만 보여준다.
+//   과거 이력을 덮어쓰지 않게 하려는 것 — 과거 기록은 기본 읽기 전용이며, 관리자 모드에서만 수정·삭제할 수 있다.
 const SKU_MEMO_PREFIX='sopMemo_SKU|';
 function skuMemoMonth(){return UPLOADED?.base_yearmonth||'';}
 function skuMemoKey(mat,ym){
@@ -5678,18 +5699,73 @@ function loadSkuMemo(mat){
   if(mo) mo.textContent=ym?`· ${_ymLabel(ym)}`:'';
   const st=document.getElementById('skuMemoState');
   if(st) st.textContent=admin?((cur&&cur.trim())?'저장됨':''):'읽기 전용 (관리자 모드에서 수정)';
-  _renderSkuMemoHistory(hist,legacy,cur);
+  _renderSkuMemoHistory(mat,hist,legacy,cur);
 }
-function _renderSkuMemoHistory(hist,legacy,cur){
+function _renderSkuMemoHistory(mat,hist,legacy,cur){
   const box=document.getElementById('skuMemoHist');
   if(!box) return;
+  box.dataset.mat=String(mat||'');
   const rows=[...hist];
   // 옛 메모(월 미상)는 이번 달에 아직 저장을 안 했으면 입력칸에 이미 이어받아 있으므로 중복 표시하지 않는다.
-  if(legacy.trim()&&cur!=null&&cur!=='') rows.push({label:'이전',text:legacy});
+  if(legacy.trim()&&cur!=null&&cur!=='') rows.push({ym:'',label:'이전',text:legacy});
   if(!rows.length){ box.style.display='none'; box.innerHTML=''; return; }
+  const admin=isAdminMode();
   box.style.display='block';
-  box.innerHTML=`<div class="sku-memo-hist-lbl">이전 기록 (읽기 전용)</div>`
-    +rows.map(r=>`<div class="sku-memo-hist-row"><div class="sku-memo-hist-mo">${htmlSafe(r.label)}</div><div class="sku-memo-hist-tx">${htmlSafe(r.text)}</div></div>`).join('');
+  box.innerHTML=`<div class="sku-memo-hist-lbl">${admin?'이전 기록 · 관리자 수정 가능':'이전 기록 (읽기 전용)'}</div>`
+    +rows.map(r=>`<div class="sku-memo-hist-row" data-mat="${htmlSafe(mat)}" data-ym="${htmlSafe(r.ym||'')}">
+      <div class="sku-memo-hist-mo">${htmlSafe(r.label)}</div>
+      <div class="sku-memo-hist-main">
+        <textarea class="sku-memo-history-input" readonly>${htmlSafe(r.text)}</textarea>
+        ${admin?`<div class="sku-memo-history-actions">
+          <button type="button" onclick="editSkuMemoHistory(this)">수정</button>
+          <button type="button" class="save" style="display:none;" onclick="saveSkuMemoHistory(this)">저장</button>
+          <button type="button" class="danger" onclick="deleteSkuMemoHistory(this)">삭제</button>
+        </div>`:''}
+      </div>
+    </div>`).join('');
+}
+function refreshOpenSkuMemoHistory(){
+  document.querySelectorAll('#skuMemoHist[data-mat]').forEach(box=>{
+    const mat=box.dataset.mat||'';
+    const ym=skuMemoMonth();
+    const cur=ym?localStorage.getItem(skuMemoKey(mat,ym)):null;
+    const legacy=localStorage.getItem(skuMemoKey(mat))||'';
+    const hist=skuMemoHistory(mat).filter(h=>h.ym!==ym);
+    _renderSkuMemoHistory(mat,hist,legacy,cur);
+  });
+}
+function editSkuMemoHistory(btn){
+  if(!requireAdminMode()) return;
+  const row=btn?.closest('.sku-memo-hist-row');
+  const input=row?.querySelector('.sku-memo-history-input');
+  const save=row?.querySelector('.sku-memo-history-actions .save');
+  if(!input||!save) return;
+  input.readOnly=false;
+  input.focus();
+  input.selectionStart=input.value.length;
+  input.selectionEnd=input.value.length;
+  btn.style.display='none';
+  save.style.display='inline-block';
+}
+function saveSkuMemoHistory(btn){
+  if(!requireAdminMode()) return;
+  const row=btn?.closest('.sku-memo-hist-row');
+  const input=row?.querySelector('.sku-memo-history-input');
+  if(!row||!input) return;
+  localStorage.setItem(skuMemoKey(row.dataset.mat||'',row.dataset.ym||''),input.value);
+  queueSharedStateSave();
+  loadSkuMemo(row.dataset.mat||'');
+}
+function deleteSkuMemoHistory(btn){
+  if(!requireAdminMode()) return;
+  const row=btn?.closest('.sku-memo-hist-row');
+  if(!row) return;
+  const label=row.querySelector('.sku-memo-hist-mo')?.textContent||'이전';
+  if(!confirm(`${label} 담당 의견을 삭제하시겠습니까?\n삭제 내용은 다른 사용자 화면에서도 사라집니다.`)) return;
+  // removeItem 대신 빈 문자열로 남겨 공유 상태에서도 삭제를 전파한다.
+  localStorage.setItem(skuMemoKey(row.dataset.mat||'',row.dataset.ym||''),'');
+  queueSharedStateSave();
+  loadSkuMemo(row.dataset.mat||'');
 }
 function saveSkuMemo(mat){
   if(!requireAdminMode()) return;
