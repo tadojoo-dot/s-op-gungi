@@ -2220,6 +2220,8 @@ function handleUpload(file){
       // 품목군은 현재고 시트에 없고 기준정보 시트에만 있다 → parseInventory보다 먼저 읽어서 넘긴다
       const pkgRefSheet=findSheetName(wb,'기준정보');
       const pkgMap=pkgRefSheet?parsePkgGroupMap(wb.Sheets[pkgRefSheet]):null;
+      const hierarchyMap=pkgRefSheet?parseHierarchyMap(wb.Sheets[pkgRefSheet]):null;
+      result.hierarchy_by_mat=hierarchyMap||null;
       // ── 재고 Aging의 원장 시트 ─────────────────────────────────────────────
       // 2026-08-18부터 Aging 기준이 '기초재고'(월초 스냅샷)로 바뀌었다. 같은 파일의 '현황' 시트도
       // 8월 블록 SUMIFS를 현재고! → 기초재고! 로 옮겼으므로, 여기서 현재고를 계속 읽으면
@@ -2237,7 +2239,7 @@ function handleUpload(file){
         // 여기서 순서를 바꾸면(마스터 파싱을 통째로 위로 올리면) 다른 경로에 영향이 간다.
         const dmSheet=wb.SheetNames.find(n=>String(n).replace(/\s/g,'')==='다이소마스터');
         const srcMap=dmSheet?parseDaisoMasterSheet(wb.Sheets[dmSheet]).plantByMaterial:null;
-        const p=parseInventory(wb.Sheets[invSheet],pkgMap,srcMap);
+        const p=parseInventory(wb.Sheets[invSheet],pkgMap,srcMap,hierarchyMap);
         const totalAmt=sumNestedAging(p.ch_amt);
         if(totalAmt<=0){
           warnings.push(`${invSheet}: 원장 기준 SKU 드릴다운 금액 0원 (${inventoryStatsText(p.stats)}) · 당월 AGING 차트는 현황 시트 기준으로 반영`);
@@ -2358,7 +2360,7 @@ function handleUpload(file){
             finalCount:result.psi.length,
             ...daisoMerge.stats
           };
-          if(daisoMerge.stats.unmatchedMasterCodes.length||daisoMerge.stats.unmatchedPsiCodes.length||daisoMerge.stats.nameMismatch.length){
+          if(daisoMerge.stats.unmatchedPsiCodes.length||daisoMerge.stats.nameMismatch.length){
             errors.push(`다이소 통합코드 매칭 오류: 마스터 누락 ${daisoMerge.stats.unmatchedPsiCodes.length}개, PSI 누락 ${daisoMerge.stats.unmatchedMasterCodes.length}개, 품목명 불일치 ${daisoMerge.stats.nameMismatch.length}개`);
           }else{
             warnings.push(`다이소 통합: PSI 하위 자재 ${daisoMerge.stats.mappedMaterialCount.toLocaleString()}개 합산 → 통합코드 ${daisoMerge.stats.matchedGroupCount.toLocaleString()}개 / 최종 ${result.psi.length.toLocaleString()}개`);
@@ -2371,8 +2373,15 @@ function handleUpload(file){
             if(daisoMerge.stats.missingRawMaterials.length){
               warnings.push(`다이소 마스터 하위 자재 중 PSI 미존재 ${daisoMerge.stats.missingRawMaterials.length.toLocaleString()}개: ${daisoMerge.stats.missingRawMaterials.slice(0,5).join(', ')}${daisoMerge.stats.missingRawMaterials.length>5?' 외':''}`);
             }
+            if(daisoMerge.stats.unmatchedMasterCodes.length){
+              warnings.push(`다이소 PSI 부분관리: 마스터 ${daisoMerge.stats.unmatchedMasterCodes.length}개 통합코드는 다이소(PSI) 시트에 없어 일반 PSI 원본으로 유지`);
+            }
+            if(daisoMerge.stats.negativeEnd.length){
+              const ne=daisoMerge.stats.negativeEnd.slice(0,3).map(x=>`${x.code} ${x.month} ${x.end.toLocaleString()}개`).join(', ');
+              warnings.push(`다이소 통합 음수 예상기말재고 ${daisoMerge.stats.negativeEnd.length.toLocaleString()}건 · PSI 표에 원값 표시 (${ne}${daisoMerge.stats.negativeEnd.length>3?' 외':''})`);
+            }
             if(daisoMerge.stats.balanceMismatch.length){
-              warnings.push(`다이소 통합 검증: 기초+입고-판매와 원본 기말재고가 다른 통합코드/월 ${daisoMerge.stats.balanceMismatch.length.toLocaleString()}건 · 표시는 정의대로 하위 품목 원본 단순합산`);
+              warnings.push(`다이소 통합 검증: 기초+입고-판매와 계산 기말재고가 다른 통합코드/월 ${daisoMerge.stats.balanceMismatch.length.toLocaleString()}건`);
             }
           }
         }else{
@@ -2450,6 +2459,7 @@ function handleUpload(file){
         result.daiso_group_members=members;
         warnings.push(`다이소 마스터: 개별 ${Object.keys(codeMap).length}개 → 통합코드 ${Object.keys(members).length}개 매핑 (오차분석 통합집계)`);
       }
+      applyHierarchyToResult(result,hierarchyMap);
       if(errors.length) throw new Error(errors.join(' / '));
       // ⚠ UPLOADED가 덮이기 **전에** 잡아둔다. 아래에서 UPLOADED를 새 결과로 바꾸기 때문에
       //   그 뒤에 읽으면 방금 만든 값(=이력 없음)을 이어받게 되어 **과거 이력이 통째로 사라진다**.
@@ -2566,7 +2576,7 @@ function normalizeSourcePlant(v){
 }
 // ⚠ 3번째 인자 srcMap(자재코드→생산처)은 ①탭 '생산처' 필터 전용이다.
 //   안 넘겨도 동작한다 — 그 경우 원장 플랜트명(=창고)으로 폴백한다(배포 도구의 전월 스냅샷 경로가 그렇다).
-function parseInventory(ws,pkgMap,srcMap){
+function parseInventory(ws,pkgMap,srcMap,hierarchyMap){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
   const data=rows.slice(2); // 3행부터 (2행=헤더)
   // 수량 = 가용(I)+품질검사(K)+보류(N), 금액 = 가용금액(J)+검사금액(L)+보류금액(O)
@@ -2648,7 +2658,7 @@ function parseInventory(ws,pkgMap,srcMap){
     const chRemMo=Math.round(parseNum(row[C.CHDL_MO]))||0;
     const plant=String(row[C.PLANT]||'').trim();
     if(plant&&!plants[plant]) plants[plant]=String(row[C.PLANT_NAME]||'').trim()||plant;
-    const sku={m:mat,n:name,q:qty,av,qc,hd,a:Math.round(amt*1e8/1e6*10)/10,t:matType,r:rem,chRemMo,p:plant,sp:src,
+    const sku={m:mat,n:name,hierarchy:hierarchyMap?.[String(mat)]||'',q:qty,av,qc,hd,a:Math.round(amt*1e8/1e6*10)/10,t:matType,r:rem,chRemMo,p:plant,sp:src,
       // b/lc는 화면에 안 그린다 — 드릴다운 소진계획 메모 키를 행 단위로 만들기 위한 식별자다.
       b:String(row[C.BATCH]||'').trim(), lc:String(row[C.LOC]||'').trim()};
     // 유통기한 기준 (AO열)
@@ -2724,6 +2734,49 @@ function parsePkgGroupMap(ws){
     });
   });
   return Object.keys(map).length?map:null;
+}
+
+// 기준정보의 품목 계층(S/A/B/C/N). 열 위치가 월별로 밀려도 헤더 이름으로 찾는다.
+// 계층은 화면마다 따로 해석하지 않고 이 맵 하나를 Aging·PSI·오차분석에 공통 적용한다.
+function parseHierarchyMap(ws){
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  const hr=rows.findIndex((r,i)=>i<10&&(r||[]).some(v=>['계층구분','계층'].includes(String(v).trim())));
+  if(hr<0) return null;
+  const h=(rows[hr]||[]).map(v=>String(v).trim());
+  const hierarchyCol=h.findIndex(v=>v==='계층구분'||v==='계층');
+  let matCol=-1;
+  for(let c=hierarchyCol-1;c>=0;c--){if(h[c]==='자재코드'){matCol=c;break;}}
+  if(matCol<0||hierarchyCol<0) return null;
+  const out={};
+  rows.slice(hr+1).forEach(r=>{
+    const mat=String(r?.[matCol]??'').trim(), hierarchy=String(r?.[hierarchyCol]??'').trim();
+    if(/^\d+$/.test(mat)&&hierarchy&&!out[mat]) out[mat]=hierarchy;
+  });
+  return Object.keys(out).length?out:null;
+}
+
+function hierarchyForRow(row,map,result){
+  const mat=String(row?.mat??row?.m??'').trim();
+  if(map?.[mat]) return map[mat];
+  const members=row?.componentCodes||result?.daiso_group_members?.[mat]||[];
+  const values=[...new Set(members.map(code=>map?.[String(code)]).filter(Boolean))];
+  return values.length===1?values[0]:(values.length>1?'혼합':'');
+}
+function applyHierarchyToResult(result,map){
+  if(!result||!map) return;
+  const apply=row=>{if(row&&typeof row==='object') row.hierarchy=hierarchyForRow(row,map,result);};
+  [result.monthly_mx,result.monthly_mx_delivery].forEach(months=>{
+    Object.values(months||{}).forEach(mx=>Object.values(mx||{}).forEach(ch=>Object.values(ch||{}).forEach(cell=>(cell?.s||[]).forEach(apply))));
+  });
+  (result.psi||[]).forEach(apply);
+  (result.daiso_components||[]).forEach(apply);
+  const applyHit=hit=>{
+    if(!hit) return;
+    Object.values(hit.byMonth||{}).forEach(rows=>(rows||[]).forEach(apply));
+    (hit.rows||[]).forEach(apply); (hit.over||[]).forEach(apply); (hit.under||[]).forEach(apply);
+  };
+  applyHit(result.hit); applyHit(result.hit?.qty);
+  Object.entries(result.sales_plan||{}).forEach(([mat,row])=>{if(mat!=='__summary'&&row&&typeof row==='object') row.hierarchy=map[String(mat)]||'';});
 }
 
 // 품목군 집계를 화면·비교용 스냅샷으로 정규화한다 (전월분도 같은 함수를 거쳐야 두 달이 같은 기준이 된다)
@@ -3033,7 +3086,8 @@ function parsePSISheet(ws,holdByMat){
   const monthHeaderRow=(headerRow>=0?rows[headerRow]:null)||[];
   const realMonthLabel=(idx,fallback)=>{
     const v=String(monthHeaderRow[idx]||'').trim();
-    const m=v.match(/^(\d{1,2})월$/);
+    // 연말 롤링 시 '27.1월'처럼 연도가 붙는다. 마지막 월 숫자를 실제 월로 사용한다.
+    const m=v.match(/^(?:\d{2,4}[.\/-])?(\d{1,2})월$/);
     return m?`${m[1]}월`:fallback;
   };
   const monthRealLabels={
@@ -3431,17 +3485,24 @@ function getMatRatio(mat){
   return {ratio:cd.avgRatio||1,matched:false};
 }
 function parseMasterRefSheet(ws){
-  // 기준정보 시트: 2행=헤더, 3행~=데이터
-  // G(6)=자재코드, L(11)=MOQ, N(13)=채널유효기간(일), Q(16)=채널명(수정)
+  // 기준정보 시트는 월별로 열이 추가된다(26/9 P열 '계층구분' 추가로 뒤쪽 채널 열이 한 칸 이동).
+  // 자재코드·MOQ·채널유효기간·채널명(수정)을 모두 헤더 이름으로 찾아야 한다.
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
   const result={};
-  rows.slice(2).forEach(row=>{
-    const mat=String(row[6]||'').trim();
+  const hr=rows.findIndex((r,i)=>i<10&&(r||[]).some(v=>String(v).trim()==='자재코드'));
+  if(hr<0) return result;
+  const head=(rows[hr]||[]).map(v=>String(v).trim());
+  const matCol=head.indexOf('자재코드');
+  const moqCol=head.indexOf('MOQ');
+  const effCol=head.indexOf('채널유효기간');
+  const chanCol=head.indexOf('채널명(수정)');
+  rows.slice(hr+1).forEach(row=>{
+    const mat=String(row[matCol]||'').trim();
     if(!mat||!/^\d+$/.test(mat)) return;
-    const moq=Math.round(parseFloat(String(row[11]).replace(/[,\s]/g,''))||0);
-    const effRaw=String(row[13]||'').trim();
+    const moq=Math.round(parseFloat(String(row[moqCol]??'').replace(/[,\s]/g,''))||0);
+    const effRaw=String(row[effCol]??'').trim();
     const effDays=effRaw?Math.round(parseFloat(effRaw.replace(/[,\s]/g,''))||0):0;
-    const chan=String(row[16]||'').trim();
+    const chan=String(row[chanCol]??'').trim();
     if(!result[mat]) result[mat]={moq:0,effDays:0,hasChanEff:false,byChan:{}};
     if(moq>0&&result[mat].moq===0) result[mat].moq=moq;
     if(effDays>0){
@@ -3721,12 +3782,13 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
     };
   });
   const balanceMismatch=[];
+  const negativeEnd=[];
   integratedRows.forEach(row=>{
     Object.entries(row.monthlyPsi||{}).forEach(([month,value])=>{
-      const calculated=Math.max(
-        (Number(value.begin)||0)+(Number(value.buy)||0)-(Number(value.plan)||0),
-        0
+      const calculated=Math.round(
+        (Number(value.begin)||0)+(Number(value.buy)||0)-(Number(value.plan)||0)
       );
+      if(calculated<0) negativeEnd.push({code:row.mat,name:row.name,month,end:calculated});
       if(Math.abs(calculated-(Number(value.end)||0))>=1){
         balanceMismatch.push({
           code:row.mat,
@@ -3748,6 +3810,7 @@ function mergeDaisoIntegratedPSI(rawPsi,master,integrated,supply){
       unmatchedMasterCodes,
       unmatchedPsiCodes,
       nameMismatch,
+      negativeEnd,
       balanceMismatch,
       supplyMissing:[...new Set(supplyMissing)],
       supplyApplied:!!supply
@@ -4965,17 +5028,18 @@ function drilldown(ch, cat){
   if(cat==='18개월 이상'&&(mxData[ch]||{})['18개월 이상']){
     const total=(d.q||0);
     const shown=skus.reduce((a,s)=>a+(s.q||0),0);
-    if(total>shown) overflowNote=`<tr><td colspan="12" style="text-align:center;padding:8px;color:var(--muted);font-size:11px;">... 상위 ${skus.length}개 표시 / 전체 SKU는 현재고 시트 참조</td></tr>`;
+    if(total>shown) overflowNote=`<tr><td colspan="13" style="text-align:center;padding:8px;color:var(--muted);font-size:11px;">... 상위 ${skus.length}개 표시 / 전체 SKU는 현재고 시트 참조</td></tr>`;
   }
   _ddState={skus,ch,cat,overflowNote};
 
   const si=col=>_sortIcon(_ddSort,col);
   const h=`<table class="dd-table"><colgroup>
-    <col style="width:10%"><col style="width:18%"><col style="width:7%"><col style="width:6%"><col style="width:6%"><col style="width:6%">
+    <col style="width:9%"><col style="width:17%"><col style="width:5%"><col style="width:7%"><col style="width:6%"><col style="width:6%"><col style="width:6%">
     <col style="width:8%"><col style="width:7%"><col style="width:8%"><col style="width:7%"><col style="width:7%"><col style="width:10%">
   </colgroup><thead><tr>
     <th class="l" data-scol="code" onclick="sortDDCol('code')" style="cursor:pointer;">자재코드${si('code')}</th>
     <th class="l" data-scol="name" onclick="sortDDCol('name')" style="cursor:pointer;">자재명${si('name')}</th>
+    <th class="c" data-scol="hierarchy" onclick="sortDDCol('hierarchy')" style="cursor:pointer;">계층${si('hierarchy')}</th>
     <th class="r" data-scol="qty" onclick="sortDDCol('qty')" style="cursor:pointer;">수량(합계)${si('qty')}</th>
     <th class="r" data-scol="avail" onclick="sortDDCol('avail')" style="cursor:pointer;">가용${si('avail')}</th>
     <th class="r" data-scol="qc" onclick="sortDDCol('qc')" style="cursor:pointer;">품질${si('qc')}</th>
@@ -5172,6 +5236,7 @@ function _renderDDTbody(){
     switch(col){
       case 'code': return String(s.m||'');
       case 'name': return String(s.n||'');
+      case 'hierarchy': return String(s.hierarchy||'');
       case 'qty': return s.q||0;
       case 'avail': return s.av||0;
       case 'qc': return s.qc||0;
@@ -5223,6 +5288,7 @@ function _renderDDTbody(){
     rows+=`<tr class="clickable-row" data-mat="${escapeSensingText(String(s.m||''))}" data-name="${escapeSensingText(String(s.n||''))}" data-ch="${escapeSensingText(ch)}" data-qty="${s.q||0}" data-rem="${s.r!=null?s.r:''}" data-ch-rem-mo="${s.chRemMo!=null?s.chRemMo:''}" onclick="openSkuDetailFromRow(this)">
       <td class="l" style="font-size:11px;color:var(--muted);">${s.m}</td>
       <td class="l"><strong>${s.n}</strong></td>
+      <td class="c" style="font-weight:800;color:var(--navy);">${s.hierarchy||'—'}</td>
       <td class="r"><strong>${formatQty(s.q)}</strong></td>
       <td class="r" style="color:#0a7d34;">${s.av!=null?formatQty(s.av):'—'}</td>
       <td class="r" style="color:#b8860b;">${s.qc!=null?formatQty(s.qc):'—'}</td>
@@ -6303,6 +6369,7 @@ function _psiSortKey(item,col){
   const{d,soojinStatus}=item;
   if(col==='mat') return String(d.mat||'');
   if(col==='name') return String(d.name||'');
+  if(col==='hierarchy') return String(d.hierarchy||'');
   if(col==='pkg') return d.pkg==='구강'?'구강':'건기식';
   if(col==='type') return item.isIntegrated?'다이소 통합':item.isDaisoComponent?'다이소 원본':'일반';
   if(col==='plant') return String(d.plant||'');
@@ -6392,7 +6459,7 @@ function renderPsiSubtotal(){
   };
   const label=`소계 · 표시 ${rows.length.toLocaleString('ko-KR')}건`
     +(amtMode&&noPrice?` <span style="font-weight:700;color:#8a5c00;">· 단가없음 ${noPrice}건 제외</span>`:'');
-  let h=`<th colspan="5" class="psi-sub l">${label}</th>`;
+  let h=`<th colspan="6" class="psi-sub l">${label}</th>`;
   h+=sharedAvg3
     ?`<th class="psi-sub r muted" title="3평판은 통합코드 단위라 플랜트·하위코드가 나눠 쓰는 값입니다 — 더하면 중복 계상됩니다">—</th>`
     :`<th class="psi-sub r">${fmtPsiInt(avg3Sum)}</th>`;
@@ -6472,6 +6539,7 @@ function _renderPsiTbody(){
     h+=`<tr data-mat="${d.mat}" data-name="${escapeSensingText(d.name||'')}" data-ch="${escapeSensingText(d.pkg||'')}" data-qty="${d.inv||0}" data-rem="" data-ch-rem-mo="" class="clickable-row" onclick="openSkuDetailFromRow(this)">
       <td class="l" style="font-size:11px;color:var(--muted);font-weight:800;cursor:text;user-select:all;-webkit-user-select:all;" onclick="event.stopPropagation()" title="클릭하면 자재코드 전체 선택 → Ctrl+C로 복사">${d.mat||'—'}</td>
       <td class="l"><strong>${d.name}</strong></td>
+      <td class="c" style="font-size:11px;font-weight:800;color:var(--navy);">${d.hierarchy||'—'}</td>
       <td class="l" style="font-size:11px;color:var(--muted);">${d.pkg==='구강'?'구강':'건기식'}</td>
       <td class="l" style="font-size:11px;font-weight:800;color:${isIntegrated?'#0f766e':isDaisoComponent?'#b45309':'var(--muted)'};">${d._plantScoped?`다이소 통합 <span style="color:#b45309;">· ${d._plantOf} 몫</span>`:isIntegrated?'다이소 통합':isDaisoComponent?'다이소 원본':'일반'}</td>
       <td class="l" style="font-size:11px;color:var(--muted);font-weight:700;">${d.plant||''}</td>
@@ -6503,7 +6571,7 @@ const PSI_MONTHS=[
 //   `7+mi*7`이나 `bi+3` 같은 고정식은 두 번째 달부터 어긋난다.
 const psiHasBeginCol=m=>!!m.progress;
 const psiMonthSpan=m=>m.progress?7:4;
-const PSI_FIXED_COLS=7;                                   // 자재코드~소진판단
+const PSI_FIXED_COLS=8;                                   // 자재코드~소진판단 (계층 포함)
 const psiMonthCellOffset=mi=>PSI_MONTHS.slice(0,mi).reduce((s,m)=>s+psiMonthSpan(m),PSI_FIXED_COLS);
 const psiTotalCols=()=>PSI_FIXED_COLS+PSI_MONTHS.reduce((s,m)=>s+psiMonthSpan(m),0)+1; // +1 = 소진계획
 const fmtPsiInt=v=>Math.round(Number(v)||0).toLocaleString('ko-KR');
@@ -7487,6 +7555,7 @@ function renderPSI(){
       <tr>
         <th rowspan="3" class="l" style="min-width:72px;cursor:pointer;" onclick="sortPsiCol('mat')" data-scol="mat">자재코드 ${si('mat')}</th>
         <th rowspan="3" class="l" style="min-width:178px;cursor:pointer;" onclick="sortPsiCol('name')" data-scol="name">품목명 ${si('name')}</th>
+        <th rowspan="3" class="c" style="min-width:52px;cursor:pointer;" onclick="sortPsiCol('hierarchy')" data-scol="hierarchy">계층 ${si('hierarchy')}</th>
         <th rowspan="3" class="l" style="min-width:54px;cursor:pointer;" onclick="sortPsiCol('pkg')" data-scol="pkg">품목군 ${si('pkg')}</th>
         <th rowspan="3" class="l" style="min-width:76px;cursor:pointer;" onclick="sortPsiCol('type')" data-scol="type">구분 ${si('type')}</th>
         <th rowspan="3" class="l" style="min-width:74px;cursor:pointer;" onclick="sortPsiCol('plant')" data-scol="plant">플랜트 ${si('plant')}</th>
@@ -8022,11 +8091,11 @@ function renderChDrill(){
   // ⚠ 잔여 폭은 **품목명 열**이 가져간다 — 여기만 width를 비워 둔다. 조치의견을 auto로 두면
   //    1480px 모달에서 544px까지 부풀어 정작 품목명이 잘렸다.
   body.innerHTML=`<table class="chwape chwape-drill" style="font-size:12.5px;">
-    <colgroup><col style="width:116px;"><col>
+    <colgroup><col style="width:116px;"><col><col style="width:58px;">
       <col style="width:92px;"><col style="width:92px;"><col style="width:96px;">
       <col style="width:86px;"><col style="width:86px;"><col style="width:96px;"><col style="width:240px;"></colgroup>
     <thead><tr>
-      <th class="l">품목코드</th><th class="l">품목</th>
+      <th class="l">품목코드</th><th class="l">품목</th><th>계층</th>
       <th>계획(${unit})</th><th>실적(${unit})</th><th>차이</th><th>오차율</th><th>적중률</th><th class="cw-sep">오차 기여도</th>
       <th class="l cw-sep">조치의견</th>
     </tr></thead><tbody>
@@ -8036,6 +8105,7 @@ function renderChDrill(){
       return `<tr>
         <td class="l" style="color:var(--muted);font-weight:400;">${r.mat||'—'}</td>
         <td class="l cw-item" title="${String(r.n||'').replace(/"/g,'&quot;')}">${String(r.n||'')}${daiso}</td>
+        <td style="font-weight:800;color:var(--navy);">${r.hierarchy||getHierarchyForMat(r.mat)||'—'}</td>
         <td>${fmt(r.plan)}</td>
         <td>${fmt(r.actual)}</td>
         <td style="color:${r.diff>=0?'var(--green)':'var(--red)'};font-weight:900;">${r.diff>=0?'+':''}${fmt(r.diff)}</td>
@@ -8046,7 +8116,7 @@ function renderChDrill(){
       </tr>`;
     }).join('')}
     <tr class="cw-total">
-      <td class="l"></td><td class="l">합계</td>
+      <td class="l"></td><td class="l">합계</td><td></td>
       <td>${fmt(plan)}</td><td>${fmt(rows.reduce((s,r)=>s+(Number(r.actual)||0),0))}</td>
       <td title="Σ|차이| · 초과·미달을 상쇄하지 않고 절대값으로 합산 (오차율의 분자와 동일)">${fmt(absSum)}</td>
       <td>${wape==null?'—':wape.toFixed(1)+'%'}</td>
@@ -8277,6 +8347,12 @@ function aggregateHitRows(rows){
 }
 function getDaisoCodeMap(){return UPLOADED?.daiso_code_map||null;}
 function getDaisoGroupMembers(){return UPLOADED?.daiso_group_members||null;}
+function getHierarchyForMat(mat){
+  const key=String(mat||'').trim(), direct=UPLOADED?.hierarchy_by_mat?.[key];
+  if(direct) return direct;
+  const values=[...new Set((getDaisoGroupMembers()?.[key]||[]).map(code=>UPLOADED?.hierarchy_by_mat?.[String(code)]).filter(Boolean))];
+  return values.length===1?values[0]:(values.length>1?'혼합':'');
+}
 // 다이소 개별 자재코드 → 통합코드/통합품목명으로 치환 (채널은 유지 → 채널+통합코드 집계).
 // 같은 통합품목이 여러 제조사 코드로 나뉘어 계획/실적이 분산되는 문제를 통합코드로 합산해 해소.
 function remapHitRowDaiso(row){
@@ -8285,7 +8361,7 @@ function remapHitRowDaiso(row){
   const mat=String(row.mat||'').trim();
   const g=map[mat];
   if(!g) return row;
-  return {...row,mat:g.code,n:g.name,name:g.name,_daisoIntegrated:true,_origMat:mat};
+  return {...row,mat:g.code,n:g.name,name:g.name,hierarchy:getHierarchyForMat(g.code)||row.hierarchy||'',_daisoIntegrated:true,_origMat:mat};
 }
 function getHitMonthRows(month){
   const hit=getHitData();
@@ -8670,12 +8746,12 @@ const HT_DEFAULT_SORT=[
 let impactSort=IMPACT_DEFAULT_SORT.map(s=>({...s}));
 let htSort=HT_DEFAULT_SORT.map(s=>({...s}));
 const SORT_LABELS={
-  ch:'채널',mat:'자재코드',name:'품목명',plan:'계획',actual:'실적',diff:'차이금액',absDiff:'차이금액 절대값',
+  ch:'채널',mat:'자재코드',name:'품목명',hierarchy:'계층',plan:'계획',actual:'실적',diff:'차이금액',absDiff:'차이금액 절대값',
   over:'초과금액',under:'미달금액',errorRate:'오차율',recentDirection:'최근 6개월 방향',
   correctionType:'보정유형',correctionPriority:'보정유형 우선순위',recommendedAction:'권장조치',memo:'조치의견'
 };
 function defaultSortDir(key){
-  if(['ch','mat','name','recentDirection','correctionType','recommendedAction','memo'].includes(key)) return 'asc';
+  if(['ch','mat','name','hierarchy','recentDirection','correctionType','recommendedAction','memo'].includes(key)) return 'asc';
   if(key==='correctionPriority') return 'asc';
   return 'desc';
 }
@@ -8686,6 +8762,7 @@ function sortValue(row,key){
   if(key==='ch') return String(row.ch||'');
   if(key==='mat') return String(row.mat||'');
   if(key==='name') return String(row.n||row.name||'');
+  if(key==='hierarchy') return String(row.hierarchy||getHierarchyForMat(row.mat)||'');
   if(key==='plan') return Number(row.plan)||0;
   if(key==='actual') return Number(row.actual)||0;
   if(key==='diff') return Number(row.diff)||0;
@@ -8915,13 +8992,14 @@ function renderHT(){
     ?`전체 WAPE ${refTotals.hitAcc.toFixed(1)}% · 선택유형 기여 ${displayWape.toFixed(1)}%`
     :`초과 ${totals.overRate.toFixed(1)}% + 미달 ${totals.underRate.toFixed(1)}%`;
   const unitLabel=htUnit==='qty'?'수량':'억원';
-  let h=`<table class="tbl ht-table" style="min-width:1480px;"><colgroup>
-    <col style="width:7%"><col style="width:9%"><col style="width:20%"><col style="width:9%"><col style="width:9%"><col style="width:9%">
+  let h=`<table class="tbl ht-table" style="min-width:1540px;"><colgroup>
+    <col style="width:7%"><col style="width:9%"><col style="width:18%"><col style="width:5%"><col style="width:9%"><col style="width:9%"><col style="width:9%">
     <col style="width:7%"><col style="width:9%"><col style="width:10%"><col style="width:12%"><col style="width:13%">
   </colgroup><thead><tr>
     <th class="l sortable" onclick="handleHTSort('ch',event)">채널<span data-sort-table="ht" data-sort-key="ch"></span></th>
     <th class="l sortable" onclick="handleHTSort('mat',event)">자재코드<span data-sort-table="ht" data-sort-key="mat"></span></th>
     <th class="l sortable" onclick="handleHTSort('name',event)">품목<span data-sort-table="ht" data-sort-key="name"></span></th>
+    <th class="c sortable" onclick="handleHTSort('hierarchy',event)">계층<span data-sort-table="ht" data-sort-key="hierarchy"></span></th>
     <th class="r sortable" onclick="handleHTSort('plan',event)">당월 계획(${unitLabel})<span data-sort-table="ht" data-sort-key="plan"></span></th>
     <th class="r sortable" onclick="handleHTSort('actual',event)">당월 실적(${unitLabel})<span data-sort-table="ht" data-sort-key="actual"></span></th>
     <th class="r sortable" onclick="handleHTSort('diff',event)">차이금액<span data-sort-table="ht" data-sort-key="diff"></span></th>
@@ -8935,7 +9013,7 @@ function renderHT(){
     const totalClass=displayWape<30?'g':displayWape<50?'y':'r';
     h+=`<tr class="ht-total-row" style="font-weight:900;">
       <td class="l">${fhc||'전체 채널'}</td>
-      <td class="l" colspan="2">총계 · ${totals.skuCount.toLocaleString()}개 SKU</td>
+      <td class="l" colspan="3">총계 · ${totals.skuCount.toLocaleString()}개 SKU</td>
       <td class="r">${fmtHTTotal(data,'plan')}</td>
       <td class="r">${fmtHTTotal(data,'actual')}</td>
       <td class="r" title="Σ|차이| · 초과·미달을 상쇄하지 않고 절대값으로 합산 (오차율의 분자와 동일)">${(totals.over+Math.abs(totals.under)).toFixed(2)}억</td>
@@ -8954,14 +9032,14 @@ function renderHT(){
     const memoKey=`hitAdjustMemo|${hitRowKey(d)}`;
     const memo=(localStorage.getItem(memoKey)||'').replace(/"/g,'&quot;');
     const daisoTag=d._daisoIntegrated?'<span class="tag b" style="font-size:9px;padding:0 4px;margin-left:4px;vertical-align:middle;" title="다이소 통합코드 · 개별 제조사 코드 합산">통합</span>':'';
-    h+=`<tr${d.needCorrection?'':' style="opacity:0.72;"'}><td class="l">${d.ch}</td><td class="l" style="color:var(--muted);font-weight:700;">${d.mat||'—'}</td><td class="l"><button class="link-btn item-ellipsis" title="${name}" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;" onclick="openPlanAdjustModalByIndex(${idx})">${name}</button>${daisoTag}</td>
+    h+=`<tr${d.needCorrection?'':' style="opacity:0.72;"'}><td class="l">${d.ch}</td><td class="l" style="color:var(--muted);font-weight:700;">${d.mat||'—'}</td><td class="l"><button class="link-btn item-ellipsis" title="${name}" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;" onclick="openPlanAdjustModalByIndex(${idx})">${name}</button>${daisoTag}</td><td class="c" style="font-weight:800;color:var(--navy);">${d.hierarchy||getHierarchyForMat(d.mat)||'—'}</td>
       <td class="r">${fmtHTPlanActual2dp(d,'plan',htUnit)}</td><td class="r">${fmtHTPlanActual2dp(d,'actual',htUnit)}</td><td class="r ${d.diff>=0?'diff-pos':'diff-neg'}">${fmtHTDiff2dp(d,htUnit)}</td>
       <td class="r"><span class="tag ${ac}">${err}</span></td><td class="c">${d.recentDirection}</td><td class="c"><span class="tag ${ac}">${d.correctionType}</span></td>
       <td class="l">${d.recommendedAction}</td><td class="l"><textarea class="action-memo${memo.trim()?' saved':''}" data-memo-key="${memoKey}" oninput="saveSharedTextInput(this)" placeholder="조치의견 입력">${memo}</textarea></td>
     </tr>`;
   });
   if(!data.length){
-    h+=`<tr><td colspan="11" style="text-align:center;padding:16px;color:var(--muted);">해당 없음</td></tr>`;
+    h+=`<tr><td colspan="12" style="text-align:center;padding:16px;color:var(--muted);">해당 없음</td></tr>`;
   }
   document.getElementById('htWrap').innerHTML=h+`</tbody></table>`;
   renderSortIndicators('ht',htSort,'htSortSummary');

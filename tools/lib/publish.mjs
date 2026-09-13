@@ -30,7 +30,7 @@ function listExcels(dir = ROOT) {
       if (e.name.startsWith('.') || skip.has(e.name)) continue;
       const full = path.join(d, e.name);
       if (e.isDirectory()) walk(full, depth + 1);
-      else if (/\.xlsx?$/i.test(e.name) && !e.name.startsWith('~$')) {
+      else if (/\.(?:xlsx?|xlsm)$/i.test(e.name) && !e.name.startsWith('~$')) {
         hits.push({ path: full, name: e.name, mtime: fs.statSync(full).mtimeMs });
       }
     }
@@ -462,7 +462,7 @@ export function summarize(uploaded) {
     baseLabel: uploaded.base_label || '(미상)',
     uploadedAt: uploaded.uploaded_at || '',
     psiRows: uploaded.psi?.length ?? 0,
-    salesPlanSkus: Object.keys(uploaded.sales_plan || {}).length,
+    salesPlanSkus: Object.keys(uploaded.sales_plan || {}).filter(k => !String(k).startsWith('__')).length,
     monthLabels: uploaded.psi?.[0]?.monthRealLabels || {}
   };
 }

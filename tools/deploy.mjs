@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 엑셀을 여기에 올려두고 이 명령 하나만 실행하면 운영 사이트에 반영된다.
 //
-//   npm run deploy                       리포에서 가장 최근 엑셀을 자동으로 찾아 반영
+//   npm run deploy                       리포에서 가장 최근 엑셀(.xlsx/.xlsm)을 자동으로 찾아 반영
 //   npm run deploy -- 파일.xlsx           특정 파일 지정
 //   npm run deploy -- --code-only        엑셀 없이 코드 변경만 배포
 //   npm run deploy -- --data-only        코드 배포 없이 데이터만 반영
@@ -44,14 +44,14 @@ let n = 0;
 // ── 1. 데이터 반영 ─────────────────────────────────────────────────────────
 if (!codeOnly) {
   step(++n, total, '엑셀 찾기');
-  const explicit = args.find(a => /\.xlsx?$/i.test(a));
+  const explicit = args.find(a => /\.(?:xlsx?|xlsm)$/i.test(a));
   const found = explicit
     ? { path: path.resolve(ROOT, explicit), mtime: fs.existsSync(path.resolve(ROOT, explicit)) ? fs.statSync(path.resolve(ROOT, explicit)).mtimeMs : 0 }
     : findLatestExcel();
 
   if (!found || !fs.existsSync(found.path)) {
     console.error('      엑셀 파일을 찾지 못했습니다.');
-    console.error('      이 폴더에 .xlsx 파일을 올린 뒤 다시 실행하거나, 코드만 배포하려면 --code-only 를 붙이세요.');
+    console.error('      이 폴더에 .xlsx/.xlsm 파일을 올린 뒤 다시 실행하거나, 코드만 배포하려면 --code-only 를 붙이세요.');
     process.exit(1);
   }
   const mins = Math.round((Date.now() - found.mtime) / 60000);

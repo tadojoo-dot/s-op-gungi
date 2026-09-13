@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 데이터만 반영하는 얇은 CLI. 보통은 `npm run deploy` 를 쓰면 된다.
-//   ADMIN_PASSWORD=xxx node tools/publish-data.mjs <파일.xlsx> [--base URL] [--dry-run]
+//   ADMIN_PASSWORD=xxx node tools/publish-data.mjs <파일.xlsx|파일.xlsm> [--base URL] [--dry-run]
 import fs from 'fs';
 import path from 'path';
 import { ROOT, LIVE_BASE, readPassword, findLatestExcel, parseExcel, publishParsed, summarize } from './lib/publish.mjs';
@@ -9,12 +9,12 @@ const args = process.argv.slice(2);
 const i = args.indexOf('--base');
 const base = String(i >= 0 ? args[i + 1] : LIVE_BASE).replace(/\/$/, '');
 const dryRun = args.includes('--dry-run');
-const explicit = args.find(a => /\.xlsx?$/i.test(a));
+const explicit = args.find(a => /\.(?:xlsx?|xlsm)$/i.test(a));
 const target = explicit ? path.resolve(ROOT, explicit) : findLatestExcel()?.path;
 
 if (!target || !fs.existsSync(target)) {
   console.error('엑셀 파일을 찾지 못했습니다.');
-  console.error('사용법: ADMIN_PASSWORD=xxx node tools/publish-data.mjs <파일.xlsx> [--base URL] [--dry-run]');
+  console.error('사용법: ADMIN_PASSWORD=xxx node tools/publish-data.mjs <파일.xlsx|파일.xlsm> [--base URL] [--dry-run]');
   process.exit(1);
 }
 
