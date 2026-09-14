@@ -175,14 +175,28 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .plan-cell-td .plan-cell.saved{background:transparent!important;}
 .plan-clear-btn{position:absolute;top:2px;right:2px;width:14px;height:14px;line-height:12px;text-align:center;padding:0;border:none;border-radius:50%;background:rgba(214,69,112,.18);color:#a3405f;font-size:9px;font-weight:700;cursor:pointer;opacity:.5;transition:opacity .15s;}
 .plan-clear-btn:hover{opacity:1;background:#d64570;color:#fff;}
-.psi-buy-input{width:78px;text-align:right;border:1px solid #b0c4e0;border-radius:3px;padding:1px 4px;font-size:11px;font-weight:700;background:#f0f8ff;color:var(--navy);height:21px;box-sizing:border-box;}
+.psi-buy-input,.psi-buy-trigger{width:78px;text-align:right;border:1px solid #b0c4e0;border-radius:3px;padding:1px 4px;font-size:11px;font-weight:700;background:#f0f8ff;color:var(--navy);height:21px;box-sizing:border-box;}
 .psi-buy-input:focus{outline:2px solid #4a90e2;background:#e8f4fd;}
-.psi-buy-input.psi-buy-empty{background:#f3f4f6;color:var(--muted);border-color:#d1d5db;}
-.psi-buy-input.psi-buy-override{background:#fffbe6;color:#7c5c00;border-color:#e3b341;}
+.psi-buy-trigger{cursor:pointer;font-family:inherit;}
+.psi-buy-trigger:disabled{background:#f7f8fa!important;color:var(--text)!important;cursor:default;}
+.psi-buy-cell{white-space:nowrap;}
+.psi-buy-trigger.psi-buy-empty{background:#f3f4f6;color:var(--muted);border-color:#d1d5db;}
+.psi-buy-trigger.psi-buy-override{background:#fffbe6;color:#7c5c00;border-color:#e3b341;}
 /* 입고 개별 초기화 버튼: 조정된 칸에만 표시 */
 .psi-buy-reset{display:none;margin-left:2px;width:15px;height:16px;line-height:13px;padding:0;border:1px solid #e3b341;background:#fff;color:#a8760a;font-size:10px;border-radius:3px;cursor:pointer;vertical-align:middle;}
 .psi-buy-reset:hover{background:#fff3d0;}
-.psi-buy-input.psi-buy-override + .psi-buy-reset{display:inline-block;}
+.psi-buy-trigger.psi-buy-override + .psi-buy-reset{display:inline-block;}
+.psi-buy-editor{width:min(360px,calc(100vw - 32px));margin:auto;padding:22px;border:1px solid var(--border);border-top:4px solid var(--navy);border-radius:10px;color:var(--text);box-shadow:0 12px 48px #10145c30;}
+.psi-buy-editor::backdrop{background:#10145c45;}
+.psi-buy-editor h3{margin:0 0 8px;font-size:17px;}
+.psi-buy-editor p{margin:0 0 16px;font-size:12px;line-height:1.6;color:var(--muted);}
+.psi-buy-editor label{display:block;font-size:12px;font-weight:700;margin-bottom:7px;}
+.psi-buy-editor .psi-buy-input{width:100%;height:42px;font-size:20px;padding:8px 10px;background:#fff;}
+.psi-buy-editor-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
+.psi-buy-editor-actions button{padding:8px 18px;border:1px solid var(--border);border-radius:5px;font:inherit;cursor:pointer;background:#fff;color:var(--navy);}
+.psi-buy-editor-actions button[type=submit]{background:var(--navy);color:#fff;}
+.psi-buy-save-status{font-size:12px;font-weight:700;min-height:18px;margin:8px 16px;color:var(--green);}
+.psi-buy-save-status.error{color:var(--red);}
 .minutes-simple{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .quick-minutes{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;}
 .quick-minutes h3{font-size:14px;color:var(--navy);margin-bottom:8px;}
@@ -260,10 +274,10 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
    → `.cw-act`/`.cw-plan`은 클래스만 남기고 배경을 주지 않는다(마크업은 그대로 두어 되돌리기 쉽게). */
 .chwape th.cw-grp{font-size:11.5px;font-weight:800;color:#4B5268;letter-spacing:.02em;padding:7px 6px;
   border-bottom:1px solid var(--border);background:#EAEDF4;}
-/* 계획 구간이 한 달만 남을 때(예: 11월) 그룹명이 열 폭을 밀어내지 않게 한다.
-   한 칸짜리 그룹도 '판매계획 / (억원)'으로 접혀 숫자 열 폭을 그대로 유지한다. */
+/* 실적·판매계획 그룹 레이블도 오차율과 동일한 글자 크기·굵기로 통일한다.
+   계획 구간이 한 달만 남아도 줄바꿈으로 숫자 열 폭은 그대로 유지한다. */
 .chwape.chwape-lg th.cw-grp{white-space:normal;line-height:1.2;word-break:keep-all;}
-.chwape.chwape-lg th.cw-grp.cw-plan{font-size:10.5px;padding-left:2px;padding-right:2px;}
+.chwape.chwape-lg th.cw-grp.cw-act,.chwape.chwape-lg th.cw-grp.cw-plan{font-size:11.5px;font-weight:800;padding-left:2px;padding-right:2px;}
 /* 판매계획 시트 기준 월별 실적·계획 숫자. 오차율보다 한 단계 작고 옅은 **보조 정보**다.
    ⚠ 계획 구간은 배경으로만 가른다 — 예전엔 글자색까지 #5A6180으로 내려 옅은 배경 위에서 잘 안 보였다. */
 .chwape.chwape-lg th.cw-mv{font-size:10.5px;padding:5px 3px;font-weight:700;}
@@ -272,7 +286,7 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
    특히 11월처럼 마지막 계획 열만 넓어지는 브라우저별 table-layout 차이를 막는다. */
 .chwape.chwape-lg col.cw-month-col{width:48px!important;min-width:48px!important;max-width:48px!important;}
 .chwape.chwape-lg th.cw-month-col,.chwape.chwape-lg td.cw-mv{width:48px!important;min-width:48px!important;max-width:48px!important;box-sizing:border-box;padding-left:2px!important;padding-right:2px!important;}
-.chwape.chwape-lg th.cw-grp.cw-plan span{font-size:9px;font-weight:700;letter-spacing:0;}
+.chwape.chwape-lg th.cw-grp.cw-plan span{font-size:11.5px;font-weight:800;letter-spacing:0;}
 .chwape.chwape-lg col.cw-memo-col{width:280px!important;min-width:280px!important;max-width:280px!important;}
 .chwape.chwape-lg td.chmemo-td{width:280px!important;min-width:280px!important;max-width:280px!important;}
 .chwape.chwape-lg td.chmemo-td textarea.action-memo{width:100%;box-sizing:border-box;}
@@ -637,6 +651,8 @@ table.base tr:last-child td{border-bottom:none;}
 
 /* SKU 정상소진 모달 */
 .sku-modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;}
+/* 오차 상세에서 연 2차 판매계획 보정 팝업은 기존 상세 팝업보다 항상 위에 표시한다. */
+#planAdjustModal{z-index:10001;}
 .sku-modal{background:#fff;border-radius:8px;border-top:3px solid var(--navy);width:min(780px,96vw);max-height:92vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.22);display:flex;flex-direction:column;}
 .sku-modal-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f5f7ff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1;gap:8px;flex-wrap:wrap;}
 .sku-modal-body{padding:18px;}
@@ -1079,6 +1095,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
       </div>
     </div>
     <div class="sec-body flush" style="overflow-x:auto;">
+      <div id="psiBuySaveStatus" class="psi-buy-save-status" role="status" aria-live="polite">입고 숫자 클릭 → 수량 입력 → Enter 또는 저장 · 입력칸을 비우고 Enter = 원본값으로 초기화</div>
       <div id="psiWrap"></div>
       <div class="remark-box" style="margin:10px 16px 14px;">
         <strong>비고 · PSI 보조 기준 산식</strong><br>
@@ -1675,7 +1692,7 @@ function updateAdminModeUI(){
   }
   if(note) note.textContent=isAdminMode()?'수정 가능':'읽기 전용';
   document.querySelectorAll('#meetingMemo,#decisionMemo,.action-memo').forEach(el=>{el.readOnly=!isAdminMode();});
-  document.querySelectorAll('.psi-buy-input').forEach(el=>{el.disabled=!isAdminMode();});
+  document.querySelectorAll('.psi-buy-input,.psi-buy-trigger,.psi-buy-reset').forEach(el=>{el.disabled=!isAdminMode();});
   document.querySelectorAll('.plan-cell[data-plan-key]').forEach(el=>{
     el.contentEditable=isAdminMode()?'true':'false';
     el.classList.toggle('admin-editable',true);
@@ -5750,8 +5767,8 @@ function closeSkuDetail(){
 }
 // SKU별 담당 의견 — **월별 이력**으로 쌓는다. 공유 상태 프리픽스('sopMemo_')를 그대로 써서 KV로 같이 올라간다.
 //   키: sopMemo_SKU|<자재코드>|<기준월>   예) sopMemo_SKU|7302460|2026.08
-// ⚠ 지울 때 removeItem을 쓰면 안 된다 — applySharedState는 payload에 있는 키만 처리해서,
-//   키를 빼면 다른 사람 브라우저에 남아 있던 옛 값이 다음 저장 때 되살아난다. 빈 문자열로 저장한다.
+// ⚠ 접두사 키를 지울 때는 다른 브라우저에도 삭제가 전파되도록 빈 문자열로 저장한다.
+// 고정 키(PSI 조정값 등)는 applySharedState가 서버 스냅샷에 없는 키까지 정리한다.
 // ⚠ 입력칸은 **항상 당월(base_yearmonth)** 이다. ①탭 월 필터로 과거월을 보다가 SKU를 열어도
 //   과거 이력을 덮어쓰지 않게 하려는 것 — 과거 기록은 기본 읽기 전용이며, 관리자 모드에서만 수정·삭제할 수 있다.
 const SKU_MEMO_PREFIX='sopMemo_SKU|';
@@ -6688,7 +6705,7 @@ function _renderPsiTbody(){
       const buyLocked=psiUnitMode!=='qty'||d._plantScoped;
       const lockWhy=d._plantScoped?'입고 조정은 플랜트 전체(통합) 기준에서만 가능합니다':'입고 조정은 수량 모드에서만 가능합니다';
       let buyCell=!buyLocked
-        ?`<td class="r"><input type="text" class="psi-buy-input${buyCls?' '+buyCls:''}" onclick="event.stopPropagation()" data-mat="${d.mat}" data-mo="${m.key}" data-orig-buy="${origBuy}" value="${r.buy.toLocaleString('ko-KR')}"><button type="button" class="psi-buy-reset" title="이 입고 조정을 원래값(${fmtPsiInt(origBuy)})으로 초기화" onclick="event.stopPropagation();resetPsiBuyCell(this)">↺</button></td>`
+        ?`<td class="r psi-buy-cell" onclick="event.stopPropagation()"><button type="button" class="psi-buy-trigger${buyCls?' '+buyCls:''}" onclick="openPsiBuyEditor(this)" data-mat="${d.mat}" data-mo="${m.key}" data-orig-buy="${origBuy}" data-buy="${r.buy}" aria-label="${escapeSensingText(d.mat+' '+(d.monthRealLabels?.[m.key]||m.key)+' 입고계획 수정')}" title="클릭하여 입고수량 수정">${fmtPsiInt(r.buy)}</button><button type="button" class="psi-buy-reset" title="이 입고 조정을 원래값(${fmtPsiInt(origBuy)})으로 초기화" onclick="resetPsiBuyCell(this)">↺</button></td>`
         :`<td class="r"${buyOvOn?' style="color:#8a5c00;font-weight:900;"':''} title="수량 ${fmtPsiInt(r.buy)}개${buyOvOn?' · 직접 조정한 값':''} · ${lockWhy}">${fmtPsiCell(r.buy,d.mat)}</td>`;
       const daysTitle=d._plantScoped
         ? ` title="${d._plantOf} 몫 기말재고 ${fmtPsiInt(r.end)}개 ÷ 통합 다음달 판매계획 × 30 · 신호등은 통합 기준 판정"`
@@ -6697,7 +6714,7 @@ function _renderPsiTbody(){
       const beginCell=psiHasBeginCol(m)
         ?`<td class="r month-start"${psiCellTitle(r.begin,d.mat)}>${fmtPsiCell(r.begin,d.mat)}</td>`
         :'';
-      if(!psiHasBeginCol(m)&&!/class="r month-start"/.test(buyCell)) buyCell=buyCell.replace('<td class="r"','<td class="r month-start"');
+      if(!psiHasBeginCol(m)) buyCell=buyCell.replace('<td class="r','<td class="r month-start');
       return `${beginCell}${buyCell}<td class="r"${psiCellTitle(r.plan,d.mat)}>${fmtPsiCell(r.plan,d.mat)}</td><td class="r"${endCls}${psiCellTitle(r.end,d.mat)}>${fmtPsiCell(r.end,d.mat)}</td><td class="c month-end"${daysTitle}><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig,r.noStock)}</td>`;
     }).join('');
     const sCls=_psiSoojinCls[soojinStatus]||'gray';
@@ -7022,16 +7039,17 @@ function getPsiSimBuy(){
 }
 function setPsiSimBuyVal(mat,moKey,val){
   if(!requireAdminMode()) return;
-  const data=getPsiSimBuyRaw();
-  if(!data[mat])data[mat]={};
+  const stored=getPsiSimBuyRaw();
+  const data={...stored,[mat]:{...stored[mat]}};
   delete data[mat][moKey];                          // 같은 달의 옛 위치 키 잔재 제거
   data[mat][psiSimBuyStoreKey(moKey)]=val;
   localStorage.setItem(PSI_SIM_BUY_KEY,JSON.stringify(data));
   queueSharedStateSave();
 }
 function deletePsiSimBuyVal(mat,moKey){
-  const data=getPsiSimBuyRaw();
-  if(!data[mat]) return;
+  const stored=getPsiSimBuyRaw();
+  if(!stored[mat]) return;
+  const data={...stored,[mat]:{...stored[mat]}};
   delete data[mat][psiSimBuyStoreKey(moKey)];
   delete data[mat][moKey];                          // 옛 위치 키 잔재도 같이 정리
   if(!Object.keys(data[mat]).length) delete data[mat];
@@ -7045,7 +7063,8 @@ function recalcPsiRow(mat,opts={}){
     .find(row=>String(row.dataset.mat||'')===String(mat||''));
   if(!tr)return;
   try{
-    const d=getPSIData().find(p=>String(p.mat)===String(mat));
+    const d=_psiState.data.find(item=>String(item.d.mat)===String(mat))?.d
+      ||getPSIData().find(p=>String(p.mat)===String(mat));
     if(!d)return;
     const rowOv=getPsiSimBuy()[mat]||{};
     let prev=null;
@@ -7078,16 +7097,17 @@ function recalcPsiRow(mat,opts={}){
 function resetPsiBuyCell(btn){
   if(!requireAdminMode()) return;
   const inp=btn.previousElementSibling;
-  if(!inp||!inp.classList.contains('psi-buy-input')) return;
+  if(!inp||!inp.classList.contains('psi-buy-trigger')) return;
   const mat=inp.dataset.mat, mo=inp.dataset.mo;
   const origBuy=Number(inp.dataset.origBuy||0);
   deletePsiSimBuyVal(mat,mo);
-  inp.value=origBuy.toLocaleString('ko-KR');
+  inp.dataset.buy=String(origBuy);
+  inp.textContent=fmtPsiInt(origBuy);
   inp.classList.remove('psi-buy-override');           // → CSS가 초기화 버튼 자동 숨김
   inp.classList.toggle('psi-buy-empty',origBuy===0);
-  logPsiBuyAction(mat,mo,inp.closest('tr')?.dataset.name||'',origBuy,origBuy);
-  recalcPsiRow(mat);                                   // 전체 재렌더 없이 해당 행만 갱신(스크롤 유지)
-  renderPSIRiskChart();
+  logPsiBuyAction(mat,mo,inp.closest('tr')?.dataset.name||'',origBuy,origBuy,{render:false});
+  notePsiBuySaved(mat,mo);
+  schedulePsiBuyUiRefresh(mat,mo);
 }
 function resetPsiBuyOverrides(){
   if(!requireAdminMode()) return;
@@ -7099,17 +7119,19 @@ function resetPsiBuyOverrides(){
   queueSharedStateSave();
   // 전체 재렌더 대신 조정됐던 입력칸만 제자리에서 원복 + 해당 행만 재계산 (성능)
   const mats=new Set();
-  document.querySelectorAll('#psiWrap .psi-buy-input.psi-buy-override').forEach(inp=>{
+  document.querySelectorAll('#psiWrap .psi-buy-trigger.psi-buy-override').forEach(inp=>{
     const origBuy=Number(inp.dataset.origBuy||0);
-    inp.value=origBuy.toLocaleString('ko-KR');
+    inp.dataset.buy=String(origBuy);
+    inp.textContent=fmtPsiInt(origBuy);
     inp.classList.remove('psi-buy-override');
     inp.classList.toggle('psi-buy-empty',origBuy===0);
     if(inp.dataset.mat) mats.add(inp.dataset.mat);
   });
-  mats.forEach(mat=>recalcPsiRow(mat));
+  mats.forEach(mat=>schedulePsiBuyUiRefresh(mat,PSI_MONTHS[0].key));
+  schedulePsiBuyUiRefresh(null,PSI_MONTHS[0].key);
   setPsiActionLog([]);
   renderPsiActionLog();
-  renderPSIRiskChart();
+  notePsiBuySaved('입고 조정 초기화','');
 }
 // ─ PSI Action Log (입고수량 조정 기록) ─
 const PSI_LOG_KEY='sopPsiActionLog_v1';
@@ -7157,6 +7179,18 @@ function collectSharedState(){
 }
 function applySharedState(state){
   if(!state||typeof state!=='object') return false;
+  // 공유 상태는 부분 패치가 아니라 현재 live 상태의 전체 스냅샷이다.
+  // 서버에서 마지막 PSI 조정값을 삭제하면 응답에 해당 키가 없어지므로,
+  // 기존 브라우저의 localStorage에도 남은 값을 같이 지워야 삭제가 되살아나지 않는다.
+  const managedKeys=new Set(SHARED_STATE_FIXED_KEYS);
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(key&&SHARED_STATE_PREFIXES.some(prefix=>key.startsWith(prefix))) managedKeys.add(key);
+  }
+  const incomingKeys=new Set(Object.keys(state));
+  managedKeys.forEach(key=>{
+    if(!incomingKeys.has(key)) localStorage.removeItem(key);
+  });
   Object.entries(state).forEach(([key,val])=>{
     if(SHARED_STATE_FIXED_KEYS.includes(key)||SHARED_STATE_PREFIXES.some(prefix=>key.startsWith(prefix))){
       if(val==null) localStorage.removeItem(key);
@@ -7366,6 +7400,7 @@ async function saveSharedState(){
   // 여러 셀을 연속 수정할 때 이전 PUT이 늦게 도착해 최신 상태를 덮어쓰지 않도록
   // 요청을 순서대로 보낸다. payload는 호출 시점에 캡처해 각 편집 상태를 보존한다.
   const payload={state:collectSharedState(),adminPassword:ADMIN_PASSWORD};
+  const psiRevision=psiBuySaveRevision;
   const request=async()=>{
     const res=await fetch('/api/shared-state',{
       method:'PUT',
@@ -7378,8 +7413,13 @@ async function saveSharedState(){
     }
   };
   sharedStateSaveChain=sharedStateSaveChain.catch(()=>{}).then(request);
-  try{await sharedStateSaveChain;}
-  catch(e){console.warn('shared state save failed',e);}
+  try{
+    await sharedStateSaveChain;
+    if(psiRevision>0&&psiRevision===psiBuySaveRevision) setPsiBuySaveStatus(psiBuySaveLabel+' · 공유 저장 완료');
+  }catch(e){
+    console.warn('shared state save failed',e);
+    if(psiRevision>0&&psiRevision===psiBuySaveRevision) setPsiBuySaveStatus(psiBuySaveLabel+' · 이 브라우저에만 반영됨 · 공유 저장 실패 (관리자 접속·네트워크 확인 후 다시 저장)',true);
+  }
 }
 async function loadSharedState(){
   try{
@@ -7477,10 +7517,11 @@ function reconcilePsiActionLog(){
   const overrides=getPsiSimBuy(); // {mat:{mo:val}}
   const psiByMat=new Map(getPSIData().map(d=>[String(d.mat||''),d]));
   let log=getPsiActionLog();
+  const before=JSON.stringify(log);
   const activeKeys=new Set();
   Object.entries(overrides).forEach(([mat,months])=>{
     Object.entries(months||{}).forEach(([mo,val])=>{
-      const key=`${mat}|${mo}`;
+      const key=`${mat}|${psiSimBuyStoreKey(mo)}`;
       activeKeys.add(key);
       if(!log.some(a=>a.key===key)){
         const d=psiByMat.get(String(mat));
@@ -7495,7 +7536,7 @@ function reconcilePsiActionLog(){
   // 이미 원복돼 더 이상 활성 상태가 아닌 항목은 로그에서도 정리
   const cleaned=log.filter(a=>activeKeys.has(a.key));
   const next=cleaned.slice(0,200);
-  if(JSON.stringify(next)!==JSON.stringify(log)) setPsiActionLog(next);
+  if(JSON.stringify(next)!==before) setPsiActionLog(next);
 }
 function renderPsiActionLog(){
   const body=document.getElementById('psiActionLogBody');
@@ -7539,15 +7580,15 @@ function schedulePsiBuyUiRefresh(mat,mo){
   // 위험 차트는 당월 입고만 영향을 준다. 미래 월(특히 11월=내부 8월)을 고쳤다고
   // 현재월 TOP12 차트를 다시 만들 필요가 없고, Chart.js가 편집을 붙잡는 일도 막는다.
   if(String(mo||'')===String(PSI_MONTHS[0]?.key||'')) psiBuyRiskChartPending=true;
-  if(psiBuyRefreshFrame!=null||psiBuyRefreshTimer!=null) return;
+  if(psiBuyRefreshFrame!=null) return;
   const run=()=>{
     psiBuyRefreshFrame=null;
-    psiBuyRefreshTimer=null;
     const mats=[...psiPendingRefreshMats];
     psiPendingRefreshMats.clear();
     mats.forEach(item=>recalcPsiRow(item,{skipSubtotal:true}));
     // 행 셀만 먼저 바꿔 입력 포커스를 돌려준다. 전 품목 소계·Action Log는 다음 유휴
     // 타이밍에 한 번만 처리한다. 다이소 통합행도 이 동일한 경량 경로를 탄다.
+    clearTimeout(psiBuyRefreshTimer);
     psiBuyRefreshTimer=setTimeout(()=>{
       psiBuyRefreshTimer=null;
       try{renderPsiSubtotal();}catch(e){console.warn('PSI subtotal refresh failed',e);}
@@ -7562,62 +7603,97 @@ function schedulePsiBuyUiRefresh(mat,mo){
   else psiBuyRefreshFrame=setTimeout(run,0);
 }
 function commitPsiBuyInput(inp){
-  if(!inp) return;
+  if(!inp||!requireAdminMode()) return false;
   const mat=inp.dataset.mat,mo=inp.dataset.mo;
-  const name=inp.closest('tr')?.dataset.name||'';
+  const name=inp.dataset.name||'';
   const origBuy=Number(inp.dataset.origBuy||0);
-  const parsed=Number.parseFloat(String(inp.value||'').replace(/,/g,''));
-  const val=Number.isFinite(parsed)?Math.max(0,Math.round(parsed)):0;
-  const fingerprint=`${mat}|${mo}|${origBuy}|${val}`;
-  // 브라우저에 따라 change 뒤 blur가 연달아 온다. 같은 편집을 두 번 저장·재계산하지 않는다.
-  if(inp.dataset.psiLastCommit===fingerprint) return;
+  const raw=String(inp.value||'').replace(/,/g,'').trim();
+  // 빈 값은 "0"이 아니라 원본값 복원으로 해석한다. 그래야 사용자가
+  // 입력창의 숫자를 Backspace/Delete로 지운 뒤 Enter로 직접 초기화할 수 있다.
+  const val=raw===''?origBuy:Number(raw);
+  if(raw!==''&&(!/^\d+$/.test(raw)||!Number.isSafeInteger(val))){
+    inp.setCustomValidity('0 이상의 정수 수량을 입력하거나, 비운 뒤 Enter로 원본값을 복원해 주세요.');
+    inp.reportValidity();
+    return false;
+  }
   try{
-    inp.value=val.toLocaleString('ko-KR');
     if(val!==origBuy){
       setPsiSimBuyVal(mat,mo,val);
-      inp.classList.remove('psi-buy-empty');
-      inp.classList.add('psi-buy-override');
     } else {
       deletePsiSimBuyVal(mat,mo);
-      inp.classList.remove('psi-buy-override');
-      inp.classList.toggle('psi-buy-empty',origBuy===0);
     }
-    // localStorage와 공유 저장 예약까지만 입력 이벤트에서 처리한다.
-    // 178개 SKU 소계·로그·차트는 다음 프레임에 한 번만 갱신해 입력창이 멈추지 않게 한다.
     logPsiBuyAction(mat,mo,name,origBuy,val,{render:false});
-    inp.dataset.psiLastCommit=fingerprint;
+    document.querySelectorAll('#psiWrap .psi-buy-trigger').forEach(btn=>{
+      if(btn.dataset.mat!==mat||btn.dataset.mo!==mo) return;
+      btn.dataset.buy=String(val);
+      btn.textContent=fmtPsiInt(val);
+      btn.classList.toggle('psi-buy-override',val!==origBuy);
+      btn.classList.toggle('psi-buy-empty',val===origBuy&&origBuy===0);
+    });
+    notePsiBuySaved(mat,mo);
     schedulePsiBuyUiRefresh(mat,mo);
+    return true;
   }catch(e){
-    // 다음 blur/change에서 같은 값도 다시 시도할 수 있도록 fingerprint를 남기지 않는다.
-    inp.dataset.psiLastCommit='';
     console.warn('PSI input save failed',mat,mo,e);
+    document.getElementById('psiBuyEditorError').textContent='입력값을 저장하지 못했습니다. 값을 유지한 채 다시 저장해 주세요.';
+    return false;
   }
 }
+let psiBuyEditorTrigger=null, psiBuySaveRevision=0, psiBuySaveLabel='';
+function setPsiBuySaveStatus(message,error=false){
+  const el=document.getElementById('psiBuySaveStatus');
+  if(el){el.textContent=message;el.classList.toggle('error',error);}
+}
+function notePsiBuySaved(mat,mo){
+  psiBuySaveRevision++;
+  const row=getPSIData().find(d=>String(d.mat)===String(mat));
+  psiBuySaveLabel=(mat+' '+(row?.monthRealLabels?.[mo]||mo)).trim();
+  setPsiBuySaveStatus(psiBuySaveLabel+' · 입력 반영됨 · 공유 저장 중…');
+}
+function openPsiBuyEditor(btn){
+  if(!requireAdminMode()) return;
+  const dialog=document.getElementById('psiBuyEditor');
+  const inp=document.getElementById('psiBuyEditorInput');
+  if(!dialog||!inp) return;
+  bindPsiBuyInputs();
+  psiBuyEditorTrigger=btn;
+  const mat=btn.dataset.mat,mo=btn.dataset.mo;
+  const row=_psiState.data.find(item=>String(item.d.mat)===String(mat))?.d;
+  inp.dataset.mat=mat;inp.dataset.mo=mo;inp.dataset.origBuy=btn.dataset.origBuy;
+  inp.dataset.name=row?.name||btn.closest('tr')?.dataset.name||'';
+  inp.value=btn.dataset.buy||'0';
+  inp.setCustomValidity('');
+  document.getElementById('psiBuyEditorTitle').textContent=(row?.monthRealLabels?.[mo]||mo)+' 입고계획 수정';
+  document.getElementById('psiBuyEditorDescription').textContent=mat+' · '+inp.dataset.name+' / 원본 '+fmtPsiInt(btn.dataset.origBuy)+'개';
+  document.getElementById('psiBuyEditorError').textContent='';
+  dialog.showModal();
+  // 큰 sticky 표 바깥의 단 한 개 입력칸. 포커스 이벤트에서 값 변경,
+  // select() 재호출, 표·차트 렌더를 하지 않는다.
+  inp.focus({preventScroll:true});
+  inp.setSelectionRange(0,inp.value.length);
+}
+function resetPsiBuyFromEditor(){
+  if(!requireAdminMode()) return;
+  const dialog=document.getElementById('psiBuyEditor');
+  const inp=document.getElementById('psiBuyEditorInput');
+  if(!dialog||!inp) return;
+  inp.value='';
+  inp.setCustomValidity('');
+  if(commitPsiBuyInput(inp)) dialog.close();
+}
 function bindPsiBuyInputs(){
-  const wrap=document.getElementById('psiWrap');
-  if(!wrap||wrap.dataset.psiEventsBound==='1') return;
-  wrap.dataset.psiEventsBound='1';
-  const target=e=>e.target?.matches?.('.psi-buy-input')?e.target:null;
-  wrap.addEventListener('focusin',e=>{
-    const inp=target(e); if(!inp) return;
-    inp.value=inp.value.replace(/,/g,'');
-    inp.select();
+  const dialog=document.getElementById('psiBuyEditor');
+  if(!dialog||dialog.dataset.psiEventsBound==='1') return;
+  dialog.dataset.psiEventsBound='1';
+  const inp=document.getElementById('psiBuyEditorInput');
+  inp.addEventListener('input',()=>inp.setCustomValidity(''));
+  dialog.querySelector('form').addEventListener('submit',e=>{
+    e.preventDefault(); // Enter 또는 저장에서만 확정. blur/취소로 저장하지 않는다.
+    if(commitPsiBuyInput(inp)) dialog.close();
   });
-  wrap.addEventListener('input',e=>{
-    const inp=target(e); if(inp) inp.dataset.psiDirty='1';
-  });
-  wrap.addEventListener('keydown',e=>{
-    const inp=target(e); if(!inp||e.key!=='Enter') return;
-    e.preventDefault();
-    commitPsiBuyInput(inp);
-    inp.blur();
-  });
-  // change는 키보드 확정·모바일 입력에서, focusout은 다른 셀 클릭에서 확실히 잡는다.
-  wrap.addEventListener('change',e=>{
-    const inp=target(e); if(inp) commitPsiBuyInput(inp);
-  });
-  wrap.addEventListener('focusout',e=>{
-    const inp=target(e); if(inp) commitPsiBuyInput(inp);
+  dialog.addEventListener('close',()=>{
+    psiBuyEditorTrigger?.focus({preventScroll:true});
+    psiBuyEditorTrigger=null;
   });
 }
 
@@ -8446,21 +8522,23 @@ function renderChDrill(){
   // ⚠ 잔여 폭은 **품목명 열**이 가져간다 — 여기만 width를 비워 둔다. 조치의견을 auto로 두면
   //    1480px 모달에서 544px까지 부풀어 정작 품목명이 잘렸다.
   body.innerHTML=`<table class="chwape chwape-drill" style="font-size:12.5px;">
-    <colgroup><col style="width:116px;"><col><col style="width:58px;">
+    <colgroup><col style="width:116px;"><col><col style="width:58px;"><col style="width:86px;">
       <col style="width:92px;"><col style="width:92px;"><col style="width:96px;">
       <col style="width:86px;"><col style="width:86px;"><col style="width:96px;"><col style="width:240px;"></colgroup>
     <thead><tr>
-      <th class="l">품목코드</th><th class="l">품목</th><th>계층</th>
+      <th class="l">품목코드</th><th class="l">품목</th><th>계층</th><th title="오차율분석 원천의 같은 채널·품목 최근 3개월 실제 실적 평균">3개월 실적<br><span>(평균·억)</span></th>
       <th>계획(${unit})</th><th>실적(${unit})</th><th>차이</th><th>오차율</th><th>적중률</th><th class="cw-sep">오차 기여도</th>
       <th class="l cw-sep">조치의견</th>
     </tr></thead><tbody>
     ${rows.map(r=>{
       const contrib=absSum>0&&r.plan>0?Math.abs(r.diff)/absSum*100:null;
+      const avg3Amt=getHitRecent3ActualAvgAmt(r,monthKey);
       const daiso=r._daisoIntegrated?'<span class="tag b" style="font-size:9px;padding:0 4px;margin-left:4px;" title="다이소 통합코드">통합</span>':'';
       return `<tr>
-        <td class="l" style="color:var(--muted);font-weight:400;">${r.mat||'—'}</td>
-        <td class="l cw-item" title="${String(r.n||'').replace(/"/g,'&quot;')}">${String(r.n||'')}${daiso}</td>
+        <td class="l" style="color:var(--muted);font-weight:400;">${htmlSafe(r.mat||'—')}</td>
+        <td class="l cw-item" title="${htmlSafe(r.n||'')}"><button class="link-btn item-ellipsis" title="${htmlSafe(r.n||'')} · 판매계획 보정 상세 보기" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;text-align:left;" onclick="event.stopPropagation();openPlanAdjustModalByKey('${hitRowKey(r).replace(/'/g,'&#39;')}','${String(monthKey).replace(/'/g,'&#39;')}')">${htmlSafe(r.n||'')}</button>${daiso}</td>
         <td style="font-weight:800;color:var(--navy);">${r.hierarchy||getHierarchyForMat(r.mat)||'—'}</td>
+        <td title="${avg3Amt==null?'최근 3개월 실적을 확인할 수 없습니다':'오차율분석 원천의 같은 채널·품목 최근 3개월 실제 실적 평균'}">${avg3Amt==null?'—':avg3Amt.toFixed(2)}</td>
         <td>${fmt(r.plan)}</td>
         <td>${fmt(r.actual)}</td>
         <td style="color:${r.diff>=0?'var(--green)':'var(--red)'};font-weight:900;">${r.diff>=0?'+':''}${fmt(r.diff)}</td>
@@ -8472,6 +8550,7 @@ function renderChDrill(){
     }).join('')}
     <tr class="cw-total">
       <td class="l"></td><td class="l">합계</td><td></td>
+      <td title="품목별 최근 3개월 실적 평균은 합계 행에서 다시 합산하지 않습니다">—</td>
       <td>${fmt(plan)}</td><td>${fmt(actualTotal)}</td>
       <td title="Σ|차이| · 초과·미달을 상쇄하지 않고 절대값으로 합산 (오차율의 분자와 동일)">${fmt(absSum)}</td>
       <td>${wape==null?'—':wape.toFixed(1)+'%'}</td>
@@ -8482,11 +8561,11 @@ function renderChDrill(){
     </tbody></table>
     <div style="margin-top:10px;font-size:10.5px;color:var(--muted);line-height:1.6;">
       <strong>|차이| 큰 순</strong>으로 정렬했습니다 · 오차 기여도 = |차이| ÷ 그 채널·월의 |차이| 합계 —
-      위쪽 몇 개가 그 채널 오차의 대부분을 만듭니다 · 차이가 <span style="color:var(--green);font-weight:700;">+면 계획 초과</span>,
+      위쪽 몇 개가 그 채널 오차의 대부분을 만듭니다 · <strong>3개월 실적 평균(억)</strong>은 오차율분석 원천에서 같은 채널·품목의 최근 3개월 실제 실적금액을 평균한 값입니다 · 차이가 <span style="color:var(--green);font-weight:700;">+면 계획 초과</span>,
       <span style="color:var(--red);font-weight:700;">−면 미달</span>입니다 ·
       <strong>실적 합계</strong>는 오차율분석 원천의 계획 0·실적 행도 포함하고, <strong>WAPE·차이합계</strong>는 계획이 있는 행만 계산합니다 ·
       <strong>합계 행의 차이는 Σ|차이|</strong>(초과·미달 상쇄 없음)라 오차율 × 계획과 일치합니다 ·
-      아래 '판매계획 보정 대상 리스트'와 같은 집계(계획 0인 행 제외)를 씁니다<br>
+      아래 '판매계획 보정 대상 리스트'와 같은 집계(계획 0인 행 제외)를 씁니다 · <strong>품목명을 누르면 같은 판매계획 보정 상세 팝업</strong>이 열립니다<br>
       <strong>조치의견은 팝업에서 선택한 월별로 저장됩니다</strong> — 입력 중에도 자동 저장되고, 상단 <strong>저장</strong> 버튼으로 현재 팝업의 의견을 한 번에 확정할 수 있습니다. 8월과 9월 의견은 서로 덮어쓰지 않고 이력으로 누적됩니다
       (합계 행은 <strong>채널 조치의견</strong>, 위 오차율 표의 당월 채널 칸과 연동)
     </div>`;
@@ -8760,13 +8839,29 @@ function remapHitRowDaiso(row){
   if(!g) return row;
   return {...row,mat:g.code,n:g.name,name:g.name,hierarchy:getHierarchyForMat(g.code)||row.hierarchy||'',_daisoIntegrated:true,_origMat:mat};
 }
-function getHitMonthRows(month){
+// 오차 상세의 3개월 실적 평균은 2차 판매계획 보정 팝업과 같은 원천·집계를 쓴다.
+// 선택한 채널·품목의 선택월 포함 최근 3개월 실제 실적금액을 평균해 억 단위로 표시한다.
+// 다이소 통합행은 hitRowKey()가 쓰는 통합코드로 월별 집계와 동일하게 매칭된다.
+function getHitRecent3ActualAvgAmt(row,monthKey){
+  const selectedNo=monthNoFromKey(monthKey);
+  if(!selectedNo) return null;
+  const start=Math.max(1,selectedNo-2);
+  let total=0,count=0;
+  for(let no=start;no<=selectedNo;no++){
+    const month=HIT_MONTHS[no-1]||`${no}월`;
+    const data=buildMonthAggMap(month).get(hitRowKey(row));
+    total+=Number(data?.actual)||0;
+    count++;
+  }
+  return count?total/count:null;
+}
+function getHitMonthRows(month,opts={}){
   const hit=getHitData();
   const mo=normalizeMonthKey(month);
   const monthRows=hit?.byMonth?.[mo]||[];
   const fallbackRows=(hit?.rows&&hit.rows.length)?hit.rows:ALL_SKU;
   const src=(monthRows.length?monthRows:fallbackRows).map(remapHitRowDaiso);
-  return aggregateHitRows(src);
+  return aggregateHitRows(src,opts);
 }
 function buildMonthAggMap(month){
   const map=new Map();
@@ -8892,11 +8987,11 @@ function subjectParticle(text){
 const HIT_HISTORY_MONTHS=6;
 // 품목 팝업 추이에 덧붙일 '앞으로 N개월' 판매계획 수(2026-08-18 사용자 요청).
 const PLAN_FUTURE_MONTHS=3;
-function buildAdjustmentRows(){
-  const selectedMo=normalizeMonthKey(document.getElementById('chAchieveMonth')?.value||'5월');
+function buildAdjustmentRows(selectedMoOverride=null,opts={}){
+  const selectedMo=normalizeMonthKey(selectedMoOverride||document.getElementById('chAchieveMonth')?.value||'5월');
   const selectedNo=monthNoFromKey(selectedMo)||5;
   const nextMonth=selectedNo+1;
-  const currentRows=getHitMonthRows(selectedMo);
+  const currentRows=getHitMonthRows(selectedMo,opts);
   const histMonths=HIT_MONTHS.slice(Math.max(0,selectedNo-HIT_HISTORY_MONTHS),selectedNo);
   const histMaps=histMonths.map(m=>buildMonthAggMap(m));
   const matCurrentTotals=new Map();
@@ -10389,8 +10484,10 @@ function openPlanAdjustModalByIndex(idx){
   const row=planAdjustRowsCache[idx];
   if(row) openPlanAdjustModal(row);
 }
-function openPlanAdjustModalByKey(key){
-  const row=buildAdjustmentRows().find(r=>hitRowKey(r)===key);
+function openPlanAdjustModalByKey(key,monthKey=null){
+  // 오차 상세 팝업에서 연 월을 그대로 받아야 현재 선택된 전역 월과 섞이지 않는다.
+  // 계획 0·실적만 있는 품목도 같은 상세 팝업에서 확인할 수 있게 해당 호출만 포함한다.
+  const row=buildAdjustmentRows(monthKey,{includePlanZero:Boolean(monthKey)}).find(r=>hitRowKey(r)===key);
   if(row) openPlanAdjustModal(row);
 }
 function closePlanAdjustModal(){
@@ -10588,6 +10685,20 @@ window.addEventListener('DOMContentLoaded',async()=>{
 });
 </script>
 <!-- 판매계획 보정 상세 모달 -->
+<dialog id="psiBuyEditor" class="psi-buy-editor" aria-labelledby="psiBuyEditorTitle" aria-describedby="psiBuyEditorDescription">
+  <form>
+    <h3 id="psiBuyEditorTitle">입고계획 수정</h3>
+    <p id="psiBuyEditorDescription"></p>
+    <label for="psiBuyEditorInput">입고수량 (개)</label>
+    <input id="psiBuyEditorInput" class="psi-buy-input" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="비우면 원본값으로 초기화">
+    <p id="psiBuyEditorError" role="alert" style="color:var(--red);margin-top:8px;"></p>
+    <div class="psi-buy-editor-actions">
+      <button type="button" onclick="document.getElementById('psiBuyEditor').close()">취소</button>
+      <button type="button" onclick="resetPsiBuyFromEditor()">원본으로 초기화</button>
+      <button type="submit">저장</button>
+    </div>
+  </form>
+</dialog>
 <div id="planAdjustModal" class="sku-modal-overlay" style="display:none;" onclick="if(event.target===this)closePlanAdjustModal()">
   <div class="sku-modal" style="width:min(1120px,96vw);">
     <div class="sku-modal-header" id="planAdjustModalHeader"></div>
