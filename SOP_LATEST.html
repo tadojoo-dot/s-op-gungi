@@ -205,7 +205,7 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 /* 채널별 오차율 표 — 음영도 차트도 없이 숫자만으로 읽는다(2026-08-16 사용자 지시).
    색으로 칠하거나 라인을 그리지 않으므로, 가독성은 전부 타이포와 여백으로 만든다:
    ① 오차율 15px/800 · 실적/계획 12.5px 보조색으로 **위계**를 준다(이 표의 주인공은 오차율)
-   ② 넉넉한 행 높이 ③ 3행마다 옅은 가로 구분선 ④ 월 구간/계획 구간 세로선
+   ② 채널 행은 컴팩트하게 ③ 3행마다 옅은 가로 구분선 ④ 월 구간/계획 구간 세로선
    ⑤ 채널명 열 고정 ⑥ hover 시 행 전체 강조(가로로 눈이 안 샘) */
 /* 폭 정책 (2026-09-14): ③탭 한 화면 표시를 위해 숫자 열을 컴팩트하게 고정하고,
    조치의견 열은 남는 폭을 흡수한다. 1280px 기준 페이지 안쪽 폭에도 들어오도록 한다. */
@@ -217,9 +217,9 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 /* ⚠ `.chwape`는 채널×월 오차 상세 **팝업**(openChDrill)에서도 쓴다. 거긴 SKU가 수십 줄이라
    촘촘해야 하므로 크기 관련 규칙은 전부 `.chwape-lg`(채널별 오차율 표 전용)에만 건다.
    `.chwape td{font-size:...}`처럼 base에 걸면 팝업이 같이 커진다(2026-08-19에 실제로 그럴 뻔했다). */
-.chwape.chwape-lg th{font-size:10.5px;padding:7px 4px;}
+.chwape.chwape-lg th{font-size:10.5px;padding:5px 4px;}
 /* 오차율 셀 = 이 표의 주인공. 월별 실적/계획(cw-mv)보다 확실히 크고 진하게. */
-.chwape.chwape-lg td{font-size:13px;font-weight:800;padding:8px 4px;}
+.chwape.chwape-lg td{font-size:13px;font-weight:800;padding:4px 4px;line-height:1.2;}
 .chwape td.l{text-align:left;font-weight:700;}
 /* ⚠ 2026-08-19 사용자 지정: **모든 열 가운데 정렬**(채널명·조치의견 포함).
    입력 중인 글자까지 가운데로 몰면 쓰기 불편하므로 textarea 안만 왼쪽으로 되돌린다. */
@@ -260,10 +260,19 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
    → `.cw-act`/`.cw-plan`은 클래스만 남기고 배경을 주지 않는다(마크업은 그대로 두어 되돌리기 쉽게). */
 .chwape th.cw-grp{font-size:11.5px;font-weight:800;color:#4B5268;letter-spacing:.02em;padding:7px 6px;
   border-bottom:1px solid var(--border);background:#EAEDF4;}
+/* 계획 구간이 한 달만 남을 때(예: 11월) 그룹명이 열 폭을 밀어내지 않게 한다.
+   한 칸짜리 그룹도 '판매계획 / (억원)'으로 접혀 숫자 열 폭을 그대로 유지한다. */
+.chwape.chwape-lg th.cw-grp{white-space:normal;line-height:1.2;word-break:keep-all;}
+.chwape.chwape-lg th.cw-grp.cw-plan{font-size:10.5px;padding-left:2px;padding-right:2px;}
 /* 판매계획 시트 기준 월별 실적·계획 숫자. 오차율보다 한 단계 작고 옅은 **보조 정보**다.
    ⚠ 계획 구간은 배경으로만 가른다 — 예전엔 글자색까지 #5A6180으로 내려 옅은 배경 위에서 잘 안 보였다. */
-.chwape.chwape-lg th.cw-mv{font-size:10.5px;padding:7px 3px;font-weight:700;}
-.chwape.chwape-lg td.cw-mv{font-size:10.5px;font-weight:600;padding:8px 3px;color:#454B63;}
+.chwape.chwape-lg th.cw-mv{font-size:10.5px;padding:5px 3px;font-weight:700;}
+.chwape.chwape-lg td.cw-mv{font-size:10.5px;font-weight:600;padding:4px 3px;color:#454B63;}
+/* 판매계획 월 숫자 열은 헤더 그룹의 내용에 끌려 늘어나지 않게 col/th/td를 함께 고정한다.
+   특히 11월처럼 마지막 계획 열만 넓어지는 브라우저별 table-layout 차이를 막는다. */
+.chwape.chwape-lg col.cw-month-col{width:48px!important;min-width:48px!important;max-width:48px!important;}
+.chwape.chwape-lg th.cw-month-col,.chwape.chwape-lg td.cw-mv{width:48px!important;min-width:48px!important;max-width:48px!important;box-sizing:border-box;padding-left:2px!important;padding-right:2px!important;}
+.chwape.chwape-lg th.cw-grp.cw-plan span{font-size:9px;font-weight:700;letter-spacing:0;}
 .chwape.chwape-lg td.cw-contrib{font-size:11px;color:var(--terra);font-weight:800;}
 /* ⚠ 계획 구간 데이터 셀 음영은 뺐다(2026-08-19) — 위 cw-grp 주석 참고.
    구간은 그룹 헤더 '판매계획 (억원)'과 세로 구분선으로 읽는다. */
@@ -273,8 +282,8 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .chmemo-carry{font-size:9.5px;font-weight:700;color:var(--terra);margin-top:2px;line-height:1.35;}
 .chmemo-hist{font-size:9.5px;color:var(--muted);margin-top:1px;cursor:help;}
 /* 채널별 오차율 표 쪽만 키운다 — 팝업(openChDrill)은 SKU가 수십 줄이라 촘촘한 채로 둔다 */
-.chwape-lg .chmemo-td{vertical-align:middle;padding:4px 5px!important;}
-.chwape-lg .chmemo-td textarea.action-memo{min-height:28px;height:28px;font-size:10.5px;}
+.chwape-lg .chmemo-td{vertical-align:middle;padding:2px 5px!important;}
+.chwape-lg .chmemo-td textarea.action-memo{min-height:24px;height:24px;font-size:10.5px;}
 .chwape-lg .chmemo-td textarea.action-memo:focus{height:84px;}
 .chwape-lg .chmemo-carry{font-size:9px;margin-top:2px;}
 .chwape-lg .chmemo-hist{font-size:9px;margin-top:1px;}
@@ -975,7 +984,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
       <div id="psiSkuHeaderCount" style="font-size:10px;color:rgba(255,255,255,.6);">전 품목 기준 / 안전재고 90일</div>
     </div>
     <div class="sec-body">
-      <div class="alert r" style="margin-bottom:14px;" id="psiAlertText">⚠ PSI는 당월부터 4개월 시계열로 봅니다. 기초재고(전체재고 − 6개월미만 재고 − 보류재고) + 입고계획 − 판매계획 = 기말재고, 재고일수 90일 미만은 빨간 신호로 표시합니다.</div>
+      <div class="alert r" style="margin-bottom:14px;" id="psiAlertText">⚠ PSI는 당월부터 5개월 시계열로 봅니다. 기초재고(전체재고 − 6개월미만 재고 − 보류재고) + 입고계획 − 판매계획 = 기말재고, 재고일수 90일 미만은 빨간 신호로 표시합니다.</div>
       <!-- KPI 3종 (2단계 신호등) -->
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);">
         <div class="kpi"><div class="kpi-lbl">위험 품목</div><div id="psiShortCount" class="kpi-val kv-red">-</div><div class="kpi-sub">재고일수 90일 미만</div></div>
@@ -1023,7 +1032,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
     <div class="sec-head">
       <div class="sec-tw"><div class="sec-bar"></div><div>
         <div class="sec-title" id="psiTableTitle">PSI 전 품목 현황</div>
-        <div class="sec-sub" id="psiSecSub">당월부터 4개월 · 당월은 판매계획 기준 기말재고와 진척율 기준 예상 재고를 수량/재고일수로 병행 표시 &nbsp;|&nbsp; 재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30</div>
+        <div class="sec-sub" id="psiSecSub">당월부터 5개월 · 월별 판매계획 기준 기말재고와 재고일수를 표시 &nbsp;|&nbsp; 재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30</div>
       </div></div>
       <div class="frow no-print" style="margin:0;gap:6px;">
         <span style="display:inline-flex;gap:4px;margin-right:4px;">
@@ -1064,8 +1073,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
       <div class="remark-box" style="margin:10px 16px 14px;">
         <strong>비고 · PSI 보조 기준 산식</strong><br>
         기초재고 = 전체재고(BQ) − 6개월미만 재고(BS) − 보류재고. 6개월미만은 원칙적으로 출고 불가하여 가용 기초에서 제외하고, 보류재고도 판매 불가라 제외합니다(전체재고 BQ는 기초재고 시트의 가용+품질검사+보류 합이라 보류가 포함돼 있습니다). 품질검사 재고는 공정 통과 후 판매 가능해지므로 포함합니다.<br>
-        보조 기준은 <strong>당월에만</strong> 진척율 기준으로 병행 표시하며, 진척율 기준 재고수량 = 당월 기초재고 + 당월 입고계획 - 진척율 기준 예상 판매수량입니다.
-        차월 이후는 판매계획 기준 기말재고만 표시합니다.
+        PSI 표는 월별 판매계획 기준 기말재고만 표시합니다.
         재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30입니다. 다음 월 판매계획이 없으면 재고일수는 산출불가로 표시합니다. PSI 표의 수량·재고일수는 반올림 정수로 표시합니다.<br>
         <strong>신호등 기준:</strong> 전 품목 동일 2단계 — 위험(빨강) 90일 미만 / 정상(초록) 90일 이상. 다이소 별도기준·과잉 구간은 폐지했습니다.<br>
         <strong>수량/원가/매출 토글:</strong> 기초·입고·판매·기말 4개 열만 단가를 곱해 백만원으로 환산합니다(3평판·재고일수·신호등은 항상 수량·일수 기준, 판정 결과도 동일).
@@ -3106,7 +3114,7 @@ function parsePSISheet(ws,holdByMat){
   const headerRow=rows.findIndex(row=>String(row[0]||'').replace(/\s/g,'')==='자재코드');
   const data=rows.slice(headerRow>=0?headerRow+3:6);
   // 월 블록(L/AB/AM/AW 열)은 매달 사용자가 밀어서 갱신함(L=이번달, 다음달엔 L=다음 월).
-  // sourceMonthlyPsi 키('6월'~'9월')는 실제 캘린더월이 아니라 위치(1~4번째 블록) 식별자로 유지하고,
+  // sourceMonthlyPsi 키('6월'~'10월')는 실제 캘린더월이 아니라 위치(1~5번째 블록) 식별자로 유지하고,
   // 표시용 실제 월 텍스트만 '자재코드' 헤더와 같은 행(월 블록 헤더 행)에서 동적으로 읽어 monthRealLabels로 제공한다.
   // (PSI 시트는 범위가 B2부터 시작해 행 인덱스가 밀리므로 고정 행번호 대신 headerRow를 그대로 재사용한다)
   const monthHeaderRow=(headerRow>=0?rows[headerRow]:null)||[];
@@ -3354,12 +3362,28 @@ function parseSalesPlanSummaryRows(rows){
   const realPlanMonths=readRealMonths(planCols);
   groups.actualMonths=realActualMonths.length?realActualMonths:[1,2,3,4,5];
   groups.planMonths=realPlanMonths.length?realPlanMonths:[6,7,8,9,10];
+  const targetFallback=PREV_SALES_PLAN_TARGET_INPUT||{};
+  const targetFallbackMonths=[];
+  const targetValue=(targetRow,c)=>{
+    const raw=targetRow?.[c];
+    if(raw!==''&&raw!=null&&Number.isFinite(Number(raw))) return Number(raw);
+    const ym=parseYearMonthCell(ymRow[c]);
+    if(!ym) return 0;
+    const key=`${ym.year}.${String(ym.month).padStart(2,'0')}`;
+    const fallback=Number(targetFallback[key]);
+    if(Number.isFinite(fallback)){
+      targetFallbackMonths.push(key);
+      return fallback;
+    }
+    return 0;
+  };
   const findTarget=()=>{
     const targetRow=rows.find(row=>(row||[]).some(cell=>String(cell||'').trim().includes('사업계획')));
     if(!targetRow) return null;
     return {
-      actual:actualCols.map(c=>Number(targetRow[c])||0),
-      plan:planCols.map(c=>Number(targetRow[c])||0)
+      actual:actualCols.map(c=>targetValue(targetRow,c)),
+      plan:planCols.map(c=>targetValue(targetRow,c)),
+      fallbackMonths:[...new Set(targetFallbackMonths)]
     };
   };
   groups.target=findTarget();
@@ -3420,6 +3444,9 @@ let STD_COST_INPUT=null;
 // 전월 품목군 스냅샷. 대시보드는 엑셀 한 개만 파싱하므로 전월 숫자를 만들 수 없다 —
 // 배포 도구(tools/lib/publish.mjs)가 전월 Aging 파일을 한 번 더 파싱해서 여기에 실어준다.
 let PKG_PREV_INPUT=null;
+// 최신 판매계획 파일에서 빠진 과거 사업계획 목표를 직전 리포트에서 보강한다.
+// 웹에서 단일 파일을 올릴 때는 비어 있을 수 있지만, 배포 파이프라인은 직전 파일을 함께 전달한다.
+let PREV_SALES_PLAN_TARGET_INPUT=null;
 // 배포 도구가 채워주는 과거월 원장 매트릭스 [{label,yearmonth,sheet,matrix,...}]. 웹 업로드에는 없다.
 let PREV_MONTHS_INPUT=null;
 // 월별 미소진 Risk 이력 {기준월: 스냅샷}. 배포 도구가 리포 JSON ∪ 라이브 KV를 합쳐 실어준다.
@@ -5182,21 +5209,24 @@ function renderPkgDelta(){
     return {k,p,c,d:c-p};
   }).sort((x,y)=>y.d-x.d);
   const tp=_pkgVal(P.total), tc=_pkgVal(C.total), td=tc-tp;
+  // 생산처 토글은 금액·증감 표시만 좁힌다. 증가 기여율은 항상 전체 품목군 증감액을 분모로 써서
+  // 향남/횡성 중 하나를 골라도 '전사 증가분 중 해당 품목군의 몫'으로 읽히게 한다.
+  const overallTd=_pkgVal(cur.total)-_pkgVal(prev.total);
   const sub=document.getElementById('pkgDeltaSub');
   if(sub){
-    sub.textContent=`${prevWord}(${pLab}) → 당월(${cLab})${srcNote} · ${scoped?'해당 생산처':'전체'} ${_pkgFmt(tp)} → ${_pkgFmt(tc)} ${unitTxt} (${_pkgFmtDiff(td)}) · 품목군 행을 클릭하면 SKU가 증감 큰 순으로 펼쳐집니다`;
+    sub.textContent=`${prevWord}(${pLab}) → 당월(${cLab})${srcNote} · ${scoped?'해당 생산처':'전체'} ${_pkgFmt(tp)} → ${_pkgFmt(tc)} ${unitTxt} (${_pkgFmtDiff(td)}) · 증가 기여율은 전체 증감 기준 · 품목군 행을 클릭하면 SKU가 증감 큰 순으로 펼쳐집니다`;
     sub.title=`기준일 ${pDay} → ${cDay}`;
   }
   let h=`<colgroup><col style="width:200px"><col style="width:120px"><col style="width:120px"><col style="width:120px"><col style="width:90px"><col style="width:110px"></colgroup>
   <thead><tr>
     <th class="l">품목군 / SKU</th>
     <th class="r" title="기준일 ${pDay}">${prevWord}(${pLab})</th><th class="r" title="기준일 ${cDay}">당월(${cLab})</th>
-    <th class="r">증감</th><th class="r">증감률</th><th class="r">증가 기여율</th>
+    <th class="r">증감</th><th class="r">증감률</th><th class="r" title="생산처 토글과 무관하게 전체 품목군 전월대비 증감액을 분모로 계산">증가 기여율</th>
   </tr></thead><tbody>`;
   rows.forEach(r=>{
     const open=_pkgDeltaOpen.has(r.k);
     // 기여율은 '전체가 늘어난 몫을 누가 얼마나 차지했나'라서 늘어난 행에만 의미가 있다
-    const share=(td>0&&r.d>0)?`${(r.d/td*100).toFixed(1)}%`:'—';
+    const share=(overallTd>0&&r.d>0)?`${(r.d/overallTd*100).toFixed(1)}%`:'—';
     h+=`<tr style="cursor:pointer;background:${open?'#eef2ff':'#fff'};" onclick="togglePkgDeltaRow('${String(r.k).replace(/'/g,"\\'")}')">
       <td class="l" style="font-weight:800;color:var(--navy);">${open?'▾':'▸'} ${htmlSafe(r.k)}</td>
       <td class="r">${_pkgFmt(r.p)}</td><td class="r">${_pkgFmt(r.c)}</td>
@@ -6505,8 +6535,8 @@ function renderPsiSubtotal(){
   const sharedDemand=rows.some(d=>d._plantScoped||d._sharedDemand);
   const sharedAvg3=rows.some(d=>d._plantScoped||d._sharedAvg3);
   const amtMode=psiUnitMode!=='qty';
-  const per=PSI_MONTHS.map(()=>({begin:0,buy:0,plan:0,end:0,basisEnd:0,nextPlan:0,
-                                 beginA:0,buyA:0,planA:0,endA:0,basisEndA:0}));
+  const per=PSI_MONTHS.map(()=>({begin:0,buy:0,plan:0,end:0,nextPlan:0,
+                                 beginA:0,buyA:0,planA:0,endA:0}));
   let avg3Sum=0,noPrice=0;
   rows.forEach(d=>{
     const rowOv=overrides[d.mat]||{};
@@ -6522,14 +6552,11 @@ function renderPsiSubtotal(){
       a.begin+=r.begin; a.buy+=r.buy; a.plan+=r.plan; a.end+=r.end;
       const nk=psiNextMonthKey(m.key);
       a.nextPlan+=nk?Number(src?.[nk]?.plan)||0:0;
-      const basis=m.progress&&!d._plantScoped?Number(d.er)||0:0;
-      a.basisEnd+=basis;
       if(amtMode&&priced){
         a.beginA+=psiAmtFromQty(r.begin,d.mat)||0;
         a.buyA+=psiAmtFromQty(r.buy,d.mat)||0;
         a.planA+=psiAmtFromQty(r.plan,d.mat)||0;
         a.endA+=psiAmtFromQty(r.end,d.mat)||0;
-        a.basisEndA+=psiAmtFromQty(basis,d.mat)||0;
       }
     });
   });
@@ -6552,11 +6579,7 @@ function renderPsiSubtotal(){
       +`<th class="psi-sub r${psiHasBeginCol(m)?'':' month-start'}">${val(a.buy,a.buyA)}</th>`
       +`<th class="psi-sub r">${val(a.plan,a.planA)}</th>`
       +`<th class="psi-sub r">${val(a.end,a.endA)}</th>`
-      +daysCell(a.end,a.nextPlan,m.progress?'':'month-end');
-    if(m.progress){
-      h+=`<th class="psi-sub r">${val(a.basisEnd,a.basisEndA)}</th>`
-        +daysCell(a.basisEnd,a.nextPlan,'month-end');
-    }
+      +daysCell(a.end,a.nextPlan,'month-end');
   });
   h+=`<th class="psi-sub c"></th>`;
   tr.innerHTML=h;
@@ -6581,19 +6604,6 @@ function _renderPsiTbody(){
       prev=r.end;
       const sig=r.sig==='red'?'sig-r':r.sig==='yellow'?'sig-y':r.sig==='excess'?'sig-x':r.sig==='green'?'sig-g':'sig-gray';
       const endCls=r.end<0?' style="color:var(--red);font-weight:900;"':'';
-      // 보조 기준(진척율) 열은 당월에만 있다. 게다가 플랜트로 쪼갤 수도 없어서
-      // (당월실적이 통합코드에만 있고 재고 비율로 나누면 자의적 배분) 플랜트 분해에서는 '—'로 비운다.
-      let basisCells='';
-      if(m.progress){
-        const basisEnd=d._plantScoped?null:(Number(d.er)||0);
-        const basisDays=d._plantScoped?null:d.dr;
-        const basisSig=d._plantScoped?'gray':(d.sr||'gray');
-        const bsc=basisSig==='red'?'sig-r':basisSig==='yellow'?'sig-y':basisSig==='excess'?'sig-x':basisSig==='green'?'sig-g':'sig-gray';
-        const bec=(basisEnd!=null&&basisEnd<0)?' style="color:var(--red);font-weight:900;"':' style="font-weight:800;color:var(--navy);"';
-        basisCells=basisEnd==null
-          ?`<td class="r" style="color:var(--muted);" title="진척율 기준은 통합코드에만 있는 값이라 플랜트별로 나누지 않습니다">—</td><td class="c month-end" style="color:var(--muted);">—</td>`
-          :`<td class="r"${bec}${psiCellTitle(basisEnd,d.mat)}>${fmtPsiCell(basisEnd,d.mat)}</td><td class="c month-end"><span class="sig-dot ${bsc}"></span> ${psiDaysHtml(basisDays,basisSig)}</td>`;
-      }
       const exact=d.monthlyPsi?.[m.key]||d.sourceMonthlyPsi?.[m.key];
       const origBuy=exact?(Number(exact.buy)||0):Math.round((d.buy6||0)*m.buy);
       const buyOvOn=rowOv[m.key]!=null;
@@ -6614,7 +6624,7 @@ function _renderPsiTbody(){
         ?`<td class="r month-start"${psiCellTitle(r.begin,d.mat)}>${fmtPsiCell(r.begin,d.mat)}</td>`
         :'';
       if(!psiHasBeginCol(m)&&!/class="r month-start"/.test(buyCell)) buyCell=buyCell.replace('<td class="r"','<td class="r month-start"');
-      return `${beginCell}${buyCell}<td class="r"${psiCellTitle(r.plan,d.mat)}>${fmtPsiCell(r.plan,d.mat)}</td><td class="r"${endCls}${psiCellTitle(r.end,d.mat)}>${fmtPsiCell(r.end,d.mat)}</td><td class="c${m.progress?'':' month-end'}"${daysTitle}><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig,r.noStock)}</td>${basisCells}`;
+      return `${beginCell}${buyCell}<td class="r"${psiCellTitle(r.plan,d.mat)}>${fmtPsiCell(r.plan,d.mat)}</td><td class="r"${endCls}${psiCellTitle(r.end,d.mat)}>${fmtPsiCell(r.end,d.mat)}</td><td class="c month-end"${daysTitle}><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig,r.noStock)}</td>`;
     }).join('');
     const sCls=_psiSoojinCls[soojinStatus]||'gray';
     const sLbl=_psiSoojinLabel[soojinStatus]||'판단필요';
@@ -6643,16 +6653,20 @@ const PSI_MONTHS=[
   {key:'7월',buy:0.80,plan:1.03},
   {key:'8월',buy:0.70,plan:1.06},
   {key:'9월',buy:0.60,plan:1.06},
+  // 최신 PSI 시트는 기준월부터 5개 블록(예: 9월~1월)을 제공한다.
+  // 원본 데이터가 있는 경우 calcPsiMonth가 exact 값을 우선 사용하며,
+  // 원본이 없는 구형/데모 데이터에서만 이 보정계수를 사용한다.
+  {key:'10월',buy:0.00,plan:1.06},
 ];
-// 보조 기준 열(기말재고 오른쪽 2칸)은 당월(진척율 기준)에만 둔다 — 차월 이후 3평판 기준은 제거함.
+// PSI 표는 판매계획 기준 기말재고·재고일수만 표시한다. 진척율 기준 보조 열은 두지 않는다.
 // ⚠ **기초 열도 당월에만 둔다** (2026-08-19 사용자 지적). calcPsiMonth이
 //   `begin = prevEnd != null ? prevEnd : exact.begin` 이라 **차월 이후 기초 = 전월 기말과 항상 같은 값**이다.
 //   같은 숫자를 두 칸에 쓰면서 폭만 먹고 있었다. 첫 달(당월)만 기초가 독립적인 값(PSI!BQ − 6개월↓ − 보류)이다.
-// ⚠ 그래서 월 블록 폭이 당월 7칸 / 이후 4칸으로 다르다. 셀 인덱스를 직접 세는 코드(recalcPsiRow)는
+// ⚠ 그래서 월 블록 폭이 당월 5칸 / 이후 4칸으로 다르다. 셀 인덱스를 직접 세는 코드(recalcPsiRow)는
 //   반드시 psiMonthCellOffset()을 쓰고, 블록 안 위치도 `hasBegin` 여부로 한 칸 밀어야 한다.
 //   `7+mi*7`이나 `bi+3` 같은 고정식은 두 번째 달부터 어긋난다.
 const psiHasBeginCol=m=>!!m.progress;
-const psiMonthSpan=m=>m.progress?7:4;
+const psiMonthSpan=m=>m.progress?5:4;
 const PSI_FIXED_COLS=8;                                   // 자재코드~소진판단 (계층 포함)
 const psiMonthCellOffset=mi=>PSI_MONTHS.slice(0,mi).reduce((s,m)=>s+psiMonthSpan(m),PSI_FIXED_COLS);
 const psiTotalCols=()=>PSI_FIXED_COLS+PSI_MONTHS.reduce((s,m)=>s+psiMonthSpan(m),0)+1; // +1 = 소진계획
@@ -6951,14 +6965,13 @@ function recalcPsiRow(mat){
   const results=PSI_MONTHS.map(m=>{
     const r=calcPsiMonth(d,m,prev,rowOv[m.key]!=null?rowOv[m.key]:null);
     prev=r.end;
-    // 보조 기준은 당월(진척율)만 남았고, 그 값은 입고 조정과 무관한 실적 기반이라 다시 계산할 게 없다.
-    return {r,progress:!!m.progress};
+    return {r};
   });
   const tds=tr.querySelectorAll('td');
   results.forEach(({r},mi)=>{
     const m=PSI_MONTHS[mi];
-    const bi=psiMonthCellOffset(mi);   // 월 블록 폭이 다르므로(당월 7칸 / 이후 4칸) 고정식 금지
-    // 블록 안 위치도 기초 열 유무로 한 칸 밀린다: [기초?] 입고 판매 기말 재고일수 [보조2]
+    const bi=psiMonthCellOffset(mi);   // 월 블록 폭이 다르므로(당월 5칸 / 이후 4칸) 고정식 금지
+    // 블록 안 위치도 기초 열 유무로 한 칸 밀린다: [기초?] 입고 판매 기말 재고일수
     const o=psiHasBeginCol(m)?1:0;
     const sig=r.sig==='red'?'sig-r':r.sig==='yellow'?'sig-y':r.sig==='excess'?'sig-x':r.sig==='green'?'sig-g':'sig-gray';
     if(o) tds[bi].textContent=fmtPsiInt(r.begin);
@@ -7032,7 +7045,9 @@ function seedRecoveredLocalInputs(){
   if(!localStorage.getItem(MEETING_MEMO_KEY)) localStorage.setItem(MEETING_MEMO_KEY,JSON.stringify(RECOVERED_MEETING_MEMO));
 }
 const SHARED_STATE_FIXED_KEYS=[PLAN_KEY,MEETING_MEMO_KEY,PSI_SIM_BUY_KEY,PSI_LOG_KEY];
-const SHARED_STATE_PREFIXES=['hitAdjustMemo|','sopMemo_'];
+// 채널별 팝업 의견도 품목 의견과 같은 공유 상태에 포함한다.
+// 월 suffix(예: hitChMemo|쿠팡|2026.09)를 그대로 보존해야 브라우저가 바뀌어도 이력이 남는다.
+const SHARED_STATE_PREFIXES=['hitAdjustMemo|','hitChMemo|','sopMemo_'];
 let sharedStateSaveTimer=null;
 function collectSharedState(){
   const state={};
@@ -7436,11 +7451,12 @@ function bindPsiBuyInputs(){
 // ═══════════ PSI ════════════════════════════════════════════
 // PSI 상단 알림/설명의 월 범위를 업로드된 시트 실제 월로 갱신 (매달 엑셀 롤 시 자동 반영)
 function updatePsiMonthTexts(firstMo,lastMo){
-  const range=(firstMo&&lastMo)?`${firstMo}~${lastMo}`:'당월부터 4개월';
+  const count=PSI_MONTHS.length;
+  const range=(firstMo&&lastMo)?`${firstMo}~${lastMo}`:`당월부터 ${count}개월`;
   const alertEl=document.getElementById('psiAlertText');
-  if(alertEl) alertEl.innerHTML=`⚠ PSI는 ${range} 4개월 시계열로 봅니다. 기초재고(전체재고 − 6개월미만 재고 − 보류재고) + 입고계획 − 판매계획 = 기말재고, 재고일수 90일 미만은 빨간 신호로 표시합니다.`;
+  if(alertEl) alertEl.innerHTML=`⚠ PSI는 ${range} ${count}개월 시계열로 봅니다. 기초재고(전체재고 − 6개월미만 재고 − 보류재고) + 입고계획 − 판매계획 = 기말재고, 재고일수 90일 미만은 빨간 신호로 표시합니다.`;
   const subEl=document.getElementById('psiSecSub');
-  if(subEl) subEl.innerHTML=`${range} 4개월 · ${firstMo||'당월'}은 판매계획 기준 기말재고와 진척율 기준 예상 재고를 수량/재고일수로 병행 표시 &nbsp;|&nbsp; 재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30`;
+  if(subEl) subEl.innerHTML=`${range} ${count}개월 · 월별 판매계획 기준 기말재고와 재고일수를 표시 &nbsp;|&nbsp; 재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30`;
 }
 // 필터 정의를 한 곳에 모아둔 이유: 결과가 0건일 때 "어느 필터가 범인인지"를 세려면
 // 필터를 하나씩 빼고 다시 돌려봐야 한다(leave-one-out). 그러려면 필터 로직이 renderPSI 안에
@@ -7601,7 +7617,7 @@ function renderPSI(){
     h+=`<div style="padding:8px 12px;background:#fff8e8;border-bottom:1px solid #f0c36d;color:#8a5c00;font-size:11px;font-weight:700;">
       🏭 <strong>${fv.fplant} 몫</strong>으로 봅니다 — 기초·입고·판매·기말은 ${fv.fplant} 하위 코드 합계,
       <strong>재고일수는 통합 수요를 분모</strong>로 산출합니다(플랜트별 재고일수를 더하면 통합 재고일수가 됩니다).
-      신호등과 3평판은 <strong>통합 기준</strong>이며, 당월 진척율 기준 보조 열은 플랜트로 나눌 수 없어 <strong>—</strong>로 둡니다.<br>
+      신호등과 3평판은 <strong>통합 기준</strong>입니다.<br>
       자재코드만 등록돼 있고 <strong>재고·입고가 전 기간 0</strong>인 품목(아직 이 공장으로 스위칭 전)은 목록에서 뺍니다 — 뺀 행이 전부 0이라 합계는 그대로입니다.
     </div>`;
   }
@@ -7647,10 +7663,10 @@ function renderPSI(){
         <th rowspan="3" class="l" style="min-width:130px;">소진계획</th>
       </tr>
       <tr>
-        ${months.map(m=>`${psiHasBeginCol(m)?`<th rowspan="2" class="plan-hd r month-start psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-begin')" data-scol="${m.key}-begin">기초 ${si(m.key+'-begin')}</th>`:''}<th rowspan="2" class="plan-hd r${psiHasBeginCol(m)?'':' month-start'} psi-col-buy" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-buy')" data-scol="${m.key}-buy" title="${psiHasBeginCol(m)?'':'기초재고는 전월 기말재고와 같은 값이라 열을 생략했습니다'}">입고 ${si(m.key+'-buy')}</th><th rowspan="2" class="plan-hd r psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-plan')" data-scol="${m.key}-plan">판매 ${si(m.key+'-plan')}</th><th colspan="2" class="plan-hd c${m.progress?'':' month-end'}">기말재고</th>${m.progress?'<th colspan="2" class="plan-hd c month-end">진척율 기준</th>':''}`).join('')}
+        ${months.map(m=>`${psiHasBeginCol(m)?`<th rowspan="2" class="plan-hd r month-start psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-begin')" data-scol="${m.key}-begin">기초 ${si(m.key+'-begin')}</th>`:''}<th rowspan="2" class="plan-hd r${psiHasBeginCol(m)?'':' month-start'} psi-col-buy" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-buy')" data-scol="${m.key}-buy" title="${psiHasBeginCol(m)?'':'기초재고는 전월 기말재고와 같은 값이라 열을 생략했습니다'}">입고 ${si(m.key+'-buy')}</th><th rowspan="2" class="plan-hd r psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-plan')" data-scol="${m.key}-plan">판매 ${si(m.key+'-plan')}</th><th colspan="2" class="plan-hd c month-end">기말재고</th>`).join('')}
       </tr>
       <tr>
-        ${months.map(m=>`<th class="plan-hd r psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-end')" data-scol="${m.key}-end">${unitHd} ${si(m.key+'-end')}</th><th class="plan-hd c psi-col${m.progress?'':' month-end'}" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-days')" data-scol="${m.key}-days">재고일수 ${si(m.key+'-days')}</th>${m.progress?`<th class="plan-hd r psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisEnd')" data-scol="${m.key}-basisEnd">${unitHd} ${si(m.key+'-basisEnd')}</th><th class="plan-hd c month-end psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-basisDays')" data-scol="${m.key}-basisDays">재고일수 ${si(m.key+'-basisDays')}</th>`:''}`).join('')}
+        ${months.map(m=>`<th class="plan-hd r psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-end')" data-scol="${m.key}-end">${unitHd} ${si(m.key+'-end')}</th><th class="plan-hd c month-end psi-col" style="cursor:pointer;" onclick="sortPsiCol('${m.key}-days')" data-scol="${m.key}-days">재고일수 ${si(m.key+'-days')}</th>`).join('')}
       </tr>
       <tr id="psiSubtotalRow"></tr>
     </thead><tbody id="psiTbody"></tbody></table></div>`;
@@ -7959,11 +7975,18 @@ function channelMonthCells(name,src){
 //   키를 공유하므로 어디서 쓰든 같은 내용이다. 채널 목록이 달마다 바뀌어도 채널명이 키라 알아서 따라간다.
 // ⚠ SKU 담당 의견과 같이 **기준월별로 쌓는다**. 지난달에 뭘 하겠다고 했는지가 남아야 한다.
 const HIT_CH_MEMO_PREFIX='hitChMemo|';
-function hitChMemoKey(ch,ym){return `${HIT_CH_MEMO_PREFIX}${ch||'전체'}|${ym||skuMemoMonth()}`;}
+function hitMemoMonthKey(monthKey){
+  const raw=String(monthKey||'').trim();
+  const rawYear=/^(\d{4})[.-]/.exec(raw)?.[1];
+  const baseYear=/^(\d{4})\.(\d{2})$/.exec(String(skuMemoMonth()||''))?.[1];
+  const no=monthNoFromKey(raw);
+  return no?`${rawYear||baseYear||new Date().getFullYear()}.${String(no).padStart(2,'0')}`:(raw||skuMemoMonth());
+}
+function hitChMemoKey(ch,ym){return `${HIT_CH_MEMO_PREFIX}${ch||'전체'}|${hitMemoMonthKey(ym||skuMemoMonth())}`;}
 // 이 채널의 과거 기록(최신월 우선). 당월은 빼고 준다.
-function hitChMemoHistory(ch){
+function hitChMemoHistory(ch,currentYm){
   const pre=`${HIT_CH_MEMO_PREFIX}${ch||'전체'}|`;
-  const ym=skuMemoMonth();
+  const ym=hitMemoMonthKey(currentYm||skuMemoMonth());
   const out=[];
   for(let i=0;i<localStorage.length;i++){
     const k=localStorage.key(i);
@@ -7976,16 +7999,16 @@ function hitChMemoHistory(ch){
   return out.sort((a,b)=>String(b.ym).localeCompare(String(a.ym)));
 }
 // 화면에 뿌릴 값 한 덩어리. 당월이 비어 있으면 직전 달을 이어받아 보여준다(저장 전).
-function hitChMemoView(ch){
-  const ym=skuMemoMonth();
+function hitChMemoView(ch,currentYm){
+  const ym=hitMemoMonthKey(currentYm||skuMemoMonth());
   const cur=localStorage.getItem(hitChMemoKey(ch,ym));
-  const hist=hitChMemoHistory(ch);
+  const hist=hitChMemoHistory(ch,ym);
   if(cur!=null&&cur!=='') return {ym,text:cur,carriedFrom:'',hist};
   return {ym,text:hist[0]?.text||'',carriedFrom:hist[0]?.label||'',hist};
 }
 // 표 셀 하나 — textarea + 이어받음/이력 표시. 저장은 기존 saveSharedTextInput(공유 KV)이 그대로 처리한다.
-function hitChMemoCell(ch){
-  const v=hitChMemoView(ch);
+function hitChMemoCell(ch,currentYm){
+  const v=hitChMemoView(ch,currentYm);
   const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
   const histTip=v.hist.length?v.hist.map(h=>`${h.label}: ${h.text}`).join('\n'):'';
   const carry=v.carriedFrom
@@ -8029,7 +8052,7 @@ function buildChannelWape(){
       const rows=aggregateHitRows((hit.byMonth[key]||[]).map(remapHitRowDaiso));
       const tPlan=rows.reduce((s,r)=>s+(Number(r.plan)||0),0);
       if(!(tPlan>0)) return;
-      months.push({key,no,label:`${no}월`});
+      months.push({key,no,label:`${no}월`,hasData:true});
       totals.set(key,{plan:tPlan,abs:rows.reduce((s,r)=>s+Math.abs(Number(r.diff)||0),0)});
       rows.forEach(r=>{
         const ch=r.ch||'미분류';
@@ -8042,7 +8065,8 @@ function buildChannelWape(){
       });
     });
   if(!months.length) return null;
-  const sizeKey=months[months.length-1].key;   // 규모 기준 = 가장 최근 실적월
+  const sizeMonth=[...months].reverse().find(m=>m.hasData&&totals.has(m.key));
+  const sizeKey=(sizeMonth||months[months.length-1]).key;   // 규모 기준 = 가장 최근 계산 가능 월
   const rows=[...byCh.values()].map(row=>{
     const wape={},hit={};
     months.forEach(({key})=>{
@@ -8108,17 +8132,55 @@ function resetChWapeSort(){
 // 아래 '판매계획 보정 대상 리스트'와 같은 소스(aggregateHitRows)·같은 보정유형을 쓴다 — 두 화면의 숫자가 갈리면 안 된다.
 // ⚠ 월별 소스는 hitTrendSource()를 따라 금액/수량 토글을 그대로 물려받는다.
 let chDrillState=null;
+// 팝업의 월 선택지는 계산 가능한 월만이 아니라, 최신 판매계획에 잡힌 월과
+// 오차율분석 시트에 자리만 만들어진 월도 포함한다. 당월 9월처럼 실적 상세가
+// 아직 내려오지 않은 달도 채널 조치의견을 먼저 남길 수 있어야 월별 이력이 끊기지 않는다.
+function chDrillMonths(data){
+  const out=[];
+  const seen=new Set();
+  const add=(key,no,label,hasData=false)=>{
+    const k=String(key||'').trim();
+    if(!k||no==null) return;
+    if(seen.has(k)){
+      const old=out.find(m=>m.key===k);
+      if(old&&hasData) old.hasData=true;
+      return;
+    }
+    seen.add(k); out.push({key:k,no,label:label||`${no}월`});
+    out[out.length-1].hasData=Boolean(hasData);
+  };
+  (data?.months||[]).forEach(m=>add(m.key,m.no,m.label,m.hasData!==false));
+  const hit=hitTrendSource();
+  Object.keys(hit?.byMonth||{})
+    .map(key=>({key,no:monthNoFromKey(key)}))
+    .filter(x=>x.no!=null)
+    .forEach(x=>add(x.key,x.no,`${x.no}월`,(hit.byMonth[x.key]||[]).length>0));
+  const sum=getSalesPlanData()?.__summary;
+  [...(sum?.actualMonths||[]),...(sum?.planMonths||[])].forEach(m=>{
+    const no=Number(m);
+    if(no>=1&&no<=12) add(`${no}월`,no,`${no}월`);
+  });
+  return out.sort((a,b)=>a.no-b.no);
+}
 function chDrillRows(ch,monthKey){
   const hit=hitTrendSource();
   if(!hit?.byMonth) return [];
-  const rows=aggregateHitRows((hit.byMonth[monthKey]||[]).map(remapHitRowDaiso));
+  // 표에서 온 키(예: '8월')와 이력 선택기의 키를 모두 허용한다.
+  // 원천 시트에 9월 열은 있지만 행이 0개인 경우에도 빈 배열로 정상 처리한다.
+  const direct=hit.byMonth[monthKey];
+  const no=monthNoFromKey(monthKey);
+  const fallback=no==null?null:hit.byMonth[`${no}월`];
+  const rows=aggregateHitRows((direct??fallback??[]).map(remapHitRowDaiso));
   return rows.filter(r=>(r.ch||'미분류')===ch).sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff));
 }
 function openChDrill(ch,monthKey){
   const data=buildChannelWape();
-  const months=data?.months||[];
-  // 월을 안 주면(채널명 클릭) 가장 최근 실적월로 연다
-  const mk=monthKey||months[months.length-1]?.key;
+  const months=chDrillMonths(data);
+  // 월을 안 주면(채널명 클릭) 현재 기준월이 아니라 실제 오차율 원천이 있는
+  // 가장 최근 월을 연다. 9월 파일처럼 계획만 있고 실적 상세가 아직 없는 달을
+  // 기본으로 열면 팝업이 비고, 표의 최근 숫자(8월)와도 맞지 않는다.
+  const latestData=[...months].reverse().find(m=>m.hasData);
+  const mk=monthKey||latestData?.key||months[months.length-1]?.key;
   if(!mk){alert('오차율 분석 데이터가 없습니다.');return;}
   chDrillState={ch,monthKey:mk};
   renderChDrill();
@@ -8135,6 +8197,22 @@ function setChDrillMonth(mk){
   chDrillState={...chDrillState,monthKey:mk};
   renderChDrill();
 }
+function saveChDrillMemos(){
+  if(!chDrillState||!requireAdminMode()) return;
+  const body=document.getElementById('chDrillBody');
+  const fields=body?[...body.querySelectorAll('textarea[data-memo-key]')]:[];
+  fields.forEach(el=>{
+    localStorage.setItem(el.dataset.memoKey,el.value);
+    el.classList.toggle('saved',el.value.trim()!=='');
+  });
+  if(fields.length) queueSharedStateSave();
+  const status=document.getElementById('chDrillSaveStatus');
+  if(status){
+    status.textContent=`저장 완료 · ${_ymLabel(hitMemoMonthKey(chDrillState.monthKey))}`;
+    status.style.color='var(--green)';
+    setTimeout(()=>{if(status) status.textContent='';},2200);
+  }
+}
 function renderChDrill(){
   if(!chDrillState) return;
   const head=document.getElementById('chDrillHeader');
@@ -8142,7 +8220,7 @@ function renderChDrill(){
   if(!head||!body) return;
   const {ch,monthKey}=chDrillState;
   const data=buildChannelWape();
-  const months=data?.months||[];
+  const months=chDrillMonths(data);
   const rows=chDrillRows(ch,monthKey);
   const qty=hitTrendUnit==='qty';
   const fmt=v=>qty?Math.round(v).toLocaleString():Number(v).toFixed(2);
@@ -8160,11 +8238,23 @@ function renderChDrill(){
       <select onchange="setChDrillMonth(this.value)" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;">
         ${months.map(m=>`<option value="${m.key}"${m.key===monthKey?' selected':''}>${m.label}</option>`).join('')}
       </select>
+      <button onclick="saveChDrillMemos()" style="height:28px;border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:5px;padding:0 12px;font-size:11px;font-weight:800;cursor:pointer;">저장</button>
+      <span id="chDrillSaveStatus" style="font-size:10.5px;min-width:92px;"></span>
       <button onclick="applyChDrillToList()" style="height:28px;border:1px solid var(--navy);background:#fff;color:var(--navy);border-radius:5px;padding:0 10px;font-size:11px;font-weight:700;cursor:pointer;" title="아래 '판매계획 보정 대상 리스트'를 이 채널·월로 맞춥니다">아래 리스트에 적용</button>
       <button onclick="closeChDrill()" style="height:28px;border:1px solid var(--border);background:#fff;border-radius:5px;padding:0 10px;font-size:11px;font-weight:700;cursor:pointer;">닫기</button>
     </div>`;
   if(!rows.length){
-    body.innerHTML=`<div style="padding:26px;text-align:center;color:var(--muted);font-size:12px;">${moLabel}에 ${ch} 판매계획이 없습니다.</div>`;
+    const ym=hitMemoMonthKey(monthKey);
+    body.innerHTML=`<div style="padding:18px 16px 12px;text-align:center;color:var(--muted);font-size:12px;line-height:1.6;">
+        ${moLabel} ${ch}의 오차율 상세 원천 행이 아직 없습니다.<br>
+        <span style="font-size:11px;">실적·계획이 들어오면 품목 상세가 자동으로 채워지고, 지금 남기는 의견은 ${_ymLabel(ym)} 이력으로 보존됩니다.</span>
+      </div>
+      <table class="chwape chwape-drill" style="font-size:12.5px;min-width:0;">
+        <colgroup><col><col style="width:300px;"></colgroup>
+        <thead><tr><th class="l">${ch} · ${moLabel} 이력 메모</th><th class="l">채널 조치의견</th></tr></thead>
+        <tbody><tr><td class="l" style="color:var(--muted);">계산 대기 · 상세 원천자료 없음</td>${hitChMemoCell(ch,ym)}</tr></tbody>
+      </table>
+      <div style="padding:8px 2px 0;font-size:10.5px;color:var(--muted);">이전 월 의견이 있으면 자동으로 이어 표시되며, 입력 후 수정하면 ${_ymLabel(ym)} 별도 기록으로 저장됩니다.</div>`;
     return;
   }
   // ⚠ 폭을 col로 명시한다. `.chwape`는 table-layout:fixed라 colgroup이 없으면 열이 균등 분할돼
@@ -8194,7 +8284,7 @@ function renderChDrill(){
         <td>${r.hitAcc==null?'—':r.hitAcc.toFixed(0)+'%'}</td>
         <td${isHitClamped(r.hitAcc)?` class="cw-hit0" title="오차(${r.hitAcc.toFixed(0)}%)가 계획보다 커서 0%로 표시합니다"`:''}>${hitRateFromWape(r.hitAcc)==null?'—':hitRateFromWape(r.hitAcc).toFixed(0)+'%'}</td>
         <td class="cw-sep">${contrib.toFixed(1)}%</td>
-        ${_hitRowMemoCell(r)}
+        ${_hitRowMemoCell(r,monthKey)}
       </tr>`;
     }).join('')}
     <tr class="cw-total">
@@ -8204,7 +8294,7 @@ function renderChDrill(){
       <td>${wape==null?'—':wape.toFixed(1)+'%'}</td>
       <td${isHitClamped(wape)?` class="cw-hit0" title="오차(${wape.toFixed(1)}%)가 계획보다 커서 0%로 표시합니다"`:''}>${hitRateFromWape(wape)==null?'—':hitRateFromWape(wape).toFixed(1)+'%'}</td>
       <td class="cw-sep">100.0%</td>
-      ${hitChMemoCell(ch)}
+      ${hitChMemoCell(ch,hitMemoMonthKey(monthKey))}
     </tr>
     </tbody></table>
     <div style="margin-top:10px;font-size:10.5px;color:var(--muted);line-height:1.6;">
@@ -8213,17 +8303,44 @@ function renderChDrill(){
       <span style="color:var(--red);font-weight:700;">−면 미달</span>입니다 ·
       <strong>합계 행의 차이는 Σ|차이|</strong>(초과·미달 상쇄 없음)라 오차율 × 계획과 일치합니다 ·
       아래 '판매계획 보정 대상 리스트'와 같은 집계(계획 0인 행 제외)를 씁니다<br>
-      <strong>조치의견은 아래 리스트와 같은 칸입니다</strong> — 여기서 쓰면 리스트에도 그대로 반영됩니다
-      (합계 행은 <strong>채널 조치의견</strong>, 위 오차율 표의 그 채널 칸과 연동)
+      <strong>조치의견은 팝업에서 선택한 월별로 저장됩니다</strong> — 입력 중에도 자동 저장되고, 상단 <strong>저장</strong> 버튼으로 현재 팝업의 의견을 한 번에 확정할 수 있습니다. 8월과 9월 의견은 서로 덮어쓰지 않고 이력으로 누적됩니다
+      (합계 행은 <strong>채널 조치의견</strong>, 위 오차율 표의 당월 채널 칸과 연동)
     </div>`;
 }
-// 품목 조치의견 칸. ⚠ 키(hitAdjustMemo|채널|자재)를 **보정 대상 리스트와 똑같이** 만든다 —
-//   그래야 채널 팝업에서 쓴 게 리스트에 그대로 보인다. 새 키 체계를 만들지 말 것.
-function _hitRowMemoCell(row){
-  const key=`hitAdjustMemo|${hitRowKey(row)}`;
-  const v=(localStorage.getItem(key)||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-  return `<td class="l chmemo-td"><textarea class="action-memo${v.trim()?' saved':''}" data-memo-key="${key}"
-    oninput="saveSharedTextInput(this)" placeholder="조치의견 입력">${v}</textarea></td>`;
+// 품목 조치의견 칸. 팝업은 **클릭한 기준월별 키**로 저장해 8월/9월 의견이 서로 덮어쓰지 않게 한다.
+//   기존 hitAdjustMemo|채널|자재 키는 과거 입력 호환용으로 월별 메모가 없을 때만 fallback으로 읽는다.
+function hitAdjustMemoLegacyKey(row){return `hitAdjustMemo|${hitRowKey(row)}`;}
+function hitAdjustMemoKey(row,monthKey){
+  const ym=hitMemoMonthKey(monthKey||skuMemoMonth());
+  return ym?`${hitAdjustMemoLegacyKey(row)}|${ym}`:hitAdjustMemoLegacyKey(row);
+}
+function hitAdjustMemoHistory(row,currentYm){
+  const base=hitAdjustMemoLegacyKey(row);
+  const pre=`${base}|`;
+  const ym=hitMemoMonthKey(currentYm||skuMemoMonth());
+  const out=[];
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(!key||!key.startsWith(pre)) continue;
+    const month=key.slice(pre.length);
+    const text=localStorage.getItem(key)||'';
+    if(text.trim()&&month!==ym) out.push({ym:month,label:_ymLabel(month),text});
+  }
+  return out.sort((a,b)=>String(b.ym).localeCompare(String(a.ym)));
+}
+function _hitRowMemoCell(row,monthKey){
+  const ym=hitMemoMonthKey(monthKey||skuMemoMonth());
+  const key=hitAdjustMemoKey(row,ym);
+  const legacyKey=hitAdjustMemoLegacyKey(row);
+  const raw=ym?localStorage.getItem(key):null;
+  const text=raw==null?(localStorage.getItem(legacyKey)||''):raw;
+  const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const v=esc(text);
+  const hist=hitAdjustMemoHistory(row,ym);
+  const histTip=hist.map(h=>`${h.label}: ${h.text}`).join('\n');
+  const history=hist.length?`<div class="chmemo-hist" title="${esc(histTip)}">이전 ${hist.map(h=>h.label).join('·')} 의견</div>`:'';
+  return `<td class="l chmemo-td"><textarea class="action-memo${text.trim()?' saved':''}" data-memo-key="${esc(key)}"
+    oninput="saveSharedTextInput(this)" placeholder="${esc(_ymLabel(ym))} 조치의견">${v}</textarea>${history}</td>`;
 }
 
 // 팝업에서 보던 채널·월을 아래 보정 대상 리스트에 그대로 넘긴다
@@ -8306,14 +8423,20 @@ function renderChannelWape(){
   // 셀 클릭 → 그 채널·그 달의 품목을 |차이| 큰 순으로 보여주는 팝업
   const cell=(v,ch,mk,ml,sep)=>{
     const cls=sep?' cw-sep':'';
-    if(v==null) return `<td class="cw-na${cls}" title="해당 월 판매계획 없음">—</td>`;
+    const pending=data.months.find(m=>m.key===mk)?.hasData===false;
+    if(v==null) return pending
+      ? `<td class="cw-click cw-na${cls}" onclick="openChDrill(${esc(ch)},${esc(mk)})" title="${ch} ${ml} 상세 원천자료 대기 · 클릭해 월별 의견 저장">—</td>`
+      : `<td class="cw-na${cls}" title="해당 월 판매계획 없음">—</td>`;
     return `<td class="cw-click${cls}" onclick="openChDrill(${esc(ch)},${esc(mk)})" title="${ch} ${ml} 오차 상세 보기">${v.toFixed(0)}%</td>`;
   };
   // 적중률 칸. 오차율 칸과 **모양·크기가 같다**(2026-08-19 사용자 지정: "동일한 열로").
   // 0%로 잘린 칸만 title로 실제 오차율을 알린다 — 값 자체는 바로 옆 오차율 열에 그대로 있다.
   const hitCell=(v,w,ch,mk,ml,sep)=>{
     const cls=sep?' cw-sep':'';
-    if(v==null) return `<td class="cw-na${cls}" title="해당 월 판매계획 없음">—</td>`;
+    const pending=data.months.find(m=>m.key===mk)?.hasData===false;
+    if(v==null) return pending
+      ? `<td class="cw-click cw-na${cls}" onclick="openChDrill(${esc(ch)},${esc(mk)})" title="${ch} ${ml} 상세 원천자료 대기 · 클릭해 월별 의견 저장">—</td>`
+      : `<td class="cw-na${cls}" title="해당 월 판매계획 없음">—</td>`;
     const clamped=isHitClamped(w);
     const tip=clamped
       ? `${ch} ${ml} — 오차(${w.toFixed(0)}%)가 계획보다 커서 0%로 표시합니다. 계획한 품목 대신 다른 품목이 팔린 경우입니다. 눌러서 품목 보기`
@@ -8331,11 +8454,11 @@ function renderChannelWape(){
   const contributionMonth=months[months.length-1];
   const contributionTotal=contributionMonth?(data.totalWape[contributionMonth.key]!=null
     ? (data.rows.reduce((sum,row)=>sum+(row.cells[contributionMonth.key]?.abs||0),0)) : 0):0;
-  const W_CH=115,W_MO=55,W_CONTRIB=75,W_MV=58,W_MEMO_MIN=150;
+  const W_CH=115,W_MO=55,W_CONTRIB=75,W_MV=48,W_MEMO_MIN=150;
   const fixedW=W_CH+months.length*W_MO*2+W_CONTRIB+mvMonths.length*W_MV;
   const nA=spark?spark.actualMonths.length:0;
   let h=`<table class="chwape chwape-lg" style="width:100%;min-width:${fixedW+W_MEMO_MIN}px;">
-  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${mvMonths.map(()=>`<col style="width:${W_MV}px;">`).join('')}<col></colgroup>
+  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${mvMonths.map((mo,i)=>`<col class="cw-month-col${i>=nA?' cw-plan-col':''}" style="width:${W_MV}px;">`).join('')}<col></colgroup>
   <thead>
   <tr>
     <th class="l sortable" rowspan="2" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
@@ -8343,13 +8466,13 @@ function renderChannelWape(){
     <th class="cw-grp cw-sep" colspan="${months.length}">적중률 (%)</th>
     <th class="cw-grp cw-sep" rowspan="2">오차<br>기여도<br>(${contributionMonth?.label||''})</th>
     ${nA?`<th class="cw-grp cw-act cw-sep" colspan="${nA}">실적 (억원)</th>`:''}
-    ${mvMonths.length-nA>0?`<th class="cw-grp cw-plan cw-sep" colspan="${mvMonths.length-nA}">판매계획 (억원)</th>`:''}
+    ${mvMonths.length-nA>0?`<th class="cw-grp cw-plan cw-sep" colspan="${mvMonths.length-nA}" title="판매계획 (억원)">판매계획<br><span>(억원)</span></th>`:''}
     <th class="l" rowspan="2">조치의견 ${_ymLabel(skuMemoMonth())}</th>
   </tr>
   <tr>
     ${months.map(m=>`<th class="sortable" onclick="handleChWapeSort('${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="${m.key}"></span></th>`).join('')}
     ${months.map((m,i)=>`<th class="sortable${i===0?' cw-sep':''}" onclick="handleChWapeSort('hr:${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="hr:${m.key}"></span></th>`).join('')}
-    ${mvMonths.map((mo,i)=>`<th class="cw-mv${i>=nA?' cw-plan':''}${i===0||i===nA?' cw-sep':''}" title="${i>=nA?'판매계획':'실적'} ${mo}월 (억원)">${mo}월</th>`).join('')}
+    ${mvMonths.map((mo,i)=>`<th class="cw-mv cw-month-col${i>=nA?' cw-plan':''}${i===0||i===nA?' cw-sep':''}" title="${i>=nA?'판매계획':'실적'} ${mo}월 (억원)">${mo}월</th>`).join('')}
   </tr></thead><tbody>`;
   sorted.forEach(r=>{
     h+=`<tr class="cw-ch${r.ch===selCh?' cw-sel':''}">
