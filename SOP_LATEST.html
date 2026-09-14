@@ -7923,7 +7923,8 @@ function buildHitTrend(){
 }
 
 // ═══════════ 채널별 실적·계획 스파크라인 ═══════════
-// 판매계획(SF) 시트 요약(__summary.ch)에 채널별로 실적 1~7월 / 계획 8~12월이 들어 있다.
+// 실적은 오차율분석 원천(aggregateHitRows)과 맞추고, 향후 계획은 판매계획(SF) 요약을 쓴다.
+// 그래야 오른쪽 실적 금액과 채널×월 오차 상세 팝업의 합계가 같은 기준으로 읽힌다.
 // ⚠ **금액(억원) 고정**이다 — __summary.ch에는 수량이 없다. 위 금액/수량 토글을 수량으로 바꿔도
 //   이 열은 금액 기준 그대로다(2026-08-18 사용자 확정). 그래서 열 제목에 (억원)을 박는다.
 // ⚠ Chart.js로 그리지 말 것 — 행마다 미니 차트를 만들면 11개 인스턴스가 생겨 무겁고 인쇄도 깨진다.
@@ -7942,11 +7943,31 @@ function channelPlanActual(){
   //   한쪽만 자르면 조용히 다른 달 숫자가 그 자리에 박힌다.
   const aFrom=Math.max(0,aM.length-CHWAPE_ACTUAL_MONTHS_SHOWN);
   const pTo=Math.min(pM.length,CHWAPE_PLAN_MONTHS_SHOWN);
+  // 오차율 상세 팝업과 같은 원천·같은 관문을 쓴다. 계획 0인 실적-only 행은
+  // WAPE에서 제외하므로 오른쪽 실적 금액도 그 기준에 맞춰야 합계가 일치한다.
+  // 해당 월 원천이 없을 때만 SF 요약의 기존 실적값으로 폴백한다.
+  const hitAmt=getHitData();
+  const hitActualByMonth=new Map();
+  aM.forEach(mo=>{
+    const source=hitAmt?.byMonth?.[`${Number(mo)}월`];
+    if(!Array.isArray(source)||!source.length) return;
+    const byCh=new Map();
+    aggregateHitRows(source.map(remapHitRowDaiso)).forEach(r=>{
+      const ch=String(r.ch||'미분류');
+      byCh.set(ch,(byCh.get(ch)||0)+(Number(r.actual)||0));
+    });
+    hitActualByMonth.set(Number(mo),byCh);
+  });
   const byName=new Map();
   const total={actual:[],plan:[]};
   Object.values(sum.ch).forEach(c=>{
     if(!c?.name) return;
-    const a=(c.actual||[]).map(v=>Number(v)||0), p=(c.plan||[]).map(v=>Number(v)||0);
+    const sfActual=(c.actual||[]).map(v=>Number(v)||0);
+    const a=aM.map((mo,i)=>{
+      const byCh=hitActualByMonth.get(Number(mo));
+      return byCh?Number(byCh.get(c.name)||0):sfActual[i]||0;
+    });
+    const p=(c.plan||[]).map(v=>Number(v)||0);
     byName.set(c.name,{actual:a.slice(aFrom),plan:p.slice(0,pTo)});
     a.forEach((v,i)=>{total.actual[i]=(total.actual[i]||0)+v;});
     p.forEach((v,i)=>{total.plan[i]=(total.plan[i]||0)+v;});
@@ -8458,7 +8479,7 @@ function renderChannelWape(){
   const fixedW=W_CH+months.length*W_MO*2+W_CONTRIB+mvMonths.length*W_MV;
   const nA=spark?spark.actualMonths.length:0;
   let h=`<table class="chwape chwape-lg" style="width:100%;min-width:${fixedW+W_MEMO_MIN}px;">
-  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${mvMonths.map((mo,i)=>`<col class="cw-month-col${i>=nA?' cw-plan-col':''}" style="width:${W_MV}px;">`).join('')}<col></colgroup>
+  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}<col style="width:${W_CONTRIB}px;">${mvMonths.map((mo,i)=>`<col class="cw-month-col${i>=nA?' cw-plan-col':''}" style="width:${W_MV}px;">`).join('')}<col></colgroup>
   <thead>
   <tr>
     <th class="l sortable" rowspan="2" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
@@ -8496,7 +8517,7 @@ function renderChannelWape(){
   wrap.innerHTML=h;
   renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
   if(note){
-    note.innerHTML=`오른쪽 월별 숫자 = <strong>판매계획(SF) 시트</strong> 기준 <strong>${spark?`${spark.actualMonths[0]}~${spark.actualMonths[spark.actualMonths.length-1]}월 실적`:'실적'}</strong> / <strong>${spark?`${spark.planMonths[0]}~${spark.planMonths[spark.planMonths.length-1]}월 계획`:'계획'}</strong> (억원) · 구간은 <strong>세로 구분선</strong>과 위 그룹 머리글로 나뉩니다 · <strong>금액 고정</strong>이라 위 수량 토글과 무관합니다<br>표에는 <strong>최근 ${CHWAPE_MONTHS_SHOWN}개월 오차율·적중률 · ${CHWAPE_ACTUAL_MONTHS_SHOWN}개월 실적 · 향후 ${CHWAPE_PLAN_MONTHS_SHOWN}개월 계획</strong>만 그립니다 — 연초부터의 전체 흐름은 위 추이 차트와 셀 클릭 팝업에서 보세요<br><strong>오차 기여도(${contributionMonth?.label||'최근 월'})</strong> = 해당 월 채널 |차이| ÷ 전체 |차이| · 합계 100% · `
+    note.innerHTML=`오른쪽 월별 숫자 = <strong>실적: 오차율분석 시트</strong> 기준(계획 0행 제외) <strong>${spark?`${spark.actualMonths[0]}~${spark.actualMonths[spark.actualMonths.length-1]}월 실적`:'실적'}</strong> / <strong>판매계획(SF) 시트</strong> 기준 <strong>${spark?`${spark.planMonths[0]}~${spark.planMonths[spark.planMonths.length-1]}월 계획`:'계획'}</strong> (억원) · 구간은 <strong>세로 구분선</strong>과 위 그룹 머리글로 나뉩니다 · <strong>금액 고정</strong>이라 위 수량 토글과 무관합니다<br>표에는 <strong>최근 ${CHWAPE_MONTHS_SHOWN}개월 오차율·적중률 · ${CHWAPE_ACTUAL_MONTHS_SHOWN}개월 실적 · 향후 ${CHWAPE_PLAN_MONTHS_SHOWN}개월 계획</strong>만 그립니다 — 연초부터의 전체 흐름은 위 추이 차트와 셀 클릭 팝업에서 보세요<br><strong>오차 기여도(${contributionMonth?.label||'최근 월'})</strong> = 해당 월 채널 |차이| ÷ 전체 |차이| · 합계 100% · `
       +`WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
       +`위 트렌드 차트·보정 대상 리스트와 같은 기준입니다 · 판매계획이 없는 달은 <span style="color:var(--gray-m);">—</span><br>`
       +`<strong>적중률 = 1 − 오차율</strong> (품목별 |오차| 합 ÷ 채널 판매계획 합) · 두 열은 같은 값을 뒤집은 것이라 <strong>합이 100%</strong>입니다<br>`
