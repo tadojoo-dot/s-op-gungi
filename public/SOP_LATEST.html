@@ -207,12 +207,8 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
    ① 오차율 15px/800 · 실적/계획 12.5px 보조색으로 **위계**를 준다(이 표의 주인공은 오차율)
    ② 넉넉한 행 높이 ③ 3행마다 옅은 가로 구분선 ④ 월 구간/계획 구간 세로선
    ⑤ 채널명 열 고정 ⑥ hover 시 행 전체 강조(가로로 눈이 안 샘) */
-/* ⚠ 폭 정책 (2026-08-19에 바꿈): 예전엔 표 폭을 내용에 맞춰 px로 고정해서(1,124px)
-   1,500px 패널 안에 **오른쪽 ~390px가 그냥 비었다**. 그러면서 정작 표 안에서는 월 열을 48px로
-   조이고 폰트를 11.5px까지 내리고 있었다 — 밖으로 버리고 안에서 굶는 상태.
-   지금은 숫자 열만 px로 고정하고 **조치의견 열을 width 미지정(auto)** 으로 둬서 남는 폭을
-   전부 흡수하게 한다(table-layout:fixed에서 auto 열이 잔여 폭을 가져간다).
-   ⚠ 그래도 width:100%만 두면 숫자 열까지 늘어나 값 사이가 벌어지므로, 숫자 열 px 고정은 유지할 것. */
+/* 폭 정책 (2026-09-14): ③탭 한 화면 표시를 위해 숫자 열을 컴팩트하게 고정하고,
+   조치의견 열은 남는 폭을 흡수한다. 1280px 기준 페이지 안쪽 폭에도 들어오도록 한다. */
 .chwape{border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;table-layout:fixed;}
 .chwape th{background:#F7F8FA;color:var(--navy);font-weight:700;padding:9px 8px;border-bottom:2px solid var(--border);font-size:11.5px;white-space:nowrap;text-align:center;}
 .chwape th.l{text-align:left;}
@@ -221,9 +217,9 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 /* ⚠ `.chwape`는 채널×월 오차 상세 **팝업**(openChDrill)에서도 쓴다. 거긴 SKU가 수십 줄이라
    촘촘해야 하므로 크기 관련 규칙은 전부 `.chwape-lg`(채널별 오차율 표 전용)에만 건다.
    `.chwape td{font-size:...}`처럼 base에 걸면 팝업이 같이 커진다(2026-08-19에 실제로 그럴 뻔했다). */
-.chwape.chwape-lg th{font-size:12.5px;padding:10px 8px;}
+.chwape.chwape-lg th{font-size:10.5px;padding:7px 4px;}
 /* 오차율 셀 = 이 표의 주인공. 월별 실적/계획(cw-mv)보다 확실히 크고 진하게. */
-.chwape.chwape-lg td{font-size:15px;font-weight:800;padding:13px 8px;}
+.chwape.chwape-lg td{font-size:13px;font-weight:800;padding:8px 4px;}
 .chwape td.l{text-align:left;font-weight:700;}
 /* ⚠ 2026-08-19 사용자 지정: **모든 열 가운데 정렬**(채널명·조치의견 포함).
    입력 중인 글자까지 가운데로 몰면 쓰기 불편하므로 textarea 안만 왼쪽으로 되돌린다. */
@@ -266,8 +262,9 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
   border-bottom:1px solid var(--border);background:#EAEDF4;}
 /* 판매계획 시트 기준 월별 실적·계획 숫자. 오차율보다 한 단계 작고 옅은 **보조 정보**다.
    ⚠ 계획 구간은 배경으로만 가른다 — 예전엔 글자색까지 #5A6180으로 내려 옅은 배경 위에서 잘 안 보였다. */
-.chwape.chwape-lg th.cw-mv{font-size:12px;padding:9px 5px;font-weight:700;}
-.chwape.chwape-lg td.cw-mv{font-size:12.5px;font-weight:600;padding:12px 5px;color:#454B63;}
+.chwape.chwape-lg th.cw-mv{font-size:10.5px;padding:7px 3px;font-weight:700;}
+.chwape.chwape-lg td.cw-mv{font-size:10.5px;font-weight:600;padding:8px 3px;color:#454B63;}
+.chwape.chwape-lg td.cw-contrib{font-size:11px;color:var(--terra);font-weight:800;}
 /* ⚠ 계획 구간 데이터 셀 음영은 뺐다(2026-08-19) — 위 cw-grp 주석 참고.
    구간은 그룹 헤더 '판매계획 (억원)'과 세로 구분선으로 읽는다. */
 .chmemo-td{vertical-align:top;padding:4px 6px!important;font-weight:400!important;}
@@ -276,11 +273,11 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .chmemo-carry{font-size:9.5px;font-weight:700;color:var(--terra);margin-top:2px;line-height:1.35;}
 .chmemo-hist{font-size:9.5px;color:var(--muted);margin-top:1px;cursor:help;}
 /* 채널별 오차율 표 쪽만 키운다 — 팝업(openChDrill)은 SKU가 수십 줄이라 촘촘한 채로 둔다 */
-.chwape-lg .chmemo-td{vertical-align:middle;padding:6px 8px!important;}
-.chwape-lg .chmemo-td textarea.action-memo{min-height:34px;height:34px;font-size:12.5px;}
+.chwape-lg .chmemo-td{vertical-align:middle;padding:4px 5px!important;}
+.chwape-lg .chmemo-td textarea.action-memo{min-height:28px;height:28px;font-size:10.5px;}
 .chwape-lg .chmemo-td textarea.action-memo:focus{height:84px;}
-.chwape-lg .chmemo-carry{font-size:10.5px;margin-top:3px;}
-.chwape-lg .chmemo-hist{font-size:10.5px;margin-top:2px;}
+.chwape-lg .chmemo-carry{font-size:9px;margin-top:2px;}
+.chwape-lg .chmemo-hist{font-size:9px;margin-top:1px;}
 .chwape-side-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 4px 8px;
   font-size:12.5px;font-weight:900;color:var(--navy);}
 .chwape-side-hd select{height:26px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;}
@@ -1944,8 +1941,16 @@ function bindPlanCells(root){
     // 새 키에 기록이 있으면 그것이 우선. **빈 문자열로 지운 기록도 기록이다** —
     // 여기서 옛 키로 폴백하면 지운 메모가 되살아난다(find는 없을 때만 undefined를 준다).
     const legacyKey=cell.dataset.planLegacyKey||'';
+    const legacySku=cell.dataset.planLegacySku||'';
     const saved=actions.find(a=>a.key===key)
-      ||(legacyKey?actions.find(a=>a.key===legacyKey&&String(a.plan||'').trim()!==''):null);
+      ||(legacyKey?actions.find(a=>a.key===legacyKey&&String(a.plan||'').trim()!==''):null)
+      // 구간이 바뀌었거나 납품기한 보기로 전환된 옛 기록도 같은 SKU의 최신 행에 보여준다.
+      // 옛 키는 AGING|채널|구간|자재 형식이라 새 행 키로 자동 변환하지 않고, 표시만 이어받는다.
+      ||(legacySku?actions.find(a=>{
+        const p=String(a.key||'').split('|');
+        return p.length===4&&p[0]==='AGING'&&p[1]===legacySku.split('|')[0]&&p[3]===legacySku.split('|')[1]
+          &&String(a.plan||'').trim()!=='';
+      }):null);
     if(saved){cell.textContent=saved.plan;cell.classList.add('saved');}
     // ⚠ 편집 권한은 **바인딩 시점에** 건다. 마크업이 contenteditable="true"로 고정돼 있어서,
     //    보드 렌더 뒤에 그려지는 칸(드릴다운 등)은 updateAdminModeUI()를 못 만나 비관리자도
@@ -5287,6 +5292,7 @@ function _renderDDTbody(){
   });
   const planKeyOf=x=>`AGING|${ch}|${cat}|${x.m}|${x.b||''}|${x.p||''}|${x.lc||''}`;
   const legacyKeyOf=x=>_legacyTop.get(String(x.m||''))===x?`AGING|${ch}|${cat}|${x.m}`:'';
+  const legacySkuOf=x=>_legacyTop.get(String(x.m||''))===x?`${ch}|${x.m}`:'';
   let rows='';
   sorted.forEach(s=>{
     let rem='—', remCls='rem-b';
@@ -5319,7 +5325,7 @@ function _renderDDTbody(){
       <td class="c" style="font-size:11px;color:var(--muted);">${s.e||'—'}</td>
       <td class="c"><span class="tag" style="background:${AGING_COL[cat]||'#eee'};color:#fff;font-size:10px;">${grade}</span></td>
       <td class="c">${soojinChip}</td>
-      <td class="l plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="${planKeyOf(s)}" data-plan-legacy-key="${legacyKeyOf(s)}" data-screen="재고 Aging" data-bucket="${cat}" data-channel="${ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button></td>
+      <td class="l plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="${planKeyOf(s)}" data-plan-legacy-key="${legacyKeyOf(s)}" data-plan-legacy-sku="${legacySkuOf(s)}" data-screen="재고 Aging" data-bucket="${cat}" data-channel="${ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button></td>
     </tr>`;
   });
   const tbody=document.querySelector('#ddBody .dd-table tbody');
@@ -8314,21 +8320,19 @@ function renderChannelWape(){
       : `${ch} ${ml} 오차 상세 보기`;
     return `<td class="cw-click${cls}${clamped?' cw-hit0':''}" onclick="openChDrill(${esc(ch)},${esc(mk)})" title="${tip}">${v.toFixed(0)}%</td>`;
   };
-  // 표 전체 폭을 내용에 맞춰 잡는다 — 화면 폭에 맞춰 늘리면 숫자 사이가 벌어져 한눈에 안 들어온다.
+  // 표 전체 폭을 한 화면에 맞춘다 — 숫자 열은 컴팩트하게 고정하고 조치의견만 남는 폭을 쓴다.
   // 오른쪽 여백에 채널별 12개월 흐름(실적 1~7 / 계획 8~12)을 스파크라인으로 붙인다.
   // 판매계획 시트가 없으면 열 자체를 안 그린다(무회귀).
   const spark=channelPlanActual();
   const mvMonths=spark?[...spark.actualMonths,...spark.planMonths]:[];
-  // ⚠ 숫자 열만 px로 고정하고 **조치의견 열은 width를 주지 않는다(auto)** —
-  //   table-layout:fixed에서 auto 열이 잔여 폭을 전부 가져가므로 오른쪽 여백이 남지 않는다.
-  //   숫자 열까지 %로 늘리면 값 사이가 벌어져 한눈에 안 들어온다(그래서 px 유지).
-  // 적중률 열은 오차율 열과 **폭·타이포가 같다**(W_MO 공유). 둘은 짝이라 그룹 배경도 같은 톤을 쓰고,
-  // 경계는 cw-sep 세로선으로만 가른다.
-  // ⚠ 조치의견 열은 계속 auto(잔여 폭 흡수)로 둔다 — px로 고정하면 넓은 화면에서 오른쪽이 다시 빈다.
-  //    "조치의견을 좁혀 달라"는 요구는 **숫자 열을 키워서** 푼다(2026-08-19). 1500px 패널 기준
-  //    조치의견 412 → 300px로 줄고, 줄어든 폭이 그대로 숫자 사이 여백이 된다.
-  const W_CH=140,W_MO=104,W_MV=92,W_MEMO_MIN=220;
-  const fixedW=W_CH+months.length*W_MO*2+mvMonths.length*W_MV;
+  // 적중률 열은 오차율 열과 같은 폭을 쓴다. 채널별 오차기여도는 최근 표시 월 기준으로
+  // 계산해 실적 구간 바로 앞에 둔다.
+  // ⚠ 조치의견 열은 계속 auto(잔여 폭 흡수)로 둔다 — 넓은 화면에서도 불필요한 빈 공간이 생기지 않는다.
+  const contributionMonth=months[months.length-1];
+  const contributionTotal=contributionMonth?(data.totalWape[contributionMonth.key]!=null
+    ? (data.rows.reduce((sum,row)=>sum+(row.cells[contributionMonth.key]?.abs||0),0)) : 0):0;
+  const W_CH=115,W_MO=55,W_CONTRIB=75,W_MV=58,W_MEMO_MIN=150;
+  const fixedW=W_CH+months.length*W_MO*2+W_CONTRIB+mvMonths.length*W_MV;
   const nA=spark?spark.actualMonths.length:0;
   let h=`<table class="chwape chwape-lg" style="width:100%;min-width:${fixedW+W_MEMO_MIN}px;">
   <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${mvMonths.map(()=>`<col style="width:${W_MV}px;">`).join('')}<col></colgroup>
@@ -8337,6 +8341,7 @@ function renderChannelWape(){
     <th class="l sortable" rowspan="2" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
     <th class="cw-grp" colspan="${months.length}">오차율 (%)</th>
     <th class="cw-grp cw-sep" colspan="${months.length}">적중률 (%)</th>
+    <th class="cw-grp cw-sep" rowspan="2">오차<br>기여도<br>(${contributionMonth?.label||''})</th>
     ${nA?`<th class="cw-grp cw-act cw-sep" colspan="${nA}">실적 (억원)</th>`:''}
     ${mvMonths.length-nA>0?`<th class="cw-grp cw-plan cw-sep" colspan="${mvMonths.length-nA}">판매계획 (억원)</th>`:''}
     <th class="l" rowspan="2">조치의견 ${_ymLabel(skuMemoMonth())}</th>
@@ -8351,6 +8356,7 @@ function renderChannelWape(){
       <td class="l"><button type="button" class="cw-name" onclick="openChDrill(${esc(r.ch)})" title="${r.ch}의 오차 상세 보기 (차이 큰 순)">${r.ch}</button></td>
       ${months.map(m=>cell(r.wape[m.key],r.ch,m.key,m.label)).join('')}
       ${months.map((m,i)=>hitCell(r.hit[m.key],r.wape[m.key],r.ch,m.key,m.label,i===0)).join('')}
+      <td class="cw-contrib cw-sep" title="${contributionMonth?.label||''}월 채널 |차이| ÷ 전체 |차이|">${contributionTotal>0?((r.cells[contributionMonth.key]?.abs||0)/contributionTotal*100).toFixed(1)+'%':'—'}</td>
       ${spark?channelMonthCells(r.ch,spark):''}
       ${hitChMemoCell(r.ch)}
     </tr>`;
@@ -8360,13 +8366,15 @@ function renderChannelWape(){
     <td class="l">전체</td>
     ${months.map(m=>totCell(totalWape[m.key],false)).join('')}
     ${months.map((m,i)=>totCell(totalHit[m.key],i===0)).join('')}
+    <td class="cw-contrib cw-sep">${contributionTotal>0?'100.0%':'—'}</td>
     ${spark?channelMonthCells('전체',spark):''}
     ${hitChMemoCell('전체')}
   </tr></tbody></table>`;
   wrap.innerHTML=h;
   renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
   if(note){
-    note.innerHTML=`오른쪽 월별 숫자 = <strong>판매계획(SF) 시트</strong> 기준 <strong>${spark?`${spark.actualMonths[0]}~${spark.actualMonths[spark.actualMonths.length-1]}월 실적`:'실적'}</strong> / <strong>${spark?`${spark.planMonths[0]}~${spark.planMonths[spark.planMonths.length-1]}월 계획`:'계획'}</strong> (억원) · 구간은 <strong>세로 구분선</strong>과 위 그룹 머리글로 나뉩니다 · <strong>금액 고정</strong>이라 위 수량 토글과 무관합니다<br>표에는 <strong>최근 ${CHWAPE_ACTUAL_MONTHS_SHOWN}개월 실적 · 향후 ${CHWAPE_PLAN_MONTHS_SHOWN}개월 계획</strong>만 그립니다 — 연초부터의 전체 흐름은 위 추이 차트와 셀 클릭 팝업에서 보세요<br>WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
+    note.innerHTML=`오른쪽 월별 숫자 = <strong>판매계획(SF) 시트</strong> 기준 <strong>${spark?`${spark.actualMonths[0]}~${spark.actualMonths[spark.actualMonths.length-1]}월 실적`:'실적'}</strong> / <strong>${spark?`${spark.planMonths[0]}~${spark.planMonths[spark.planMonths.length-1]}월 계획`:'계획'}</strong> (억원) · 구간은 <strong>세로 구분선</strong>과 위 그룹 머리글로 나뉩니다 · <strong>금액 고정</strong>이라 위 수량 토글과 무관합니다<br>표에는 <strong>최근 ${CHWAPE_MONTHS_SHOWN}개월 오차율·적중률 · ${CHWAPE_ACTUAL_MONTHS_SHOWN}개월 실적 · 향후 ${CHWAPE_PLAN_MONTHS_SHOWN}개월 계획</strong>만 그립니다 — 연초부터의 전체 흐름은 위 추이 차트와 셀 클릭 팝업에서 보세요<br><strong>오차 기여도(${contributionMonth?.label||'최근 월'})</strong> = 해당 월 채널 |차이| ÷ 전체 |차이| · 합계 100% · `
+      +`WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
       +`위 트렌드 차트·보정 대상 리스트와 같은 기준입니다 · 판매계획이 없는 달은 <span style="color:var(--gray-m);">—</span><br>`
       +`<strong>적중률 = 1 − 오차율</strong> (품목별 |오차| 합 ÷ 채널 판매계획 합) · 두 열은 같은 값을 뒤집은 것이라 <strong>합이 100%</strong>입니다<br>`
       +`⚠ 적중률이 <span style="color:var(--gray-m);">0%</span>인 칸은 오차가 계획보다 컸다는 뜻입니다(오차율 100% 초과) — `
