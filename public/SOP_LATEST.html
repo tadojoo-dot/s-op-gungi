@@ -856,7 +856,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
     <div class="sec-body flush" style="overflow-x:auto;">
       <table class="aging-matrix" id="agingMatrix"></table>
       <div id="matrixFilterNote" style="display:none;margin:8px 16px 0;font-size:10.5px;color:var(--terra);font-weight:800;"></div>
-      <div id="matrixRevNote" style="display:none;margin:8px 16px 0;font-size:10.5px;color:var(--muted);">※ 매출환산: 재고금액(원가 기준)에 SKU별 전월 순매출÷원가 배율을 곱한 값 · 원가 시트(전월 스냅샷) 기준이라 이번 달 실제 마진과 다를 수 있음 · ⚠N = 원가 시트에 없는 SKU N건은 전사 평균 배율로 대체 적용</div>
+      <div id="matrixRevNote" style="display:none;margin:8px 16px 0;font-size:10.5px;color:var(--muted);">※ 매출환산: 건기식·구강·세븐일레븐은 재고금액(원가 기준) ÷ 25%, 건기식(다이소)는 재고금액 ÷ 70%로 계산합니다.</div>
     </div>
     <div class="drilldown" id="drilldown">
       <div class="dd-header">
@@ -3561,6 +3561,17 @@ function getMatRatio(mat){
   if(rec&&rec.costAmt>0) return {ratio:rec.netSales/rec.costAmt,matched:true};
   return {ratio:cd.avgRatio||1,matched:false};
 }
+// 재고 Aging의 매출환산은 전월 SKU별 배율이 아니라 품목군별 원가율을 적용한다.
+// 원가 재고금액(백만원) ÷ 원가율 = 매출환산 금액(백만원).
+const AGING_REVENUE_COST_RATES=Object.freeze({
+  '건기식':0.25,
+  '구강':0.25,
+  '세븐일레븐':0.25,
+  '건기식(다이소)':0.70
+});
+function getAgingRevenueCostRate(channel){
+  return AGING_REVENUE_COST_RATES[String(channel||'').trim()]||0;
+}
 function parseMasterRefSheet(ws){
   // 기준정보 시트는 월별로 열이 추가된다(26/9 P열 '계층구분' 추가로 뒤쪽 채널 열이 한 칸 이동).
   // 자재코드·MOQ·채널유효기간·채널명(수정)을 모두 헤더 이름으로 찾아야 한다.
@@ -5025,20 +5036,24 @@ function renderMatrix(){
   chs.forEach(ch=>{
     html+=`<tr><td>${ch}</td>`;
     let rowA=0,rowQ=0,rowRev=0,rowUnmatched=0;
+    const fixedRate=getAgingRevenueCostRate(ch);
     cats.forEach(c=>{
       const raw=(mxData[ch]||{})[c]||{a:0,q:0,s:[]};
       const d=filterMatrixCell(raw,f);
       totals[c].a+=d.a; totals[c].q+=d.q||0;
       rowA+=d.a; rowQ+=(d.q||0);
-      if(costData){
-        (d.s||[]).forEach(sku=>{
-          const amtMil=Number(sku.a)||0;
-          if(amtMil<=0) return;
+      (d.s||[]).forEach(sku=>{
+        const amtMil=Number(sku.a)||0;
+        if(amtMil<=0) return;
+        if(fixedRate>0){
+          rowRev+=amtMil/fixedRate;
+        }else if(costData){
+          // 지정되지 않은 신규 채널은 기존 배율로 폴백하되, 현재 4개 Aging 채널은 위 고정율을 탄다.
           const{ratio,matched}=getMatRatio(sku.m);
           rowRev+=amtMil*ratio;
           if(!matched) rowUnmatched++;
-        });
-      }
+        }
+      });
       if(!d.a&&!(d.q||0)&&(!d.s||!d.s.length)){html+=`<td class="zero">—</td>`;return;}
       const isWarn=agingViewMode==='delivery'?(c==='납품일정 초과'||c==='환입'):c==='환입'||c==='유효기간 초과'||c==='6개월 미만'||c==='7개월 미만';
       const isDanger=agingViewMode==='delivery'?c==='납품일정 초과':c==='유효기간 초과'||c==='6개월 미만';
@@ -5057,8 +5072,10 @@ function renderMatrix(){
     });
     grandA+=rowA; grandQ+=rowQ; grandRev+=rowRev; grandUnmatched+=rowUnmatched;
     html+=`<td class="total-col"><div class="cell-val">${fmtAmt(rowA)}</div><div class="cell-qty">${formatQty(rowQ)}</div></td>`;
-    if(costData){
-      const titleAttr=rowUnmatched>0?` title="원가 시트 미매칭 SKU ${rowUnmatched}건 · 전사 평균 배율(${costData.avgRatio.toFixed(2)}배) 적용"`:'';
+    if(fixedRate>0||costData){
+      const titleAttr=fixedRate>0
+        ?` title="${ch} 원가율 ${(fixedRate*100).toFixed(0)}% 적용 · 재고금액 ÷ ${(fixedRate*100).toFixed(0)}%"`
+        :(rowUnmatched>0?` title="원가 시트 미매칭 SKU ${rowUnmatched}건 · 전사 평균 배율(${costData.avgRatio.toFixed(2)}배) 적용"`:'');
       html+=`<td class="rev-col"${titleAttr}><div class="cell-val">${fmtAmt(rowRev/100)}</div><div class="cell-qty">&nbsp;</div></td></tr>`;
     }else{
       html+=`<td class="rev-col zero" title="원가 시트 업로드 필요"><div class="cell-val">—</div><div class="cell-qty">&nbsp;</div></td></tr>`;
@@ -5072,8 +5089,11 @@ function renderMatrix(){
     html+=`<td><div class="cell-val">${d.a.toFixed(1)}억</div><div class="cell-qty">${formatQty(d.q)}</div></td>`;
   });
   html+=`<td class="total-col"><div class="cell-val" style="font-size:14px;">${grandA.toFixed(1)}억</div><div class="cell-qty">${formatQty(grandQ)}</div></td>`;
-  if(costData){
-    const totTitleAttr=grandUnmatched>0?` title="원가 시트 미매칭 SKU ${grandUnmatched}건 · 전사 평균 배율 적용"`:'';
+  const hasFixedAgingRate=chs.some(ch=>getAgingRevenueCostRate(ch)>0);
+  if(hasFixedAgingRate||costData){
+    const totTitleAttr=hasFixedAgingRate
+      ?` title="품목군별 고정 원가율 적용 · 일반 채널 25%, 건기식(다이소) 70%"`
+      :(grandUnmatched>0?` title="원가 시트 미매칭 SKU ${grandUnmatched}건 · 전사 평균 배율 적용"`:'');
     html+=`<td class="rev-col"${totTitleAttr}><div class="cell-val" style="font-size:14px;">${fmtAmt(grandRev/100)}</div><div class="cell-qty">&nbsp;</div></td></tr>`;
   }else{
     html+=`<td class="rev-col zero"><div class="cell-val">—</div><div class="cell-qty">&nbsp;</div></td></tr>`;
@@ -5081,7 +5101,7 @@ function renderMatrix(){
   html+=`</tbody>`;
   document.getElementById('agingMatrix').innerHTML=html;
   const note=document.getElementById('matrixRevNote');
-  if(note) note.style.display=costData?'block':'none';
+  if(note) note.style.display=(costData||hasFixedAgingRate)?'block':'none';
   // 필터를 걸면 이 표만 걸러진다. 상단 KPI 카드는 '현황' 시트 SUMIFS 결과라 생산처/자재유형 축이 없어
   // 따라올 수 없다 — 말없이 두면 한 화면에서 총액이 갈린 것처럼 보인다.
   // (추이 차트의 월별 총액은 원장 있는 달을 원장 값으로 맞춰뒀다 — 위 handleUpload 주석 참고)
