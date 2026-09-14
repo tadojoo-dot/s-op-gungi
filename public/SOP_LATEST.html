@@ -4023,7 +4023,7 @@ function _parseHitSheetDirect(allRows){
   }
   const nameCol=matCol===MAT_COL?NAME_COL:(matCol+1);
   const byMonth={};
-  allRows.slice(hdrRowIdx+1,Math.min(allRows.length,959)).forEach(row=>{
+  allRows.slice(hdrRowIdx+1,allRows.length).forEach(row=>{
     const matRaw=String(row[matCol]||'').trim();
     const mat=matRaw.replace(/\.0+$/,'');
     if(!mat) return;
@@ -4169,18 +4169,19 @@ function parseHitSheet(ws){
 
   // ─── 검증용: 5월 컬럼 raw 합계 출력 (unitDiv 곱해서 원화 단위로) ───────────────────
   if('5월' in planColsByMo){
-    const _rawPlanSum=allRows.slice(dataStart,Math.min(allRows.length,959))
+    const _rawPlanSum=allRows.slice(dataStart,allRows.length)
       .filter(r=>!_isSummaryRow(r))
       .reduce((s,r)=>s+parseNum(r[planColsByMo['5월']]),0);
-    const _rawActSum=allRows.slice(dataStart,Math.min(allRows.length,959))
+    const _rawActSum=allRows.slice(dataStart,allRows.length)
       .filter(r=>!_isSummaryRow(r))
       .reduce((s,r)=>s+parseNum(r[actualColsByMo['5월']??-1]||0),0);
     console.log('[parseHitSheet] 5월 plan col:',planColsByMo['5월'],'raw합계(원):',Math.round(_rawPlanSum),'→ 기대값:7,811,256,396');
     console.log('[parseHitSheet] 5월 actual col:',actualColsByMo['5월'],'raw합계(원):',Math.round(_rawActSum),'→ 기대값:6,946,616,015');
   }
 
-  const DATA_END=959; // 사용자 지정 마지막 데이터 행 (Excel 기준 1-indexed)
-  const sliceEnd=Math.min(allRows.length, DATA_END);
+  // 고정 행 번호로 자르면 행이 늘어난 최신 파일의 후반 품목이 누락된다.
+  // 워크시트의 실제 사용 범위 끝까지 읽고, 완전 빈 행·합계 행만 아래 관문에서 제외한다.
+  const sliceEnd=allRows.length;
 
   // 금액/수량이 계산식은 같고 컬럼·단위만 다르므로 한 함수로 두 번 돌린다.
   // (수량은 개 단위라 div=1, 금액은 원 → 억원이라 div=1e8)
@@ -4292,7 +4293,7 @@ function _parseHitSheetPositional(allRows){
   const unitDiv=1e8;
 
   const byMonth={};
-  allRows.slice(dataStart,Math.min(allRows.length,959)).forEach(row=>{
+  allRows.slice(dataStart,allRows.length).forEach(row=>{
     const matRaw=String(row[matCol]||'').trim();
     const mat=matRaw.replace(/\.0+$/,'');
     if(!mat||/^(합계|총계|전체|소계|합\s*계|총\s*계|계)$/i.test(mat)) return;
@@ -4334,7 +4335,7 @@ function _parseHitSheetPositional(allRows){
 
 function _parseHitSheetLegacy(rows){
   console.warn('[parseHitSheet] 레거시 파서 사용됨 — 월 헤더 탐지 실패. 컬럼 구조를 확인하세요.');
-  const data=rows.slice(4, 959);
+  const data=rows.slice(4, rows.length);
   const ch_acc={};const over=[];const under=[];const hitVals=[];const detail=[];
   data.forEach(row=>{
     // 합계/총계 행 제외
@@ -8222,7 +8223,9 @@ function chDrillRows(ch,monthKey){
   const direct=hit.byMonth[monthKey];
   const no=monthNoFromKey(monthKey);
   const fallback=no==null?null:hit.byMonth[`${no}월`];
-  const rows=aggregateHitRows((direct??fallback??[]).map(remapHitRowDaiso));
+  // 상세 팝업은 원천 실적 합계를 보여줘야 하므로 계획 0·실적만 있는 행도 보존한다.
+  // WAPE 자체는 renderChDrill에서 계획이 있는 행만 따로 계산한다.
+  const rows=aggregateHitRows((direct??fallback??[]).map(remapHitRowDaiso),{includePlanZero:true});
   return rows.filter(r=>(r.ch||'미분류')===ch).sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff));
 }
 function openChDrill(ch,monthKey){
@@ -8277,8 +8280,10 @@ function renderChDrill(){
   const qty=hitTrendUnit==='qty';
   const fmt=v=>qty?Math.round(v).toLocaleString():Number(v).toFixed(2);
   const unit=qty?'개':'억';
-  const plan=rows.reduce((s,r)=>s+(Number(r.plan)||0),0);
-  const absSum=rows.reduce((s,r)=>s+Math.abs(Number(r.diff)||0),0);
+  const eligibleRows=rows.filter(r=>(Number(r.plan)||0)>0);
+  const plan=eligibleRows.reduce((s,r)=>s+(Number(r.plan)||0),0);
+  const absSum=eligibleRows.reduce((s,r)=>s+Math.abs(Number(r.diff)||0),0);
+  const actualTotal=rows.reduce((s,r)=>s+(Number(r.actual)||0),0);
   const wape=plan>0?absSum/plan*100:null;
   const moLabel=months.find(m=>m.key===monthKey)?.label||monthKey;
   head.innerHTML=`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -8324,7 +8329,7 @@ function renderChDrill(){
       <th class="l cw-sep">조치의견</th>
     </tr></thead><tbody>
     ${rows.map(r=>{
-      const contrib=absSum>0?Math.abs(r.diff)/absSum*100:0;
+      const contrib=absSum>0&&r.plan>0?Math.abs(r.diff)/absSum*100:null;
       const daiso=r._daisoIntegrated?'<span class="tag b" style="font-size:9px;padding:0 4px;margin-left:4px;" title="다이소 통합코드">통합</span>':'';
       return `<tr>
         <td class="l" style="color:var(--muted);font-weight:400;">${r.mat||'—'}</td>
@@ -8335,13 +8340,13 @@ function renderChDrill(){
         <td style="color:${r.diff>=0?'var(--green)':'var(--red)'};font-weight:900;">${r.diff>=0?'+':''}${fmt(r.diff)}</td>
         <td>${r.hitAcc==null?'—':r.hitAcc.toFixed(0)+'%'}</td>
         <td${isHitClamped(r.hitAcc)?` class="cw-hit0" title="오차(${r.hitAcc.toFixed(0)}%)가 계획보다 커서 0%로 표시합니다"`:''}>${hitRateFromWape(r.hitAcc)==null?'—':hitRateFromWape(r.hitAcc).toFixed(0)+'%'}</td>
-        <td class="cw-sep">${contrib.toFixed(1)}%</td>
+        <td class="cw-sep">${contrib==null?'—':contrib.toFixed(1)+'%'}</td>
         ${_hitRowMemoCell(r,monthKey)}
       </tr>`;
     }).join('')}
     <tr class="cw-total">
       <td class="l"></td><td class="l">합계</td><td></td>
-      <td>${fmt(plan)}</td><td>${fmt(rows.reduce((s,r)=>s+(Number(r.actual)||0),0))}</td>
+      <td>${fmt(plan)}</td><td>${fmt(actualTotal)}</td>
       <td title="Σ|차이| · 초과·미달을 상쇄하지 않고 절대값으로 합산 (오차율의 분자와 동일)">${fmt(absSum)}</td>
       <td>${wape==null?'—':wape.toFixed(1)+'%'}</td>
       <td${isHitClamped(wape)?` class="cw-hit0" title="오차(${wape.toFixed(1)}%)가 계획보다 커서 0%로 표시합니다"`:''}>${hitRateFromWape(wape)==null?'—':hitRateFromWape(wape).toFixed(1)+'%'}</td>
@@ -8353,6 +8358,7 @@ function renderChDrill(){
       <strong>|차이| 큰 순</strong>으로 정렬했습니다 · 오차 기여도 = |차이| ÷ 그 채널·월의 |차이| 합계 —
       위쪽 몇 개가 그 채널 오차의 대부분을 만듭니다 · 차이가 <span style="color:var(--green);font-weight:700;">+면 계획 초과</span>,
       <span style="color:var(--red);font-weight:700;">−면 미달</span>입니다 ·
+      <strong>실적 합계</strong>는 오차율분석 원천의 계획 0·실적 행도 포함하고, <strong>WAPE·차이합계</strong>는 계획이 있는 행만 계산합니다 ·
       <strong>합계 행의 차이는 Σ|차이|</strong>(초과·미달 상쇄 없음)라 오차율 × 계획과 일치합니다 ·
       아래 '판매계획 보정 대상 리스트'와 같은 집계(계획 0인 행 제외)를 씁니다<br>
       <strong>조치의견은 팝업에서 선택한 월별로 저장됩니다</strong> — 입력 중에도 자동 저장되고, 상단 <strong>저장</strong> 버튼으로 현재 팝업의 의견을 한 번에 확정할 수 있습니다. 8월과 9월 의견은 서로 덮어쓰지 않고 이력으로 누적됩니다
@@ -8587,7 +8593,7 @@ function diffText(v){
   return '0.0억 일치';
 }
 function hitRowKey(row){return `${row.ch||'미분류'}|${String(row.mat||'').trim()||row.n||''}`;}
-function aggregateHitRows(rows){
+function aggregateHitRows(rows,opts={}){
   const grouped=new Map();
   (rows||[]).forEach((row,index)=>{
     const mat=String(row.mat||'').trim();
@@ -8597,17 +8603,18 @@ function aggregateHitRows(rows){
     target.plan+=Number(row.plan)||0;
     target.actual+=Number(row.actual)||0;
   });
-  // 판매계획이 0인 행(계획 없이 실적만 있는 건)은 오차 분석에서 통째로 뺀다 (2026-08-13, 사용자 결정).
+  // 기본값은 판매계획이 0인 행(계획 없이 실적만 있는 건)을 WAPE에서 뺀다 (2026-08-13, 사용자 결정).
   // WAPE = Σ|실적−계획| ÷ Σ계획 인데, 이런 행은 분자에만 들어가고 분모엔 안 들어가 오차율을 부풀린다.
   // 26/8 파일 4월이 계획0 행 198건 때문에 157.7%로 튀었다 → 118.4%.
-  // ⚠ 여기가 유일한 관문이다. KPI 타일·트렌드 차트·보정 대상 리스트·오차 기여 TOP10이 전부
-  //    aggregateHitRows를 거치므로, 조건을 호출부에 복사하지 말 것.
+  // ⚠ 기본 경로가 유일한 WAPE 관문이다. KPI 타일·트렌드 차트·보정 대상 리스트·오차 기여 TOP10이
+  //    모두 기본 aggregateHitRows를 거치므로, 조건을 호출부에 복사하지 말 것.
+  // 상세 팝업만 {includePlanZero:true}로 호출해 원천 실적 합계를 보존한다.
   // 반대쪽(계획은 있는데 실적 0)은 그대로 둔다 — 계획 2억인데 안 팔렸으면 오차율 100%가 맞는 값이다.
   return [...grouped.values()].map(row=>{
     const diff=row.actual-row.plan;
     const hitAcc=row.plan>0?Math.abs(diff)/row.plan*100:null;
     return {...row,diff,hitAcc,type:diff>0?'over':diff<0?'under':'match',over:Math.max(diff,0),under:Math.min(diff,0)};
-  }).filter(row=>row.plan>0);
+  }).filter(row=>opts.includePlanZero?(row.plan>0||row.actual!==0):row.plan>0);
 }
 function getDaisoCodeMap(){return UPLOADED?.daiso_code_map||null;}
 function getDaisoGroupMembers(){return UPLOADED?.daiso_group_members||null;}
