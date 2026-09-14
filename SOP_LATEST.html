@@ -2781,12 +2781,26 @@ function parseHierarchyMap(ws){
   return Object.keys(out).length?out:null;
 }
 
+// 통합품목의 계층은 하위 자재 중 우선순위가 가장 높은 값을 대표값으로 쓴다.
+// 우선순위: S급 > A급 > B급 > C급 > N. 기존에는 값이 2개 이상이면 '혼합'으로 표시했다.
+const HIERARCHY_PRIORITY=['S','A','B','C','N'];
+function highestHierarchy(values){
+  const uniq=[...new Set((values||[]).map(v=>String(v||'').trim()).filter(Boolean))];
+  return uniq.sort((a,b)=>{
+    const rank=v=>{
+      const key=String(v).replace(/\s/g,'').replace(/급$/i,'').toUpperCase();
+      const i=HIERARCHY_PRIORITY.indexOf(key);
+      return i<0?HIERARCHY_PRIORITY.length:i;
+    };
+    return rank(a)-rank(b);
+  })[0]||'';
+}
 function hierarchyForRow(row,map,result){
   const mat=String(row?.mat??row?.m??'').trim();
   if(map?.[mat]) return map[mat];
   const members=row?.componentCodes||result?.daiso_group_members?.[mat]||[];
   const values=[...new Set(members.map(code=>map?.[String(code)]).filter(Boolean))];
-  return values.length===1?values[0]:(values.length>1?'혼합':'');
+  return highestHierarchy(values);
 }
 function applyHierarchyToResult(result,map){
   if(!result||!map) return;
@@ -8622,7 +8636,7 @@ function getHierarchyForMat(mat){
   const key=String(mat||'').trim(), direct=UPLOADED?.hierarchy_by_mat?.[key];
   if(direct) return direct;
   const values=[...new Set((getDaisoGroupMembers()?.[key]||[]).map(code=>UPLOADED?.hierarchy_by_mat?.[String(code)]).filter(Boolean))];
-  return values.length===1?values[0]:(values.length>1?'혼합':'');
+  return highestHierarchy(values);
 }
 // 다이소 개별 자재코드 → 통합코드/통합품목명으로 치환 (채널은 유지 → 채널+통합코드 집계).
 // 같은 통합품목이 여러 제조사 코드로 나뉘어 계획/실적이 분산되는 문제를 통합코드로 합산해 해소.
