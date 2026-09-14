@@ -273,6 +273,9 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .chwape.chwape-lg col.cw-month-col{width:48px!important;min-width:48px!important;max-width:48px!important;}
 .chwape.chwape-lg th.cw-month-col,.chwape.chwape-lg td.cw-mv{width:48px!important;min-width:48px!important;max-width:48px!important;box-sizing:border-box;padding-left:2px!important;padding-right:2px!important;}
 .chwape.chwape-lg th.cw-grp.cw-plan span{font-size:9px;font-weight:700;letter-spacing:0;}
+.chwape.chwape-lg col.cw-memo-col{width:280px!important;min-width:280px!important;max-width:280px!important;}
+.chwape.chwape-lg td.chmemo-td{width:280px!important;min-width:280px!important;max-width:280px!important;}
+.chwape.chwape-lg td.chmemo-td textarea.action-memo{width:100%;box-sizing:border-box;}
 .chwape.chwape-lg td.cw-contrib{font-size:11px;color:var(--terra);font-weight:800;}
 /* ⚠ 계획 구간 데이터 셀 음영은 뺐다(2026-08-19) — 위 cw-grp 주석 참고.
    구간은 그룹 헤더 '판매계획 (억원)'과 세로 구분선으로 읽는다. */
@@ -7049,6 +7052,7 @@ const SHARED_STATE_FIXED_KEYS=[PLAN_KEY,MEETING_MEMO_KEY,PSI_SIM_BUY_KEY,PSI_LOG
 // 월 suffix(예: hitChMemo|쿠팡|2026.09)를 그대로 보존해야 브라우저가 바뀌어도 이력이 남는다.
 const SHARED_STATE_PREFIXES=['hitAdjustMemo|','hitChMemo|','sopMemo_'];
 let sharedStateSaveTimer=null;
+let sharedStateSaveChain=Promise.resolve();
 function collectSharedState(){
   const state={};
   SHARED_STATE_FIXED_KEYS.forEach(key=>{const val=localStorage.getItem(key);if(val!=null)state[key]=val;});
@@ -7268,17 +7272,23 @@ function setArchiveAutoNote(text){
 }
 async function saveSharedState(){
   if(!isAdminMode()) return;
-  try{
+  // 여러 셀을 연속 수정할 때 이전 PUT이 늦게 도착해 최신 상태를 덮어쓰지 않도록
+  // 요청을 순서대로 보낸다. payload는 호출 시점에 캡처해 각 편집 상태를 보존한다.
+  const payload={state:collectSharedState(),adminPassword:ADMIN_PASSWORD};
+  const request=async()=>{
     const res=await fetch('/api/shared-state',{
       method:'PUT',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({state:collectSharedState(),adminPassword:ADMIN_PASSWORD})
+      body:JSON.stringify(payload)
     });
     if(!res.ok){
       const detail=await res.text().catch(()=>'');
       throw new Error(`HTTP ${res.status}${detail?`: ${detail.slice(0,200)}`:''}`);
     }
-  }catch(e){console.warn('shared state save failed',e);}
+  };
+  sharedStateSaveChain=sharedStateSaveChain.catch(()=>{}).then(request);
+  try{await sharedStateSaveChain;}
+  catch(e){console.warn('shared state save failed',e);}
 }
 async function loadSharedState(){
   try{
@@ -7414,6 +7424,39 @@ function renderPsiActionLog(){
     <td class="c" style="font-size:11px;color:var(--muted);">${a.ts||''}</td>
   </tr>`).join('');
 }
+let psiRiskRenderTimer=null;
+function schedulePsiRiskChartRender(){
+  clearTimeout(psiRiskRenderTimer);
+  psiRiskRenderTimer=setTimeout(()=>{
+    psiRiskRenderTimer=null;
+    try{renderPSIRiskChart();}catch(e){console.warn('PSI risk chart refresh failed',e);}
+  },0);
+}
+function commitPsiBuyInput(inp){
+  if(!inp) return;
+  const mat=inp.dataset.mat,mo=inp.dataset.mo;
+  const name=inp.closest('tr')?.dataset.name||'';
+  const origBuy=Number(inp.dataset.origBuy||0);
+  const parsed=Number.parseFloat(String(inp.value||'').replace(/,/g,''));
+  const val=Number.isFinite(parsed)?Math.max(0,Math.round(parsed)):0;
+  const fingerprint=`${mat}|${mo}|${origBuy}|${val}`;
+  // 브라우저에 따라 change 뒤 blur가 연달아 온다. 같은 편집을 두 번 저장·재계산하지 않는다.
+  if(inp.dataset.psiLastCommit===fingerprint) return;
+  inp.dataset.psiLastCommit=fingerprint;
+  inp.value=val.toLocaleString('ko-KR');
+  if(val!==origBuy){
+    setPsiSimBuyVal(mat,mo,val);
+    inp.classList.remove('psi-buy-empty');
+    inp.classList.add('psi-buy-override');
+  } else {
+    deletePsiSimBuyVal(mat,mo);
+    inp.classList.remove('psi-buy-override');
+    inp.classList.toggle('psi-buy-empty',origBuy===0);
+  }
+  logPsiBuyAction(mat,mo,name,origBuy,val);
+  recalcPsiRow(mat);
+  schedulePsiRiskChartRender();
+}
 function bindPsiBuyInputs(){
   document.querySelectorAll('#psiWrap .psi-buy-input').forEach(inp=>{
     inp.addEventListener('focus',()=>{
@@ -7423,28 +7466,13 @@ function bindPsiBuyInputs(){
     inp.addEventListener('keydown',e=>{
       if(e.key==='Enter'){
         e.preventDefault();
+        commitPsiBuyInput(inp);
         inp.blur();
       }
     });
-    inp.addEventListener('blur',()=>{
-      const mat=inp.dataset.mat,mo=inp.dataset.mo;
-      const name=inp.closest('tr')?.dataset.name||'';
-      const origBuy=Number(inp.dataset.origBuy||0);
-      const val=Math.max(0,Math.round(parseFloat(inp.value.replace(/,/g,''))||0));
-      inp.value=val.toLocaleString('ko-KR');
-      if(val!==origBuy){
-        setPsiSimBuyVal(mat,mo,val);
-        inp.classList.remove('psi-buy-empty');
-        inp.classList.add('psi-buy-override');
-      } else {
-        deletePsiSimBuyVal(mat,mo);
-        inp.classList.remove('psi-buy-override');
-        inp.classList.toggle('psi-buy-empty',origBuy===0);
-      }
-      logPsiBuyAction(mat,mo,name,origBuy,val);
-      recalcPsiRow(mat);
-      renderPSIRiskChart();
-    });
+    // change는 키보드 확정·모바일 입력에서, blur는 다른 셀 클릭에서 확실히 잡는다.
+    inp.addEventListener('change',()=>commitPsiBuyInput(inp));
+    inp.addEventListener('blur',()=>commitPsiBuyInput(inp));
   });
 }
 
@@ -8471,15 +8499,16 @@ function renderChannelWape(){
   const mvMonths=spark?[...spark.actualMonths,...spark.planMonths]:[];
   // 적중률 열은 오차율 열과 같은 폭을 쓴다. 채널별 오차기여도는 최근 표시 월 기준으로
   // 계산해 실적 구간 바로 앞에 둔다.
-  // ⚠ 조치의견 열은 계속 auto(잔여 폭 흡수)로 둔다 — 넓은 화면에서도 불필요한 빈 공간이 생기지 않는다.
+  // 조치의견은 고정 폭으로 제한해 앞쪽 수치 표가 주인공이 되게 한다. 넓은 화면에서도
+  // 메모가 남는 폭을 전부 가져가지 않도록 colgroup과 CSS에서 같은 폭을 적용한다.
   const contributionMonth=months[months.length-1];
   const contributionTotal=contributionMonth?(data.totalWape[contributionMonth.key]!=null
     ? (data.rows.reduce((sum,row)=>sum+(row.cells[contributionMonth.key]?.abs||0),0)) : 0):0;
-  const W_CH=115,W_MO=55,W_CONTRIB=75,W_MV=48,W_MEMO_MIN=150;
+  const W_CH=120,W_MO=64,W_CONTRIB=80,W_MV=54,W_MEMO=280;
   const fixedW=W_CH+months.length*W_MO*2+W_CONTRIB+mvMonths.length*W_MV;
   const nA=spark?spark.actualMonths.length:0;
-  let h=`<table class="chwape chwape-lg" style="width:100%;min-width:${fixedW+W_MEMO_MIN}px;">
-  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}<col style="width:${W_CONTRIB}px;">${mvMonths.map((mo,i)=>`<col class="cw-month-col${i>=nA?' cw-plan-col':''}" style="width:${W_MV}px;">`).join('')}<col></colgroup>
+  let h=`<table class="chwape chwape-lg" style="width:100%;min-width:${fixedW+W_MEMO}px;">
+  <colgroup><col style="width:${W_CH}px;">${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}${months.map(()=>`<col style="width:${W_MO}px;">`).join('')}<col style="width:${W_CONTRIB}px;">${mvMonths.map((mo,i)=>`<col class="cw-month-col${i>=nA?' cw-plan-col':''}" style="width:${W_MV}px;">`).join('')}<col class="cw-memo-col" style="width:${W_MEMO}px;"></colgroup>
   <thead>
   <tr>
     <th class="l sortable" rowspan="2" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
