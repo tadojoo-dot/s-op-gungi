@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "deploy": "node tools/deploy.mjs",
+    "deploy:check-auth": "node tools/deploy.mjs --check-auth",
     "publish:data": "node tools/publish-data.mjs",
-    "release:live": "CLOUDFLARE_ACCOUNT_ID=14c780e41fc86dde4101283fb427b14e npx --yes wrangler@4.110.0 pages deploy public --project-name s-op-gungi --branch main --commit-dirty=true"
+    "release:live": "node tools/deploy.mjs --code-only"
   }
 }

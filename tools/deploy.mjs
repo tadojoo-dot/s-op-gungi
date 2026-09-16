@@ -11,13 +11,13 @@
 //   npm run deploy -- --rebuild-risk     월별 Risk 이력을 과거월까지 **다시 계산해서 덮는다**
 //                                        (평소 과거월은 얼려 둔다 — 회의에 나간 숫자가 안 바뀌게)
 //   npm run deploy -- --force-shrink     Risk 이력 개월 수가 줄어도 진행 (기본은 중단)
-import { execFileSync } from 'child_process';
+import { spawn } from 'child_process';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import {
-  ROOT, LIVE_BASE, readPassword, findLatestExcel, findStdCostExcel, findPriceOverrideExcel,
-  findPrevAgingExcels, readPrevMonths, readLivePkgSnapshot, agingYearMonth, parseExcel, publishParsed, summarize,
+  ROOT, LIVE_BASE, readPassword, readLocalEnv, readCloudflareAuth, findLatestExcel, findStdCostExcel, findPriceOverrideExcel,
+  findPrevAgingExcels, readPrevMonths, readLivePkgSnapshot, readSalesPlanTarget, agingYearMonth, parseExcel, publishParsed, summarize,
   readRepoRiskHistory, writeRepoRiskHistory, readLiveRiskHistory, mergeRiskHistories, readPrevRiskSnapshots,
   RISK_HISTORY_FILE
 } from './lib/publish.mjs';
@@ -31,15 +31,169 @@ const rebuildRisk = has('--rebuild-risk');
 const forceShrink = has('--force-shrink');
 const dataOnly = has('--data-only');
 const codeOnly = has('--code-only');
+const checkAuth = has('--check-auth');
+const PAGES_PROJECT = 's-op-gungi';
+const PAGES_ACCOUNT_ID = readLocalEnv('CLOUDFLARE_ACCOUNT_ID') || '14c780e41fc86dde4101283fb427b14e';
+const WRANGLER_VERSION = '4.110.0';
 
-const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8' }).trim();
 const md5 = buf => crypto.createHash('md5').update(buf).digest('hex');
 const step = (n, total, title) => console.log(`\n[${n}/${total}] ${title}`);
 const say = (...m) => console.log('      ' + m.join(' '));
 
+// 일부 Codespaces/제한 실행 환경에서는 Node의 spawnSync/execFileSync가
+// 자식 프로세스가 정상 종료된 뒤에도 EPERM을 반환한다. 배포/진단 명령을
+// 비동기 spawn으로 통일해 그 환경에서도 실제 종료 코드만 판정한다.
+function runFile(command, commandArgs, { env = process.env, inherit = false, timeoutMs = 0 } = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, commandArgs, {
+      cwd: ROOT,
+      env,
+      stdio: inherit ? 'inherit' : ['ignore', 'pipe', 'pipe']
+    });
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    let timer = null;
+
+    if (!inherit) {
+      child.stdout.setEncoding('utf8');
+      child.stderr.setEncoding('utf8');
+      child.stdout.on('data', chunk => { stdout += chunk; });
+      child.stderr.on('data', chunk => { stderr += chunk; });
+    }
+    if (timeoutMs > 0) {
+      timer = setTimeout(() => {
+        timedOut = true;
+        child.kill('SIGTERM');
+      }, timeoutMs);
+    }
+
+    child.on('error', error => {
+      if (timer) clearTimeout(timer);
+      error.stdout = stdout;
+      error.stderr = stderr;
+      reject(error);
+    });
+    child.on('close', (code, signal) => {
+      if (timer) clearTimeout(timer);
+      if (code === 0 && !timedOut) {
+        resolve({ stdout, stderr });
+        return;
+      }
+      const reason = timedOut
+        ? `${command} 응답 시간 초과 (${Math.round(timeoutMs / 1000)}초)`
+        : `${command} 종료 코드 ${code ?? '없음'}${signal ? ` (${signal})` : ''}`;
+      const error = new Error(reason);
+      error.code = code;
+      error.signal = signal;
+      error.stdout = stdout;
+      error.stderr = stderr;
+      reject(error);
+    });
+  });
+}
+
+async function pagesWorkingTreeStatus() {
+  const result = await runFile('git', [
+    'status', '--porcelain', '--',
+    'public', 'functions', 'wrangler.toml', 'index.html', 'SOP_LATEST.html'
+  ]);
+  return result.stdout.trim();
+}
+
+function scrubAuthOutput(value, token = '') {
+  let text = String(value || '').trim();
+  if (token) text = text.split(token).join('[REDACTED_TOKEN]');
+  return text.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '');
+}
+
+async function verifyCloudflareAuth() {
+  const auth = readCloudflareAuth();
+  const env = {
+    ...process.env,
+    CLOUDFLARE_ACCOUNT_ID: PAGES_ACCOUNT_ID
+  };
+  if (auth.token) env.CLOUDFLARE_API_TOKEN = auth.token;
+  else delete env.CLOUDFLARE_API_TOKEN;
+  try {
+    const result = await runFile('npx', [
+      '--yes', 'wrangler@' + WRANGLER_VERSION,
+      'whoami'
+    ], { env, timeoutMs: 60000 });
+    say(`Cloudflare 인증 검증 통과 (${auth.token ? auth.source : 'Wrangler OAuth'})`);
+    const detail = scrubAuthOutput(`${result.stdout}\n${result.stderr}`, auth.token);
+    if (detail) detail.split('\n').slice(-3).forEach(line => say(line));
+    return;
+  } catch (error) {
+    const hint = auth.token
+      ? `읽은 토큰(${auth.source})이 Cloudflare에서 거부됐습니다. 토큰의 Pages 편집 권한, 계정 ID(${PAGES_ACCOUNT_ID}), 만료/삭제 여부를 확인하세요.`
+      : '토큰을 찾지 못했고 Wrangler OAuth 인증도 실패했습니다. CLOUDFLARE_API_TOKEN을 .env.local/.env/.dev.vars에 넣거나 npx wrangler login을 실행하세요.';
+    const detail = scrubAuthOutput(`${error.stderr || ''}\n${error.stdout || ''}`, auth.token);
+    throw new Error(`Cloudflare 인증 사전 확인 실패.\n인증 안내: ${hint}${detail ? `\nWrangler 응답: ${detail.slice(-1200)}` : ''}`);
+  }
+}
+
+if (checkAuth) {
+  const auth = readCloudflareAuth();
+  console.log(`토큰 탐색 결과: ${auth.token ? '인식됨' : auth.reason === 'placeholder' ? '예시값/플레이스홀더만 발견됨' : '없음'}`);
+  console.log(`인증 출처: ${auth.source}`);
+  if (auth.name) console.log(`변수명: ${auth.name}`);
+  try {
+    await verifyCloudflareAuth();
+    console.log('인증 상태: 사용 가능');
+    process.exit(0);
+  } catch (e) {
+    console.error(`인증 상태: 사용 불가\n${e.message || e}`);
+    process.exit(1);
+  }
+}
+
+async function deployPagesDirect() {
+  const auth = readCloudflareAuth();
+  const env = {
+    ...process.env,
+    CLOUDFLARE_ACCOUNT_ID: PAGES_ACCOUNT_ID
+  };
+  if (auth.token) {
+    env.CLOUDFLARE_API_TOKEN = auth.token;
+    say(`Cloudflare 인증 확인 (${auth.source})`);
+  } else {
+    // API 토큰이 없어도 Wrangler 로그인/OAuth 캐시가 있으면 배포할 수 있다.
+    // 여기서 자체 중단하면 실제 인증 상태를 확인할 기회조차 사라진다.
+    delete env.CLOUDFLARE_API_TOKEN;
+    say('API 토큰 환경변수 없음 · Wrangler 로그인/OAuth 인증으로 시도합니다');
+  }
+  say(`Cloudflare Pages 직접 배포 시작 (${PAGES_PROJECT})`);
+  try {
+    await runFile('npx', [
+      '--yes', `wrangler@${WRANGLER_VERSION}`,
+      'pages', 'deploy', 'public',
+      '--project-name', PAGES_PROJECT,
+      '--branch', 'main',
+      '--commit-dirty=true'
+    ], { env, inherit: true });
+  } catch (error) {
+    const hint = auth.token
+      ? '발견된 API 토큰이 유효한지, Pages 편집 권한과 계정 ID를 확인하세요.'
+      : 'CLOUDFLARE_API_TOKEN을 프로세스 환경변수/.env.local/.env/.dev.vars에 넣거나, 먼저 npx wrangler login을 실행하세요.';
+    throw new Error(`${error.message || error}\n인증 안내: ${hint}`);
+  }
+}
+
 let failed = false;
 const total = codeOnly ? 2 : dataOnly ? 2 : 3;
 let n = 0;
+
+// 전체 배포는 데이터(KV)를 먼저 쓰므로, 코드 배포 인증을 먼저 확인한다.
+// 이 가드가 없으면 데이터만 성공하고 코드만 실패하는 반쪽 배포가 된다.
+if (!dryRun && !dataOnly) {
+  try {
+    await verifyCloudflareAuth();
+  } catch (e) {
+    console.error('\n❌ ' + (e.message || e));
+    process.exit(1);
+  }
+}
 
 // ── 1. 데이터 반영 ─────────────────────────────────────────────────────────
 if (!codeOnly) {
@@ -71,6 +225,19 @@ if (!codeOnly) {
   const prevPaths = prevFile
     ? [path.resolve(ROOT, prevFile)]
     : findPrevAgingExcels(found.path).map(f => f.path);
+  let prevSalesTarget = null;
+  for (const prevPath of prevPaths) {
+    try {
+      prevSalesTarget = readSalesPlanTarget(prevPath, base);
+      if (prevSalesTarget) {
+        const ym = Object.keys(prevSalesTarget).sort().find(k => k.endsWith('.08'));
+        say(`사업계획 목표 보강 원본: ${path.relative(ROOT, prevPath)}${ym ? ` · 8월 ${prevSalesTarget[ym].toFixed(1)}억` : ''}`);
+        break;
+      }
+    } catch (e) {
+      say(`⚠ 직전 리포트 사업계획 목표 확인 실패(${String(e.message || e).slice(0, 80)})`);
+    }
+  }
   let prevPkg = null;
   let prevMonthRecords = [];
   if (prevPaths.length) {
@@ -152,7 +319,8 @@ if (!codeOnly) {
     stdFound && fs.existsSync(stdFound.path) ? stdFound.path : null,
     ovFound && fs.existsSync(ovFound.path) ? ovFound.path : null,
     prevPkg,
-    { riskHistory, rebuildRisk }
+    { riskHistory, rebuildRisk },
+    prevSalesTarget
   );
   const s = summarize(browser.uploaded);
   if (browser.stdCost) say(`표준원가 ${browser.stdCost.mats.toLocaleString('ko-KR')}개 자재 적용 (${browser.stdCost.sheet})`);
@@ -231,34 +399,39 @@ if (!dataOnly) {
     try { liveHtml = Buffer.from(await fetch(base + '/', { cache: 'no-store' }).then(r => r.arrayBuffer())); }
     catch (e) { say('라이브 확인 실패:', e.message); }
 
-    if (liveHtml && md5(liveHtml) === md5(localHtml)) {
+    const liveMatches = liveHtml && md5(liveHtml) === md5(localHtml);
+    const pagesDirty = await pagesWorkingTreeStatus();
+
+    if (liveMatches && !pagesDirty) {
       say('변경 없음 · 라이브가 이미 최신입니다');
     } else if (dryRun) {
-      say('--dry-run: 코드 배포 생략');
+      if (pagesDirty) say('미커밋 Pages 변경 감지 · --dry-run이라 배포 생략');
+      else say('라이브와 코드가 다름 · --dry-run이라 배포 생략');
     } else {
-      const dirty = git('status', '--porcelain');
-      const unpushed = git('log', 'origin/main..HEAD', '--oneline');
-      if (dirty) {
-        say('커밋되지 않은 변경이 있습니다. 코드 배포는 건너뜁니다:');
-        dirty.split('\n').slice(0, 8).forEach(l => say('   ', l));
-      } else if (unpushed) {
-        say(`푸시할 커밋 ${unpushed.split('\n').length}개 → Cloudflare 자동 배포`);
-        git('push', 'origin', 'main');
-        process.stdout.write('      배포 대기');
+      try {
+        // GitHub 자동 배포는 커밋/푸시 상태에 의존하고, 미커밋 변경은 조용히 누락될 수 있다.
+        // Pages API 직접 배포는 현재 public/Functions 작업트리를 그대로 올린다.
+        await deployPagesDirect();
+      } catch (e) {
+        say(`Cloudflare Pages 배포 실패: ${e.message || e}`);
+        failed = true;
+      }
+
+      if (!failed) {
+        process.stdout.write('      배포 검증');
         let live = false;
         for (let i = 0; i < 40; i++) {
           await new Promise(r => setTimeout(r, 15000));
           process.stdout.write('.');
           try {
-            const buf = Buffer.from(await fetch(base + '/', { cache: 'no-store' }).then(r => r.arrayBuffer()));
+            const res = await fetch(base + '/', { cache: 'no-store' });
+            if (!res.ok) continue;
+            const buf = Buffer.from(await res.arrayBuffer());
             if (md5(buf) === md5(localHtml)) { live = true; break; }
           } catch (e) { /* 배포 중 일시적 실패는 무시 */ }
         }
         console.log(live ? ' 완료' : ' 시간 초과');
-        if (!live) { say('⚠ 아직 라이브에 반영되지 않았습니다. 잠시 후 사이트를 확인하세요.'); failed = true; }
-      } else {
-        say('로컬 코드가 라이브와 다르지만 커밋된 변경이 없습니다. 확인이 필요합니다.');
-        failed = true;
+        if (!live) { say('⚠ 배포 응답은 받았지만 라이브 검증에 실패했습니다.'); failed = true; }
       }
     }
   }

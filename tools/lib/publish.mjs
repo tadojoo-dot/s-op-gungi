@@ -9,15 +9,94 @@ import { fileURLToPath } from 'url';
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const LIVE_BASE = 'https://s-op-gungi.pages.dev';
 
-// 관리자 비밀번호: 환경변수 우선, 없으면 gitignore된 .env.local의 ADMIN_PASSWORD=... 한 줄
-export function readPassword() {
-  if (process.env.ADMIN_PASSWORD) return process.env.ADMIN_PASSWORD;
-  const envFile = path.join(ROOT, '.env.local');
-  if (fs.existsSync(envFile)) {
-    const m = fs.readFileSync(envFile, 'utf8').match(/^\s*ADMIN_PASSWORD\s*=\s*(.+?)\s*$/m);
-    if (m) return m[1].replace(/^['"]|['"]$/g, '');
+// 배포 CLI는 dotenv 패키지에 의존하지 않으므로 여기서 필요한 값만 읽는다.
+// 우선순위는 프로세스 환경변수 > .env.local > .env 이다.
+// .env.local만 고집하면 Codespaces Secret을 셸이 전달하지 못한 환경이나,
+// 일반적인 .env에 값을 넣은 환경에서 원인과 무관하게 "토큰 없음"으로 보인다.
+const ENV_FILES = ['.env.local', '.env', '.dev.vars'];
+// Wrangler 공식 이름을 우선 사용하되, 기존 Codespaces/CI 설정에서 자주 쓰는
+// 별칭도 읽는다. 실제 Wrangler 실행 시에는 항상 공식 이름으로 주입한다.
+const CLOUDFLARE_TOKEN_NAMES = ['CLOUDFLARE_API_TOKEN', 'CF_API_TOKEN', 'CLOUDFLARE_TOKEN'];
+
+function cleanEnvValue(raw) {
+  let value = String(raw ?? '').trim();
+  if (!value) return '';
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    value = value.slice(1, -1);
+  } else {
+    // dotenv에서 흔히 쓰는 인라인 주석은 제거하되, 값 내부의 #은 보존한다.
+    value = value.replace(/\s+#.*$/, '').trim();
+  }
+  return value;
+}
+
+function cleanCloudflareToken(raw) {
+  let value = cleanEnvValue(raw);
+  if (!value) return '';
+  // Cloudflare 대시보드/API 문서에서 Bearer 접두사까지 복사하는 경우를 허용한다.
+  value = value.replace(/^Bearer\s+/i, '').trim();
+  // 문서 예시를 그대로 넣었을 때 실제 토큰으로 오인하지 않도록 한다.
+  if (/^(?:cloudflare[_ -]?api[_ -]?token|your[_ -]?token|token|토큰|토큰값|<[^>]+>|\$\{[^}]+\})$/i.test(value)) return '';
+  return value;
+}
+
+function readEnvFile(file, name) {
+  if (!fs.existsSync(file)) return '';
+  const expected = String(name);
+  const text = fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (match && match[1] === expected) return cleanEnvValue(match[2]);
   }
   return '';
+}
+
+export function readLocalEnv(name) {
+  const processValue = cleanEnvValue(process.env[name]);
+  if (processValue) return processValue;
+  for (const fileName of ENV_FILES) {
+    const value = readEnvFile(path.join(ROOT, fileName), name);
+    if (value) return value;
+  }
+  return '';
+}
+
+function authCandidate(raw, name, source) {
+  const cleaned = cleanEnvValue(raw);
+  if (!cleaned) return null;
+  const token = cleanCloudflareToken(cleaned);
+  if (!token) return { token: '', source, name, reason: 'placeholder' };
+  return { token, source, name, reason: '' };
+}
+
+// 배포 인증 진단용. 토큰 자체는 반환하지 않고, 어디서 읽었는지만 알려준다.
+export function readCloudflareAuth() {
+  let rejected = null;
+  for (const name of CLOUDFLARE_TOKEN_NAMES) {
+    const found = authCandidate(process.env[name], name, `process.env.${name}`);
+    if (!found) continue;
+    if (found.token) return found;
+    rejected ||= found;
+  }
+  for (const fileName of ENV_FILES) {
+    for (const name of CLOUDFLARE_TOKEN_NAMES) {
+      const found = authCandidate(readEnvFile(path.join(ROOT, fileName), name), name, `${fileName}:${name}`);
+      if (!found) continue;
+      if (found.token) return found;
+      rejected ||= found;
+    }
+  }
+  return rejected || { token: '', source: 'wrangler login/OAuth fallback', name: '', reason: 'missing' };
+}
+
+// 관리자 비밀번호: 환경변수 우선, 없으면 리포 루트 env 파일의 ADMIN_PASSWORD
+export function readPassword() {
+  return readLocalEnv('ADMIN_PASSWORD');
+}
+
+// Cloudflare Pages 배포 토큰: 환경변수 우선, 없으면 리포 루트 env 파일의 토큰.
+export function readCloudflareApiToken() {
+  return readCloudflareAuth().token;
 }
 
 // 리포 안에서 가장 최근에 수정된 엑셀을 찾는다 (드래그해서 떨군 파일을 자동으로 집기 위함)
@@ -278,7 +357,7 @@ function createBrowser(base) {
   return { sandbox, run, els, logs };
 }
 
-export function parseExcel(xlsxPath, base = LIVE_BASE, stdCostPath = null, overridePath = null, prevPkg = null, opts = {}) {
+export function parseExcel(xlsxPath, base = LIVE_BASE, stdCostPath = null, overridePath = null, prevPkg = null, opts = {}, prevSalesTarget = null) {
   const browser = createBrowser(base);
   const { sandbox, run, els } = browser;
   // 월별 Risk 이력 — 이어받을 이력과 '과거월까지 다시 계산' 여부.
@@ -305,6 +384,11 @@ export function parseExcel(xlsxPath, base = LIVE_BASE, stdCostPath = null, overr
       sandbox.__prevMonths = months;
       run('PREV_MONTHS_INPUT=__prevMonths;');
     }
+  }
+  // 최신 판매계획 요약에서 빠진 과거 사업계획 목표를 직전 리포트에서 보강한다.
+  if (prevSalesTarget) {
+    sandbox.__prevSalesTarget = prevSalesTarget;
+    run('PREV_SALES_PLAN_TARGET_INPUT=__prevSalesTarget;');
   }
   // 단가 소스를 먼저 실어야 한다 — parseInventory가 재고금액을 계산할 때 이미 있어야 하기 때문.
   // 우선순위: 정정표(이관점검) > 결산 표준원가 > 현재고 시트 금액.
@@ -339,6 +423,32 @@ export function parseExcel(xlsxPath, base = LIVE_BASE, stdCostPath = null, overr
   const parserNotes = (browser.logs.find(l => l.text.startsWith('[SOP upload]'))?.text || '')
     .replace('[SOP upload] ', '').split(' / ').filter(Boolean);
   return { ...browser, uploaded, status: raw, missing, parserNotes, stdCost, priceOverride };
+}
+
+// 직전 Aging 리포트의 사업계획 목표를 월별 맵으로 읽는다.
+// 최신 리포트의 롤링 계획 블록에서 빠져버린 8월 같은 과거 목표를 복원할 때만 사용한다.
+export function readSalesPlanTarget(xlsxPath, base = LIVE_BASE) {
+  const browser = parseExcel(xlsxPath, base);
+  const summary = browser.uploaded?.sales_plan?.__summary;
+  const target = summary?.target;
+  if (!target) return null;
+  const baseYear = Number(summary.__layout?.baseYear) || Number(String(browser.uploaded?.base_yearmonth||'').slice(0,4)) || new Date().getFullYear();
+  const out = {};
+  const add = (months, values) => {
+    let year = baseYear;
+    let prevMonth = null;
+    (months || []).forEach((month, i) => {
+      const m = Number(month);
+      if (!(m >= 1 && m <= 12)) return;
+      if (prevMonth != null && m <= prevMonth) year++;
+      const value = Number(values?.[i]);
+      if (Number.isFinite(value)) out[`${year}.${String(m).padStart(2,'0')}`] = value;
+      prevMonth = m;
+    });
+  };
+  add(summary.actualMonths, target.actual);
+  add(summary.planMonths, target.plan);
+  return Object.keys(out).length ? out : null;
 }
 
 

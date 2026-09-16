@@ -26,6 +26,9 @@ npm run deploy          # 최신 .xlsx 자동 탐색 → KV 반영 → 필요시
 
 `tools/deploy.mjs` → `tools/lib/publish.mjs`. 데이터만 하려면 `npm run publish:data`.
 관리자 비밀번호는 gitignore된 `.env.local`의 `ADMIN_PASSWORD` 또는 환경변수에서 읽는다.
+Cloudflare Pages 인증은 `CLOUDFLARE_API_TOKEN` 환경변수, 리포 루트의 `.env.local`, `.env`, `.dev.vars` 순서로 읽는다.
+`CF_API_TOKEN`·`CLOUDFLARE_TOKEN` 별칭과 `Bearer ` 접두사도 호환한다.
+API 토큰이 없으면 Wrangler OAuth 로그인 캐시도 시도하며, 실패 시 토큰 인증과 OAuth 인증을 구분해 원인을 표시한다.
 
 **⚠️ 배포 자체로는 숫자가 안 바뀐다.** 배포는 `public/` 파일만 올리고 숫자는 KV(`dashboard:live`)에 있다.
 엑셀은 `.gitignore`라 커밋도 안 된다. 그래서 `npm run deploy`가 두 가지를 다 하는 것 —

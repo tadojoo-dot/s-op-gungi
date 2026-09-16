@@ -22,16 +22,25 @@ Cloudflare 화면에는 아래처럼 입력하세요.
 
 ## Live release
 
-Cloudflare에 로그인된 터미널에서는 아래 명령으로 운영 Pages 배포를 실행합니다.
+Cloudflare API 토큰 또는 Wrangler 로그인 인증이 가능한 터미널에서는 아래 명령으로 운영 Pages 배포를 실행합니다.
 
 ```bash
 npm run release:live
 ```
 
-처음 실행하는 환경이면 먼저 Cloudflare 로그인이 필요합니다.
+토큰은 프로세스 환경변수, 리포 루트의 `.env.local`, `.env`, `.dev.vars` 순서로 읽습니다.
+토큰이 전달되지 않은 환경에서는 저장된 Wrangler OAuth 로그인도 시도합니다.
+Codespaces에서는 Repository Settings의 Codespaces Secret으로 등록하거나, 새 터미널에서
+`npx wrangler login`을 실행하세요.
 
 ```bash
-npx wrangler login
+CLOUDFLARE_API_TOKEN=토큰 npm run release:live
+```
+
+인증 방식 확인(토큰 값은 출력하지 않음):
+
+```bash
+npm run deploy -- --check-auth
 ```
 
 ## Shared dashboard data (엑셀 업로드 결과 공유)
@@ -56,6 +65,10 @@ npx wrangler login
 ### 방법 B — 엑셀을 이 폴더에 올려두고 명령 하나
 
 웹에서 업로드하지 않고 반영하는 방법입니다.
+
+전체 배포는 데이터 업로드 전에 Cloudflare 인증을 먼저 확인합니다. 인증이 실패하면
+데이터도 올리지 않아 코드만 빠지는 반쪽 배포를 방지합니다. 데이터만 올릴 때는
+deploy --data-only 옵션을 명시적으로 사용하세요.
 
 1. 엑셀 파일을 이 폴더에 넣습니다 (VS Code 탐색기에 드래그해서 떨구면 됩니다)
 2. 실행:
@@ -83,9 +96,21 @@ npm run deploy
 
 ```text
 ADMIN_PASSWORD=비밀번호
+CLOUDFLARE_API_TOKEN=Cloudflare_API_Token
 ```
 
-또는 매번 `ADMIN_PASSWORD=비밀번호 npm run deploy`.
+또는 매번 `CLOUDFLARE_API_TOKEN=토큰 ADMIN_PASSWORD=비밀번호 npm run deploy`.
+
+`CF_API_TOKEN`과 `CLOUDFLARE_TOKEN`도 호환용 별칭으로 인식하지만, 새 설정에는
+공식 이름인 `CLOUDFLARE_API_TOKEN`을 사용하세요. 토큰을 대시보드에서 `Bearer `까지
+복사해도 자동으로 접두사를 제거합니다. 실제 인증 확인은 아래 명령으로 합니다.
+
+```bash
+npm run deploy:check-auth
+```
+
+토큰 값 자체는 출력하지 않습니다. `토큰 인식됨`은 파일/환경변수에서 찾았다는 뜻이고,
+최종적으로 `인증 상태: 사용 가능`까지 나와야 배포 가능한 상태입니다.
 
 기타 옵션: `--dry-run`(올리지 않고 파싱 결과만), `--data-only`, `--code-only`,
 `--base http://127.0.0.1:8788`(로컬 테스트). 데이터만 반영하는 `npm run publish:data` 도 남아 있습니다.
