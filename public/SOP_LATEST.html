@@ -2547,6 +2547,8 @@ function handleUpload(file){
         if(_lay&&!_lay.ok) warnings.push(`⚠ ${salesPlanSheet}: 요약표 헤더 년월 블록 미인식 → 옛 고정 열(U/AG) 폴백 · 브랜드·채널 합계 확인 필요`);
         if(result.sales_plan?.__summary?.__skuHeader?.startsWith('⚠')) warnings.push(`⚠ ${salesPlanSheet}: ${result.sales_plan.__summary.__skuHeader}`);
         if(!result.sales_plan?.__summary?.net) warnings.push(`${salesPlanSheet}: 순매출 행 미인식 → 순매출은 채널 0.83 가정치로 계산`);
+        const _restoredCh=result.sales_plan?.__summary?.__restoredChannels||[];
+        if(_restoredCh.length) warnings.push(`${salesPlanSheet}: 요약 0원 채널 SKU 상세 실적 복원 [${_restoredCh.join(', ')}]`);
         const _ch=result.sales_plan?.__summary?.ch||[];
         // 채널 합계가 브랜드 합계와 크게 벌어지면 채널 목록에 엉뚱한 행이 섞인 것이다 (26/8 '담당자' 사고)
         const _sum=rs=>rs.reduce((s,r)=>s+(Number(r.actual?.[0])||0),0);
@@ -3385,14 +3387,17 @@ function parseSalesPlanSheet(ws){
     }
     const a=acc[mat];
     if(unitPrice>0&&a.unitPrice===0) a.unitPrice=unitPrice;
-    if(!a.byChannel[ch]) a.byChannel[ch]={ch,unitPrice:0,planAmts:new Array(5).fill(0),planQtys:new Array(5).fill(0)};
+    if(!a.byChannel[ch]) a.byChannel[ch]={ch,unitPrice:0,monthlyAmts:new Array(24).fill(0),monthlyHas:new Array(24).fill(false),planAmts:new Array(5).fill(0),planQtys:new Array(5).fill(0)};
     if(unitPrice>0&&a.byChannel[ch].unitPrice===0) a.byChannel[ch].unitPrice=unitPrice;
     // 실적금액 월별 합산 (I=col8 ~ AF=col31)
     for(let col=8;col<=31;col++){
       const idx=col-8;
       const rawVal=row[col];
       const amt=(rawVal===''||rawVal==null)?null:(Number(rawVal)||0);
-      if(amt!=null&&amt>0){a.monthlyAmts[idx]+=amt;a.monthlyHas[idx]=true;}
+      if(amt!=null&&amt>0){
+        a.monthlyAmts[idx]+=amt;a.monthlyHas[idx]=true;
+        a.byChannel[ch].monthlyAmts[idx]+=amt;a.byChannel[ch].monthlyHas[idx]=true;
+      }
     }
     // 계획금액 월별 합산 (AG=col32 ~ AK=col36)
     for(let c=32;c<=36;c++){
@@ -3407,6 +3412,42 @@ function parseSalesPlanSheet(ws){
       a.byChannel[ch].planQtys[c-42]+=q;
     }
   });
+  // 채널 요약행 수식이 전부 0이어도 SKU 상세에는 과거 실적이 남아 있는 파일이 있다.
+  // 26/9 '온라인 기타'가 그 사례다(요약 0원, SKU 상세 25년 4.61억). 이 행을 버리면
+  // 25년 합계와 26년 전년비 분모가 동시에 작아진다. 정상 요약행은 그대로 두고,
+  // **요약이 전 구간 0인 채널만** 상세 금액으로 복원한다.
+  const detailByChannel={};
+  const channelKey=v=>String(v||'').replace(/\s/g,'');
+  Object.values(acc).forEach(a=>{
+    Object.values(a.byChannel||{}).forEach(c=>{
+      const key=channelKey(c.ch);
+      if(!key) return;
+      const d=detailByChannel[key]||(detailByChannel[key]={monthlyAmts:new Array(24).fill(0),planAmts:new Array(5).fill(0)});
+      c.monthlyAmts.forEach((v,i)=>{d.monthlyAmts[i]+=Number(v)||0;});
+      c.planAmts.forEach((v,i)=>{d.planAmts[i]+=Number(v)||0;});
+    });
+  });
+  const restoredChannels=[];
+  const baseYear=Number(summary.__layout?.baseYear)||new Date().getFullYear();
+  const actualDetail=(d,year,month)=>{
+    const idx=actMonthMeta.findIndex(meta=>meta?.year===year&&meta?.month===month);
+    return idx>=0?(Number(d.monthlyAmts[idx])||0)/1e8:0;
+  };
+  summary.ch=(summary.ch||[]).map(row=>{
+    const sourceEmpty=![...(row.prevActual||[]),...(row.actual||[]),...(row.plan||[])].some(v=>Number(v)!==0);
+    const detail=detailByChannel[channelKey(row.name)];
+    if(!sourceEmpty||!detail) return row;
+    const restored={...row,
+      prevActual:Array.from({length:12},(_,i)=>actualDetail(detail,baseYear-1,i+1)),
+      actual:(summary.actualMonths||[]).map(month=>actualDetail(detail,baseYear,Number(month))),
+      plan:(summary.planMonths||[]).map((_,i)=>(Number(detail.planAmts[i])||0)/1e8),
+      __detailRestored:true
+    };
+    if([...(restored.prevActual||[]),...(restored.actual||[]),...(restored.plan||[])].some(v=>Number(v)!==0)) restoredChannels.push(restored.name);
+    return restored;
+  }).filter(row=>[...(row.prevActual||[]),...(row.actual||[]),...(row.plan||[])].some(v=>Number(v)!==0));
+  summary.__restoredChannels=restoredChannels;
+
   const result={__summary:summary};
   Object.entries(acc).forEach(([mat,a])=>{
     const unitPrice=a.unitPrice;
@@ -3532,7 +3573,10 @@ function parseSalesPlanSummaryRows(rows){
       const prevActual=prevCols.map(c=>Number(row[c])||0);
       const actual=actualCols.map(c=>Number(row[c])||0);
       const plan=planCols.map(c=>Number(row[c])||0);
-      if(prevActual.some(Boolean)||actual.some(Boolean)||plan.some(Boolean)){
+      // 채널 요약행이 0이어도 일단 보존한다. 일부 파일은 채널 행 수식이 끊겨 0이지만
+      // 아래 SKU 상세에는 과거 실적이 남아 있다(26/9 온라인 기타 25년 4.61억).
+      // parseSalesPlanSheet가 상세로 복원한 뒤 끝까지 0인 채널만 최종 제거한다.
+      if(type==='ch'||prevActual.some(Boolean)||actual.some(Boolean)||plan.some(Boolean)){
         groups[type].push({name,prevActual,actual,plan});
       }
     }
