@@ -137,9 +137,7 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .aging-matrix td.danger{background:var(--red-lt);color:var(--red);font-weight:700;}
 .aging-matrix td.total-col{background:#f7f8fa;font-weight:800;color:var(--navy);}
 .aging-matrix td.rev-col{background:#eafaf6;font-weight:800;color:#0f7d63;}
-.aging-matrix td.sf-col{background:#f0f8ff;font-weight:800;color:#17658a;}
 .aging-matrix td.months-col{background:#fff8e7;font-weight:800;color:#9a6810;}
-.aging-matrix th.sf-head{background:#17658a;}
 .aging-matrix th.months-head{background:#9a6810;}
 .aging-matrix tr.aging-parent-row td{border-top:2px solid #aeb7c9;font-weight:800;}
 .aging-matrix tr.aging-parent-row td:first-child{background:#e9edf5;color:var(--navy);cursor:pointer;white-space:nowrap;}
@@ -149,7 +147,6 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .aging-matrix .aging-tree-hint{display:block;margin:2px 0 0 18px;color:var(--muted);font-size:9.5px;font-weight:600;}
 .aging-matrix tr.total-row td{background:#eef0f9;font-weight:800;}
 .aging-matrix tr.total-row td.rev-col{background:#d9f2ea;}
-.aging-matrix tr.total-row td.sf-col{background:#dceff9;}
 .aging-matrix tr.total-row td.months-col{background:#fff0c7;}
 .aging-matrix td:hover:not(:first-child):not(.zero){background:#dde4ff;cursor:pointer;}
 .aging-matrix td.active{background:#c7d2ff!important;outline:2px solid var(--navy);}
@@ -5145,7 +5142,7 @@ function renderMatrix(){
 
   let html=`<thead><tr><th class="ch-head">채널 / 생산처</th>`;
   cats.forEach(c=>html+=`<th style="color:#fff;background:${catCol[c]||'#888'}">${c}</th>`);
-  html+=`<th>합계</th><th>매출환산</th><th class="sf-head">SF 월계획</th><th class="months-head">재고개월</th></tr></thead><tbody>`;
+  html+=`<th>합계</th><th>매출환산</th><th class="months-head">재고개월</th></tr></thead><tbody>`;
 
   const totals={};cats.forEach(c=>totals[c]={a:0,q:0});let grandA=0,grandQ=0,grandRev=0,grandSf=0,grandSfMatched=0,grandSfMissing=0,grandUnmatched=0;
 
@@ -5224,12 +5221,8 @@ function renderMatrix(){
     }else{
       html+=`<td class="rev-col zero" title="원가 시트 업로드 필요"><div class="cell-val">—</div><div class="cell-qty">&nbsp;</div></td>`;
     }
-    const sfTitle=sfInfo.yearmonth
-      ?` title="${sfInfo.yearmonth} SF 계획 · ${sfInfo.matched}개 SKU 반영${sfInfo.missing?` · 미매칭/무계획 ${sfInfo.missing}개`:''}"`
-      :' title="해당 월 SF 계획 없음"';
-    const sfCell=sfInfo.matched?`<td class="sf-col"${sfTitle}><div class="cell-val">${fmtAmt(sfAmtEok)}</div><div class="cell-qty">${sfInfo.missing?`미반영 ${sfInfo.missing}개`:'SKU '+sfInfo.matched+'개'}</div></td>`:`<td class="sf-col zero"${sfTitle}><div class="cell-val">—</div><div class="cell-qty">SF 없음</div></td>`;
     const monthTitle=sfInfo.matched?` title="매출환산 ${fmtAmt(rowRevEok)} ÷ SF 월계획 ${fmtAmt(sfAmtEok)}"`:' title="SF 계획이 없어 재고개월을 계산할 수 없습니다"';
-    html+=`${sfCell}<td class="months-col"${monthTitle}><div class="cell-val">${agingMonthsText(rowMonths)}</div><div class="cell-qty">SF 대비</div></td></tr>`;
+    html+=`<td class="months-col"${monthTitle}><div class="cell-val">${agingMonthsText(rowMonths)}</div><div class="cell-qty">SF 대비</div></td></tr>`;
   });
 
   html+=`<tr class="total-row"><td>합계</td>`;
@@ -5250,7 +5243,7 @@ function renderMatrix(){
   }
   const grandMonths=grandRev>0&&grandSf>0?(grandRev/100)/grandSf:null;
   const grandSfTitle=grandSfMatched?` title="선택 월 SF 계획 · ${grandSfMatched}개 SKU 반영${grandSfMissing?` · 미매칭/무계획 ${grandSfMissing}개`:''}"`:'';
-  html+=`<td class="sf-col"${grandSfTitle}><div class="cell-val" style="font-size:14px;">${grandSfMatched?fmtAmt(grandSf):'—'}</div><div class="cell-qty">${grandSfMatched?`SKU ${grandSfMatched}개`:'SF 없음'}</div></td><td class="months-col"${grandSfTitle}><div class="cell-val" style="font-size:14px;">${agingMonthsText(grandMonths)}</div><div class="cell-qty">SF 대비</div></td></tr>`;
+  html+=`<td class="months-col"${grandSfTitle}><div class="cell-val" style="font-size:14px;">${agingMonthsText(grandMonths)}</div><div class="cell-qty">SF 대비</div></td></tr>`;
   html+=`</tbody>`;
   document.getElementById('agingMatrix').innerHTML=html;
   const note=document.getElementById('matrixRevNote');
