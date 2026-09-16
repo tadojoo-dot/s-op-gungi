@@ -432,9 +432,9 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .sp-table th{font-size:11px;font-weight:900;}
 .sp-table td{font-size:11.5px;font-weight:700;}
 .sp-table th,.sp-table td{box-sizing:border-box;white-space:nowrap;}
-.sp-table .sp-name-col{width:72px;}
-.sp-table .sp-month-col{width:6.55%;}
-.sp-table .sp-cum-col{width:6.9%;}
+.sp-table .sp-name-col{width:9%;}
+.sp-table .sp-month-col{width:7%;}
+.sp-table .sp-cum-col{width:7%;}
 .sp-table .sp-goal-row td{background:#f7f8fb;font-weight:900;}
 .sp-table .sp-goal-rate-row td{background:#fffaf1;font-weight:900;}
 .sp-sim{margin-top:14px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:12px 14px;}
@@ -8870,12 +8870,12 @@ function renderChannelWape(){
   };
   const compareCells=(c,isTotal=false)=>{
     if(!c) return `<td class="cw-compare cw-na cw-sep">—</td><td class="cw-compare cw-na">—</td><td class="cw-compare cw-na">—</td>`;
-    const plan=Number(c.plan)||0,actual=Number(c.actual)||0,diff=actual-plan;
-    const diffClass=diff>0?' cw-diff-pos':diff<0?' cw-diff-neg':'';
+    const plan=Number(c.plan)||0,actual=Number(c.actual)||0,absDiff=Number(c.abs)||0;
+    const diffClass=absDiff>0?' cw-diff-neg':'';
     const titlePrefix=isTotal?'전체':compareMonth?.label||'기준월';
     return `<td class="cw-compare cw-sep" title="${titlePrefix} 당초계획 ${fmtCompare(plan)}${compareUnit}">${fmtCompare(plan)}</td>
       <td class="cw-compare" title="${titlePrefix} 실적 ${fmtCompare(actual)}${compareUnit}">${fmtCompare(actual)}</td>
-      <td class="cw-compare${diffClass}" title="${titlePrefix} 차이 = 실적−당초계획 ${fmtCompare(diff,true)}${compareUnit}">${fmtCompare(diff,true)}</td>`;
+      <td class="cw-compare${diffClass}" title="${titlePrefix} 차이합계 = 품목별 Σ|실적−당초계획| ${fmtCompare(absDiff)}${compareUnit}">${fmtCompare(absDiff)}</td>`;
   };
   const W_CH=128,W_MO=66,W_CONTRIB=90,W_MV=56,W_COMPARE=60,W_MEMO=360;
   const fixedW=W_CH+months.length*W_MO*2+W_CONTRIB
@@ -8888,8 +8888,8 @@ function renderChannelWape(){
     <th class="cw-grp" colspan="${months.length}">오차율 (%)</th>
     <th class="cw-grp cw-sep" colspan="${months.length}">적중률 (%)</th>
     <th class="cw-grp cw-sep" rowspan="2">오차<br>기여도<br>(${contributionMonth?.label||''})</th>
-    ${historyActualMonths.length?`<th class="cw-grp cw-act cw-sep" colspan="${historyActualMonths.length}">실적 이력 (억원)</th>`:''}
-    <th class="cw-grp cw-act cw-sep" colspan="3">${compareMonth?.label||'최근 월'} WAPE 기준 (${compareUnit})</th>
+    ${historyActualMonths.length?`<th class="cw-grp cw-act cw-sep" colspan="${historyActualMonths.length}">실적</th>`:''}
+    <th class="cw-grp cw-act cw-sep" colspan="3">${compareMonth?.label||'최근 월'}</th>
     ${futurePlanMonths.length?`<th class="cw-grp cw-plan cw-sep" colspan="${futurePlanMonths.length}" title="향후 판매계획 (억원)">판매계획<br><span>(억원)</span></th>`:''}
     <th class="l cw-memo-head cw-sep" rowspan="2">조치의견</th>
   </tr>
@@ -8897,7 +8897,7 @@ function renderChannelWape(){
     ${months.map(m=>`<th class="sortable" onclick="handleChWapeSort('${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="${m.key}"></span></th>`).join('')}
     ${months.map((m,i)=>`<th class="sortable${i===0?' cw-sep':''}" onclick="handleChWapeSort('hr:${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="hr:${m.key}"></span></th>`).join('')}
     ${historyActualMonths.map((mo,i)=>`<th class="cw-mv cw-month-col${i===0?' cw-sep':''}" title="실적 ${mo}월 (억원)">${mo}월</th>`).join('')}
-    <th class="cw-compare cw-sep">당초계획</th><th class="cw-compare">실적</th><th class="cw-compare" title="실적−당초계획의 부호 있는 순차이">차이</th>
+    <th class="cw-compare cw-sep">당초계획</th><th class="cw-compare">실적</th><th class="cw-compare" title="품목별 |실적−당초계획|의 합 · WAPE 분자와 동일">차이합계</th>
     ${futurePlanMonths.map((mo,i)=>`<th class="cw-mv cw-month-col cw-plan${i===0?' cw-sep':''}" title="판매계획 ${mo}월 (억원)">${mo}월</th>`).join('')}
   </tr></thead><tbody>`;
   sorted.forEach(r=>{
@@ -8926,8 +8926,8 @@ function renderChannelWape(){
   wrap.innerHTML=h;
   renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
   if(note){
-    note.innerHTML=`<strong>${compareMonth?.label||'최근 월'} WAPE 기준</strong>의 당초계획·실적·차이는 오차율분석 시트의 같은 원천을 사용합니다(계획 0행 제외) · `
-      +`차이 = 실적−당초계획의 <strong>부호 있는 순차이</strong>, WAPE = 품목별 Σ|실적−계획| ÷ Σ계획이라 서로 직접 곱셈 관계는 아닙니다<br>`
+    note.innerHTML=`<strong>${compareMonth?.label||'최근 월'} WAPE 기준</strong>의 당초계획·실적·차이합계는 오차율분석 시트의 같은 원천을 사용합니다(계획 0행 제외) · `
+      +`차이합계 = 품목별 <strong>Σ|실적−당초계획|</strong>(초과·미달 상쇄 없음)이며 WAPE의 분자와 같습니다 · WAPE = 차이합계 ÷ Σ계획<br>`
       +`${historyActualMonths.length?`<strong>${historyActualMonths[0]}~${historyActualMonths[historyActualMonths.length-1]}월 실적 이력</strong>`:'<strong>실적 이력</strong>'}과 `
       +`${futurePlanMonths.length?`<strong>${futurePlanMonths[0]}~${futurePlanMonths[futurePlanMonths.length-1]}월 판매계획</strong>`:'<strong>향후 판매계획</strong>'}은 판매계획(SF) 시트의 채널 입력값(억원)입니다<br>`
       +`<strong>오차 기여도(${contributionMonth?.label||'최근 월'})</strong> = 해당 월 채널 |차이| ÷ 전체 |차이| · 합계 100% · `
@@ -9787,7 +9787,8 @@ function spRawValue(row,m,periods){
   if(spYear===2025) return Number(row.prevActual?.[m-1])||0;
   const ai=periods.actualMonths.indexOf(m);
   if(ai>=0) return Number(row.actual?.[ai])||0;
-  const pi=periods.planMonths.indexOf(m);
+  const mappedPi=periods.planSourceIndex?.[m];
+  const pi=Number.isInteger(mappedPi)?mappedPi:periods.planMonths.indexOf(m);
   if(pi>=0) return Number(row.plan?.[pi])||0;
   return null;
 }
@@ -9868,9 +9869,28 @@ function getSPPeriods(rows){
     return {actualMonths:[1,2,3,4,5,6,7,8,9,10,11,12],planMonths:[],displayMonths:[1,2,3,4,5,6,7,8,9,10,11,12]};
   }
   const summary=UPLOADED?.sales_plan?.__summary;
+  const actualMonths=summary?.actualMonths?.length?summary.actualMonths:[1,2,3,4,5];
+  const rawPlanMonths=summary?.planMonths?.length?summary.planMonths:[6,7,8,9,10];
+  // SF 계획은 5개월 롤링이라 연말에는 [9,10,11,12,1]처럼 다음 해 월이 붙는다.
+  // 화면은 선택 연도의 1~12월만 표시하므로 다음 해 1월을 계획 colspan에 포함하면
+  // 월 데이터는 12칸인데 헤더만 13칸이 되어 누계가 한 칸 오른쪽으로 밀린다.
+  // 계획 월의 순서가 작아지는 지점에서 연도를 넘기고, 현재 표시 연도에 속한 월만 남긴다.
+  const baseYear=Number(summary?.__layout?.baseYear)||spYear;
+  let planYear=baseYear,prevPlanMonth=null;
+  const actualSet=new Set(actualMonths.map(Number));
+  const planEntries=rawPlanMonths.map((raw,index)=>{
+    const month=Number(raw);
+    if(!(month>=1&&month<=12)) return null;
+    if(prevPlanMonth!=null&&month<prevPlanMonth) planYear++;
+    prevPlanMonth=month;
+    return {month,year:planYear,index};
+  }).filter(Boolean).filter(p=>p.year===spYear&&!actualSet.has(p.month));
+  const planMonths=planEntries.map(p=>p.month);
+  const planSourceIndex=Object.fromEntries(planEntries.map(p=>[p.month,p.index]));
   return {
-    actualMonths:summary?.actualMonths?.length?summary.actualMonths:[1,2,3,4,5],
-    planMonths:summary?.planMonths?.length?summary.planMonths:[6,7,8,9,10],
+    actualMonths,
+    planMonths,
+    planSourceIndex,
     displayMonths:[1,2,3,4,5,6,7,8,9,10,11,12]
   };
 }
@@ -9931,7 +9951,8 @@ function spTargetSeries(periods=getSPPeriods([])){
   const values=periods.displayMonths.map(m=>{
     const ai=periods.actualMonths.indexOf(m);
     if(ai>=0) return Number(target.actual?.[ai])||0;
-    const pi=periods.planMonths.indexOf(m);
+    const mappedPi=periods.planSourceIndex?.[m];
+    const pi=Number.isInteger(mappedPi)?mappedPi:periods.planMonths.indexOf(m);
     if(pi>=0) return Number(target.plan?.[pi])||0;
     return null;
   });
@@ -10065,6 +10086,11 @@ function renderSP(){
   // 테이블 렌더
   const tbl = document.getElementById('spTableWrap');
   let h=`<table class="sp-table">
+    <colgroup>
+      <col class="sp-name-col">
+      ${periods.displayMonths.map(()=>'<col class="sp-month-col">').join('')}
+      <col class="sp-cum-col">
+    </colgroup>
     <thead>
       <tr>
         <th rowspan="2" class="sp-name-col" style="background:var(--navy);color:#fff;padding:7px 8px;font-weight:700;text-align:center;">구분</th>

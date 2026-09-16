@@ -11,6 +11,11 @@
 //   npm run deploy -- --rebuild-risk     월별 Risk 이력을 과거월까지 **다시 계산해서 덮는다**
 //                                        (평소 과거월은 얼려 둔다 — 회의에 나간 숫자가 안 바뀌게)
 //   npm run deploy -- --force-shrink     Risk 이력 개월 수가 줄어도 진행 (기본은 중단)
+//
+// 코드 배포 인증 우선순위:
+//   1) Cloudflare API 토큰/Wrangler OAuth → Pages 직접 배포
+//   2) 직접 인증이 없으면 origin/main 쓰기 권한 확인 → GitHub 연동 자동배포
+// 어느 경로도 준비되지 않으면 KV 데이터를 쓰기 전에 중단해 반쪽 배포를 막는다.
 import { spawn } from 'child_process';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -33,6 +38,8 @@ const dataOnly = has('--data-only');
 const codeOnly = has('--code-only');
 const checkAuth = has('--check-auth');
 const PAGES_PROJECT = 's-op-gungi';
+const GIT_DEPLOY_REMOTE = 'origin';
+const GIT_DEPLOY_BRANCH = 'main';
 const PAGES_ACCOUNT_ID = readLocalEnv('CLOUDFLARE_ACCOUNT_ID') || '14c780e41fc86dde4101283fb427b14e';
 const WRANGLER_VERSION = '4.110.0';
 
@@ -101,6 +108,25 @@ async function pagesWorkingTreeStatus() {
   return result.stdout.trim();
 }
 
+async function verifyGitDeployRoute() {
+  const dirty = await pagesWorkingTreeStatus();
+  if (dirty) {
+    throw new Error(
+      'GitHub 자동배포로 전환할 수 있지만 Pages 변경이 아직 커밋되지 않았습니다.\n' +
+      '먼저 public/SOP_LATEST.html 등 화면 변경을 커밋한 뒤 다시 실행하세요.\n' + dirty
+    );
+  }
+  const branch = (await runFile('git', ['branch', '--show-current'])).stdout.trim();
+  if (branch !== GIT_DEPLOY_BRANCH) {
+    throw new Error(`현재 브랜치가 ${branch || '(분리 HEAD)'}입니다. 자동배포 브랜치 ${GIT_DEPLOY_BRANCH}에서 실행하세요.`);
+  }
+  const remote = (await runFile('git', ['remote', 'get-url', GIT_DEPLOY_REMOTE])).stdout.trim();
+  if (!remote) throw new Error(`${GIT_DEPLOY_REMOTE} 원격 저장소가 없습니다.`);
+  await runFile('git', ['push', '--dry-run', GIT_DEPLOY_REMOTE, GIT_DEPLOY_BRANCH], { timeoutMs: 60000 });
+  say(`GitHub 자동배포 사전 확인 통과 (${GIT_DEPLOY_REMOTE}/${GIT_DEPLOY_BRANCH})`);
+  return { kind: 'git', remote: GIT_DEPLOY_REMOTE, branch: GIT_DEPLOY_BRANCH, url: remote };
+}
+
 function scrubAuthOutput(value, token = '') {
   let text = String(value || '').trim();
   if (token) text = text.split(token).join('[REDACTED_TOKEN]');
@@ -140,11 +166,18 @@ if (checkAuth) {
   if (auth.name) console.log(`변수명: ${auth.name}`);
   try {
     await verifyCloudflareAuth();
-    console.log('인증 상태: 사용 가능');
+    console.log('인증 상태: 사용 가능 (Cloudflare Pages 직접 배포)');
     process.exit(0);
-  } catch (e) {
-    console.error(`인증 상태: 사용 불가\n${e.message || e}`);
-    process.exit(1);
+  } catch (cloudflareError) {
+    console.log(`Cloudflare 직접 인증: 사용 불가\n${cloudflareError.message || cloudflareError}`);
+    try {
+      await verifyGitDeployRoute();
+      console.log('인증 상태: 사용 가능 (GitHub 연동 자동배포 대체 경로)');
+      process.exit(0);
+    } catch (gitError) {
+      console.error(`인증 상태: 사용 불가\nGitHub 경로: ${gitError.message || gitError}`);
+      process.exit(1);
+    }
   }
 }
 
@@ -180,7 +213,17 @@ async function deployPagesDirect() {
   }
 }
 
+async function deployPagesViaGit(route) {
+  const aheadRaw = (await runFile('git', [
+    'rev-list', '--count', `${route.remote}/${route.branch}..HEAD`
+  ])).stdout.trim();
+  const ahead = Number(aheadRaw) || 0;
+  say(`GitHub 자동배포 시작 (${route.remote}/${route.branch} · 새 커밋 ${ahead.toLocaleString('ko-KR')}개)`);
+  await runFile('git', ['push', route.remote, route.branch], { inherit: true });
+}
+
 let failed = false;
+let codeDeployRoute = null;
 const total = codeOnly ? 2 : dataOnly ? 2 : 3;
 let n = 0;
 
@@ -189,9 +232,17 @@ let n = 0;
 if (!dryRun && !dataOnly) {
   try {
     await verifyCloudflareAuth();
-  } catch (e) {
-    console.error('\n❌ ' + (e.message || e));
-    process.exit(1);
+    codeDeployRoute = { kind: 'cloudflare' };
+  } catch (cloudflareError) {
+    say('Cloudflare 직접 인증을 사용할 수 없어 GitHub 자동배포 경로를 확인합니다');
+    try {
+      codeDeployRoute = await verifyGitDeployRoute();
+    } catch (gitError) {
+      console.error('\n❌ 코드 배포 사전 확인 실패. 데이터는 아직 변경하지 않았습니다.');
+      console.error('Cloudflare 경로: ' + (cloudflareError.message || cloudflareError));
+      console.error('GitHub 경로: ' + (gitError.message || gitError));
+      process.exit(1);
+    }
   }
 }
 
@@ -411,9 +462,10 @@ if (!dataOnly) {
       try {
         // GitHub 자동 배포는 커밋/푸시 상태에 의존하고, 미커밋 변경은 조용히 누락될 수 있다.
         // Pages API 직접 배포는 현재 public/Functions 작업트리를 그대로 올린다.
-        await deployPagesDirect();
+        if (codeDeployRoute?.kind === 'git') await deployPagesViaGit(codeDeployRoute);
+        else await deployPagesDirect();
       } catch (e) {
-        say(`Cloudflare Pages 배포 실패: ${e.message || e}`);
+        say(`코드 배포 실패(${codeDeployRoute?.kind === 'git' ? 'GitHub 자동배포' : 'Cloudflare 직접배포'}): ${e.message || e}`);
         failed = true;
       }
 
