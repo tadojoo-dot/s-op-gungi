@@ -309,6 +309,11 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .chwape.chwape-lg col.cw-contrib-col{width:90px;}
 .chwape.chwape-lg col.cw-month-col{width:56px;}
 .chwape.chwape-lg th.cw-month-col,.chwape.chwape-lg td.cw-mv{width:56px;box-sizing:border-box;padding-left:4px!important;padding-right:4px!important;}
+.chwape.chwape-lg col.cw-compare-col{width:60px;}
+.chwape.chwape-lg th.cw-compare,.chwape.chwape-lg td.cw-compare{width:60px;box-sizing:border-box;padding-left:4px!important;padding-right:4px!important;}
+.chwape.chwape-lg td.cw-compare{font-size:13px;font-weight:800;color:#384158;}
+.chwape.chwape-lg td.cw-diff-pos{color:var(--green);}
+.chwape.chwape-lg td.cw-diff-neg{color:var(--red);}
 .chwape.chwape-lg th.cw-grp.cw-plan span{font-size:12px;font-weight:800;letter-spacing:0;}
 .chwape.chwape-lg col.cw-memo-col{width:auto;min-width:360px;}
 .chwape.chwape-lg td.chmemo-td{width:auto;min-width:360px;}
@@ -8346,13 +8351,19 @@ function channelPlanActual(){
 // 채널 한 줄의 월별 숫자 칸들. 실적 구간과 계획 구간을 색·구분선으로만 가른다.
 // ⚠ 2026-08-18에 SVG 막대 → 숫자로 바꿨다(사용자 지시: "그냥 숫자로 넣어주지 월별로 해서").
 //   막대는 채널 내 추세는 보였지만 값을 못 읽었다. 표는 숫자로 읽는다는 이 표의 원칙과도 맞다.
-function channelMonthCells(name,src){
+function channelMonthCells(name,src,actualMonths=src.actualMonths,planMonths=src.planMonths){
   const d=name==='전체'?src.total:src.byName.get(name);
-  const n=src.actualMonths.length+src.planMonths.length;
-  if(!d) return Array.from({length:n},(_,i)=>`<td class="cw-mv cw-na${(i===0||i===src.actualMonths.length)?' cw-sep':''}">—</td>`).join('');
+  const nA=actualMonths.length,n=nA+planMonths.length;
+  if(!d) return Array.from({length:n},(_,i)=>`<td class="cw-mv cw-na${(i===0||i===nA)?' cw-sep':''}">—</td>`).join('');
   const fmt=v=>(v==null||!Number.isFinite(v))?'—':(Math.abs(v)<0.05?'0.0':v.toFixed(1));
-  const a=src.actualMonths.map((mo,i)=>`<td class="cw-mv${i===0?' cw-sep':''}" title="${mo}월 실적 ${fmt(d.actual[i])}억">${fmt(d.actual[i])}</td>`);
-  const p=src.planMonths.map((mo,i)=>`<td class="cw-mv cw-plan${i===0?' cw-sep':''}" title="${mo}월 계획 ${fmt(d.plan[i])}억">${fmt(d.plan[i])}</td>`);
+  const a=actualMonths.map((mo,i)=>{
+    const srcIdx=src.actualMonths.indexOf(mo),v=srcIdx<0?null:d.actual[srcIdx];
+    return `<td class="cw-mv${i===0?' cw-sep':''}" title="${mo}월 실적 ${fmt(v)}억">${fmt(v)}</td>`;
+  });
+  const p=planMonths.map((mo,i)=>{
+    const srcIdx=src.planMonths.indexOf(mo),v=srcIdx<0?null:d.plan[srcIdx];
+    return `<td class="cw-mv cw-plan${i===0?' cw-sep':''}" title="${mo}월 계획 ${fmt(v)}억">${fmt(v)}</td>`;
+  });
   return a.concat(p).join('');
 }
 
@@ -8393,18 +8404,15 @@ function hitChMemoView(ch,currentYm){
   if(cur!=null&&cur!=='') return {ym,text:cur,carriedFrom:'',hist};
   return {ym,text:hist[0]?.text||'',carriedFrom:hist[0]?.label||'',hist};
 }
-// 표 셀 하나 — textarea + 이어받음/이력 표시. 저장은 기존 saveSharedTextInput(공유 KV)이 그대로 처리한다.
+// 표 셀 하나. 이어받은 의견은 입력칸에만 보이고 별도 안내 문구는 그리지 않는다.
+// 저장은 기존 saveSharedTextInput(공유 KV)이 그대로 처리한다.
 function hitChMemoCell(ch,currentYm){
   const v=hitChMemoView(ch,currentYm);
   const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-  const histTip=v.hist.length?v.hist.map(h=>`${h.label}: ${h.text}`).join('\n'):'';
-  const meta=v.carriedFrom
-    ? `<div class="chmemo-meta chmemo-carry" title="${esc(histTip)}">${v.carriedFrom} 의견 이어받음 · 수정 시 ${_ymLabel(v.ym)} 저장</div>`
-    : (v.hist.length?`<div class="chmemo-meta chmemo-hist" title="${esc(histTip)}">이전 의견 ${v.hist.map(h=>h.label).join(' · ')}</div>`:'');
-  return `<td class="l chmemo-td">
+  return `<td class="l chmemo-td cw-sep">
     <textarea class="action-memo${v.text.trim()?' saved':''}" data-memo-key="${hitChMemoKey(ch,v.ym)}"
       oninput="saveSharedTextInput(this)" placeholder="${_ymLabel(v.ym)} 조치의견">${esc(v.text)}</textarea>
-    ${meta}</td>`;
+    </td>`;
 }
 
 // WAPE 색 기준 — 보정 대상 리스트 총계 배지와 채널별 히트맵이 같은 값을 쓰게 한 곳에 둔다.
@@ -8439,13 +8447,20 @@ function buildChannelWape(){
       const tPlan=rows.reduce((s,r)=>s+(Number(r.plan)||0),0);
       if(!(tPlan>0)) return;
       months.push({key,no,label:`${no}월`,hasData:true});
-      totals.set(key,{plan:tPlan,abs:rows.reduce((s,r)=>s+Math.abs(Number(r.diff)||0),0)});
+      totals.set(key,{
+        plan:tPlan,
+        actual:rows.reduce((s,r)=>s+(Number(r.actual)||0),0),
+        diff:rows.reduce((s,r)=>s+(Number(r.diff)||0),0),
+        abs:rows.reduce((s,r)=>s+Math.abs(Number(r.diff)||0),0)
+      });
       rows.forEach(r=>{
         const ch=r.ch||'미분류';
         if(!byCh.has(ch)) byCh.set(ch,{ch,cells:{}});
         const cells=byCh.get(ch).cells;
-        const cell=cells[key]||(cells[key]={plan:0,abs:0,skus:0});
+        const cell=cells[key]||(cells[key]={plan:0,actual:0,diff:0,abs:0,skus:0});
         cell.plan+=Number(r.plan)||0;
+        cell.actual+=Number(r.actual)||0;
+        cell.diff+=Number(r.diff)||0;
         cell.abs+=Math.abs(Number(r.diff)||0);
         cell.skus++;
       });
@@ -8468,7 +8483,7 @@ function buildChannelWape(){
     totalWape[key]=(t&&t.plan>0)?t.abs/t.plan*100:null;
     totalHit[key]=hitRateFromWape(totalWape[key]);
   });
-  return {months,rows,totalWape,totalHit,sizeKey,sizeLabel:months[months.length-1].label,
+  return {months,rows,totalWape,totalHit,totalCells:Object.fromEntries(totals),sizeKey,sizeLabel:months[months.length-1].label,
           totalSize:totals.get(sizeKey)?.plan||0};
 }
 // ═══════════ 적중률 = 1 − (품목 |오차| 합 ÷ 채널 판매계획 합) ═══════════
@@ -8730,11 +8745,8 @@ function _hitRowMemoCell(row,monthKey){
   const text=raw==null?(localStorage.getItem(legacyKey)||''):raw;
   const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const v=esc(text);
-  const hist=hitAdjustMemoHistory(row,ym);
-  const histTip=hist.map(h=>`${h.label}: ${h.text}`).join('\n');
-  const history=hist.length?`<div class="chmemo-hist" title="${esc(histTip)}">이전 ${hist.map(h=>h.label).join('·')} 의견</div>`:'';
-  return `<td class="l chmemo-td"><textarea class="action-memo${text.trim()?' saved':''}" data-memo-key="${esc(key)}"
-    oninput="saveSharedTextInput(this)" placeholder="${esc(_ymLabel(ym))} 조치의견">${v}</textarea>${history}</td>`;
+  return `<td class="l chmemo-td cw-sep"><textarea class="action-memo${text.trim()?' saved':''}" data-memo-key="${esc(key)}"
+    oninput="saveSharedTextInput(this)" placeholder="${esc(_ymLabel(ym))} 조치의견">${v}</textarea></td>`;
 }
 
 // 팝업에서 보던 채널·월을 아래 보정 대상 리스트에 그대로 넘긴다
@@ -8799,7 +8811,7 @@ function renderChannelWape(){
   // planSize는 여전히 기본 정렬 키('plan', 계획 큰 채널 우선)로 살아 있으니 데이터는 그대로 둔다.
   // ⚠ 표에는 **최근 CHWAPE_MONTHS_SHOWN개월만** 그린다(2026-08-18 사용자 지시: "6,7월만 보여줘").
   //   buildChannelWape는 전 구간을 계속 계산한다 — 정렬 키와 셀 클릭 팝업이 과거월도 그대로 쓴다.
-  const {months:allMonths,rows,totalWape,totalHit}=data;
+  const {months:allMonths,rows,totalWape,totalHit,totalCells}=data;
   const months=allMonths.slice(-CHWAPE_MONTHS_SHOWN);
   const unitTxt=hitTrendUnit==='qty'?'개':'억';
   const sorted=[...rows].sort((a,b)=>{
@@ -8843,7 +8855,6 @@ function renderChannelWape(){
   // 오른쪽 여백에 채널별 12개월 흐름(실적 1~7 / 계획 8~12)을 스파크라인으로 붙인다.
   // 판매계획 시트가 없으면 열 자체를 안 그린다(무회귀).
   const spark=channelPlanActual();
-  const mvMonths=spark?[...spark.actualMonths,...spark.planMonths]:[];
   // 적중률 열은 오차율 열과 같은 폭을 쓴다. 채널별 오차기여도는 최근 표시 월 기준으로
   // 계산해 실적 구간 바로 앞에 둔다.
   // 조치의견은 고정 폭으로 제한해 앞쪽 수치 표가 주인공이 되게 한다. 넓은 화면에서도
@@ -8851,25 +8862,50 @@ function renderChannelWape(){
   const contributionMonth=months[months.length-1];
   const contributionTotal=contributionMonth?(data.totalWape[contributionMonth.key]!=null
     ? (data.rows.reduce((sum,row)=>sum+(row.cells[contributionMonth.key]?.abs||0),0)) : 0):0;
-  const W_CH=128,W_MO=66,W_CONTRIB=90,W_MV=56,W_MEMO=360;
-  const fixedW=W_CH+months.length*W_MO*2+W_CONTRIB+mvMonths.length*W_MV;
-  const nA=spark?spark.actualMonths.length:0;
+  // 최근 WAPE 기준월은 당초계획·실적·차이를 한 묶음으로 붙인다. 같은 달 실적을 오른쪽 월별
+  // 실적 이력에서 또 그리면 중복이므로, 이력에는 그 이전 월만 남긴다.
+  const compareMonth=contributionMonth;
+  const historyActualMonths=spark?spark.actualMonths.filter(m=>Number(m)!==compareMonth?.no):[];
+  const futurePlanMonths=spark?spark.planMonths:[];
+  const compareUnit=hitTrendUnit==='qty'?'개':'억원';
+  const fmtCompare=(v,signed=false)=>{
+    const raw=Number(v)||0;
+    const shown=hitTrendUnit==='qty'?Math.round(raw):(Math.abs(raw)<0.05?0:raw);
+    const core=hitTrendUnit==='qty'?Math.abs(shown).toLocaleString():Math.abs(shown).toFixed(1);
+    if(!signed||shown===0) return core;
+    return `${shown>0?'+':'−'}${core}`;
+  };
+  const compareCells=(c,isTotal=false)=>{
+    if(!c) return `<td class="cw-compare cw-na cw-sep">—</td><td class="cw-compare cw-na">—</td><td class="cw-compare cw-na">—</td>`;
+    const plan=Number(c.plan)||0,actual=Number(c.actual)||0,diff=actual-plan;
+    const diffClass=diff>0?' cw-diff-pos':diff<0?' cw-diff-neg':'';
+    const titlePrefix=isTotal?'전체':compareMonth?.label||'기준월';
+    return `<td class="cw-compare cw-sep" title="${titlePrefix} 당초계획 ${fmtCompare(plan)}${compareUnit}">${fmtCompare(plan)}</td>
+      <td class="cw-compare" title="${titlePrefix} 실적 ${fmtCompare(actual)}${compareUnit}">${fmtCompare(actual)}</td>
+      <td class="cw-compare${diffClass}" title="${titlePrefix} 차이 = 실적−당초계획 ${fmtCompare(diff,true)}${compareUnit}">${fmtCompare(diff,true)}</td>`;
+  };
+  const W_CH=128,W_MO=66,W_CONTRIB=90,W_MV=56,W_COMPARE=60,W_MEMO=360;
+  const fixedW=W_CH+months.length*W_MO*2+W_CONTRIB
+    +(historyActualMonths.length+futurePlanMonths.length)*W_MV+3*W_COMPARE;
   let h=`<table class="chwape chwape-lg" style="width:100%;min-width:${fixedW+W_MEMO}px;">
-  <colgroup><col class="cw-channel-col" style="width:${W_CH}px;">${months.map(()=>`<col class="cw-metric-col" style="width:${W_MO}px;">`).join('')}${months.map(()=>`<col class="cw-metric-col" style="width:${W_MO}px;">`).join('')}<col class="cw-contrib-col" style="width:${W_CONTRIB}px;">${mvMonths.map((mo,i)=>`<col class="cw-month-col${i>=nA?' cw-plan-col':''}" style="width:${W_MV}px;">`).join('')}<col class="cw-memo-col"></colgroup>
+  <colgroup><col class="cw-channel-col" style="width:${W_CH}px;">${months.map(()=>`<col class="cw-metric-col" style="width:${W_MO}px;">`).join('')}${months.map(()=>`<col class="cw-metric-col" style="width:${W_MO}px;">`).join('')}<col class="cw-contrib-col" style="width:${W_CONTRIB}px;">${historyActualMonths.map(()=>`<col class="cw-month-col" style="width:${W_MV}px;">`).join('')}<col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-compare-col" style="width:${W_COMPARE}px;">${futurePlanMonths.map(()=>`<col class="cw-month-col cw-plan-col" style="width:${W_MV}px;">`).join('')}<col class="cw-memo-col"></colgroup>
   <thead>
   <tr>
     <th class="l sortable" rowspan="2" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
     <th class="cw-grp" colspan="${months.length}">오차율 (%)</th>
     <th class="cw-grp cw-sep" colspan="${months.length}">적중률 (%)</th>
     <th class="cw-grp cw-sep" rowspan="2">오차<br>기여도<br>(${contributionMonth?.label||''})</th>
-    ${nA?`<th class="cw-grp cw-act cw-sep" colspan="${nA}">실적 (억원)</th>`:''}
-    ${mvMonths.length-nA>0?`<th class="cw-grp cw-plan cw-sep" colspan="${mvMonths.length-nA}" title="판매계획 (억원)">판매계획<br><span>(억원)</span></th>`:''}
-    <th class="l cw-memo-head" rowspan="2">조치의견</th>
+    ${historyActualMonths.length?`<th class="cw-grp cw-act cw-sep" colspan="${historyActualMonths.length}">실적 이력 (억원)</th>`:''}
+    <th class="cw-grp cw-act cw-sep" colspan="3">${compareMonth?.label||'최근 월'} WAPE 기준 (${compareUnit})</th>
+    ${futurePlanMonths.length?`<th class="cw-grp cw-plan cw-sep" colspan="${futurePlanMonths.length}" title="향후 판매계획 (억원)">판매계획<br><span>(억원)</span></th>`:''}
+    <th class="l cw-memo-head cw-sep" rowspan="2">조치의견</th>
   </tr>
   <tr>
     ${months.map(m=>`<th class="sortable" onclick="handleChWapeSort('${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="${m.key}"></span></th>`).join('')}
     ${months.map((m,i)=>`<th class="sortable${i===0?' cw-sep':''}" onclick="handleChWapeSort('hr:${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="hr:${m.key}"></span></th>`).join('')}
-    ${mvMonths.map((mo,i)=>`<th class="cw-mv cw-month-col${i>=nA?' cw-plan':''}${i===0||i===nA?' cw-sep':''}" title="${i>=nA?'판매계획':'실적'} ${mo}월 (억원)">${mo}월</th>`).join('')}
+    ${historyActualMonths.map((mo,i)=>`<th class="cw-mv cw-month-col${i===0?' cw-sep':''}" title="실적 ${mo}월 (억원)">${mo}월</th>`).join('')}
+    <th class="cw-compare cw-sep">당초계획</th><th class="cw-compare">실적</th><th class="cw-compare" title="실적−당초계획의 부호 있는 순차이">차이</th>
+    ${futurePlanMonths.map((mo,i)=>`<th class="cw-mv cw-month-col cw-plan${i===0?' cw-sep':''}" title="판매계획 ${mo}월 (억원)">${mo}월</th>`).join('')}
   </tr></thead><tbody>`;
   sorted.forEach(r=>{
     h+=`<tr class="cw-ch${r.ch===selCh?' cw-sel':''}">
@@ -8877,7 +8913,9 @@ function renderChannelWape(){
       ${months.map(m=>cell(r.wape[m.key],r.ch,m.key,m.label)).join('')}
       ${months.map((m,i)=>hitCell(r.hit[m.key],r.wape[m.key],r.ch,m.key,m.label,i===0)).join('')}
       <td class="cw-contrib cw-sep" title="${contributionMonth?.label||''}월 채널 |차이| ÷ 전체 |차이|">${contributionTotal>0?((r.cells[contributionMonth.key]?.abs||0)/contributionTotal*100).toFixed(1)+'%':'—'}</td>
-      ${spark?channelMonthCells(r.ch,spark):''}
+      ${spark?channelMonthCells(r.ch,spark,historyActualMonths,[]):''}
+      ${compareCells(r.cells[compareMonth?.key])}
+      ${spark?channelMonthCells(r.ch,spark,[],futurePlanMonths):''}
       ${hitChMemoCell(r.ch)}
     </tr>`;
   });
@@ -8887,24 +8925,25 @@ function renderChannelWape(){
     ${months.map(m=>totCell(totalWape[m.key],totalWape[m.key],false)).join('')}
     ${months.map((m,i)=>totCell(totalHit[m.key],totalWape[m.key],i===0)).join('')}
     <td class="cw-contrib cw-sep">${contributionTotal>0?'100.0%':'—'}</td>
-    ${spark?channelMonthCells('전체',spark):''}
+    ${spark?channelMonthCells('전체',spark,historyActualMonths,[]):''}
+    ${compareCells(totalCells?.[compareMonth?.key],true)}
+    ${spark?channelMonthCells('전체',spark,[],futurePlanMonths):''}
     ${hitChMemoCell('전체')}
   </tr></tbody></table>`;
   wrap.innerHTML=h;
   renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
   if(note){
-    note.innerHTML=`오른쪽 월별 숫자 = <strong>실적: 오차율분석 시트</strong> 기준(계획 0행 제외) <strong>${spark?`${spark.actualMonths[0]}~${spark.actualMonths[spark.actualMonths.length-1]}월 실적`:'실적'}</strong> / <strong>판매계획(SF) 시트</strong> 기준 <strong>${spark?`${spark.planMonths[0]}~${spark.planMonths[spark.planMonths.length-1]}월 계획`:'계획'}</strong> (억원) · 구간은 <strong>세로 구분선</strong>과 위 그룹 머리글로 나뉩니다 · <strong>금액 고정</strong>이라 위 수량 토글과 무관합니다<br>표에는 <strong>최근 ${CHWAPE_MONTHS_SHOWN}개월 오차율·적중률 · ${CHWAPE_ACTUAL_MONTHS_SHOWN}개월 실적 · 향후 ${CHWAPE_PLAN_MONTHS_SHOWN}개월 계획</strong>만 그립니다 — 연초부터의 전체 흐름은 위 추이 차트와 셀 클릭 팝업에서 보세요<br><strong>오차 기여도(${contributionMonth?.label||'최근 월'})</strong> = 해당 월 채널 |차이| ÷ 전체 |차이| · 합계 100% · `
-      +`WAPE = Σ|실적−계획| ÷ Σ계획 · ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'[매출금액] 구획('+unitTxt+'원)'} 기준 · `
-      +`위 트렌드 차트·보정 대상 리스트와 같은 기준입니다 · 판매계획이 없는 달은 <span style="color:var(--gray-m);">—</span><br>`
+    note.innerHTML=`<strong>${compareMonth?.label||'최근 월'} WAPE 기준</strong>의 당초계획·실적·차이는 오차율분석 시트의 같은 원천을 사용합니다(계획 0행 제외) · `
+      +`차이 = 실적−당초계획의 <strong>부호 있는 순차이</strong>, WAPE = 품목별 Σ|실적−계획| ÷ Σ계획이라 서로 직접 곱셈 관계는 아닙니다<br>`
+      +`${historyActualMonths.length?`<strong>${historyActualMonths[0]}~${historyActualMonths[historyActualMonths.length-1]}월 실적 이력</strong>`:'<strong>실적 이력</strong>'}과 `
+      +`${futurePlanMonths.length?`<strong>${futurePlanMonths[0]}~${futurePlanMonths[futurePlanMonths.length-1]}월 판매계획</strong>`:'<strong>향후 판매계획</strong>'}은 판매계획(SF) 시트의 채널 입력값(억원)입니다<br>`
+      +`<strong>오차 기여도(${contributionMonth?.label||'최근 월'})</strong> = 해당 월 채널 |차이| ÷ 전체 |차이| · 합계 100% · `
+      +`오차율·적중률·기준월 비교는 ${hitTrendUnit==='qty'?'오차율분석 시트 [수량] 구획(개)':'오차율분석 시트 [매출금액] 구획('+unitTxt+'원)'} 기준이며 위 트렌드 차트·보정 대상 리스트와 같습니다<br>`
       +`<strong>적중률 = 1 − 오차율</strong> (품목별 |오차| 합 ÷ 채널 판매계획 합) · 두 열은 같은 값을 뒤집은 것이라 <strong>합이 100%</strong>입니다<br>`
       +`⚠ 적중률이 <span style="color:var(--gray-m);">0%</span>인 칸은 오차가 계획보다 컸다는 뜻입니다(오차율 100% 초과) — `
       +`계획한 품목은 안 팔리고 계획에 거의 없던 품목이 팔린 경우라, 실제 값은 왼쪽 오차율 열에서 보세요<br>`
       +`⚠ 규모가 작은 채널은 오차율이 크게 흔들립니다 — 오른쪽 실적·계획 금액과 같이 보세요 (기본 정렬이 계획규모 순입니다) · `
       +`<strong>숫자 칸</strong>을 누르면 그 채널·그 달의 품목이 차이 큰 순으로 뜹니다`;
-    note.innerHTML=note.innerHTML
-      .replace('<strong>실적: 오차율분석 시트</strong> 기준(계획 0행 제외)', '<strong>판매계획(SF) 시트</strong>의 채널 실적 입력값')
-      .replace('/ <strong>판매계획(SF) 시트</strong> 기준', '/ <strong>판매계획(SF) 시트</strong>의 채널 계획 입력값')
-      .replace(' · 위 트렌드 차트', ' · 오차율·상세 팝업은 <strong>오차율분석 시트</strong> 원천을 사용합니다 · 위 트렌드 차트');
   }
 }
 
