@@ -5340,7 +5340,10 @@ function drilldown(ch, cat, source=''){
     const shown=skus.reduce((a,s)=>a+(s.q||0),0);
     if(total>shown) overflowNote=`<tr><td colspan="13" style="text-align:center;padding:8px;color:var(--muted);font-size:11px;">... 상위 ${skus.length}개 표시 / 전체 SKU는 현재고 시트 참조</td></tr>`;
   }
-  _ddState={skus,ch,cat,overflowNote};
+  // 정렬 등으로 tbody를 다시 그릴 때도 생산처를 잃지 않도록 렌더 상태에 함께 보관한다.
+  // source를 drilldown()의 지역변수로만 두면 _renderDDTbody()에서 ReferenceError가 나
+  // 품목 리스트가 열리기 전에 렌더가 중단된다.
+  _ddState={skus,ch,cat,source,overflowNote};
 
   const si=col=>_sortIcon(_ddSort,col);
   const h=`<table class="dd-table"><colgroup>
@@ -5543,7 +5546,7 @@ function _gradeFromR(r, cat){
   return '18개월↑';
 }
 function _renderDDTbody(){
-  const {skus,ch,cat,overflowNote}=_ddState;
+  const {skus,ch,cat,source='',overflowNote}=_ddState;
   const SOOJIN_MAP={'정상소진 가능':'<span class="tag g" style="font-size:10px;">정상소진</span>','미소진 Risk':'<span class="tag r" style="font-size:10px;">미소진Risk</span>','판매계획 없음':'<span class="tag y" style="font-size:10px;">계획없음</span>','데이터 부족':'<span class="tag gray" style="font-size:10px;">부족</span>'};
   const getKey=(s,col)=>{
     switch(col){
@@ -5625,7 +5628,7 @@ function _renderDDTbody(){
 
 // ─ 드릴다운 / Sensing 컬럼 정렬 공통 ─
 let _ddSort={col:'amt',dir:-1};
-let _ddState={skus:[],ch:'',cat:''};
+let _ddState={skus:[],ch:'',cat:'',source:''};
 let _senSort={col:'',dir:0};
 let _senData={allSkus:[],cat:'',sensingLabel:''};
 let _psiSort={col:'',dir:0};
