@@ -8897,8 +8897,10 @@ function renderChannelWape(){
   const spark=channelPlanActual();
   // 적중률 열은 오차율 열과 같은 폭을 쓴다. 채널별 오차기여도는 최근 표시 월 기준으로
   // 계산해 실적 구간 바로 앞에 둔다.
-  // 조치의견은 고정 폭으로 제한해 앞쪽 수치 표가 주인공이 되게 한다. 넓은 화면에서도
-  // 메모가 남는 폭을 전부 가져가지 않도록 colgroup과 CSS에서 같은 폭을 적용한다.
+  // 조치의견은 최근 WAPE 기준월 비교 바로 뒤에 둔다. 기준월 결과와 그에 대한 판단을
+  // 한 덩어리로 읽은 다음 향후 판매계획을 볼 수 있게 한다.
+  // 고정 폭으로 제한해 앞쪽 수치 표가 주인공이 되게 하고, 넓은 화면에서도 남는 폭을
+  // 전부 가져가지 않도록 colgroup과 CSS에서 같은 폭을 적용한다.
   const contributionMonth=months[months.length-1];
   const contributionTotal=contributionMonth?(data.totalWape[contributionMonth.key]!=null
     ? (data.rows.reduce((sum,row)=>sum+(row.cells[contributionMonth.key]?.abs||0),0)) : 0):0;
@@ -8928,7 +8930,7 @@ function renderChannelWape(){
   const fixedW=W_CH+months.length*W_MO*2+W_CONTRIB
     +(historyActualMonths.length+futurePlanMonths.length)*W_MV+3*W_COMPARE;
   let h=`<table class="chwape chwape-lg" style="width:100%;min-width:${fixedW+W_MEMO}px;">
-  <colgroup><col class="cw-channel-col" style="width:${W_CH}px;">${months.map(()=>`<col class="cw-metric-col" style="width:${W_MO}px;">`).join('')}${months.map(()=>`<col class="cw-metric-col" style="width:${W_MO}px;">`).join('')}<col class="cw-contrib-col" style="width:${W_CONTRIB}px;">${historyActualMonths.map(()=>`<col class="cw-month-col" style="width:${W_MV}px;">`).join('')}<col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-compare-col" style="width:${W_COMPARE}px;">${futurePlanMonths.map(()=>`<col class="cw-month-col cw-plan-col" style="width:${W_MV}px;">`).join('')}<col class="cw-memo-col"></colgroup>
+  <colgroup><col class="cw-channel-col" style="width:${W_CH}px;">${months.map(()=>`<col class="cw-metric-col" style="width:${W_MO}px;">`).join('')}${months.map(()=>`<col class="cw-metric-col" style="width:${W_MO}px;">`).join('')}<col class="cw-contrib-col" style="width:${W_CONTRIB}px;">${historyActualMonths.map(()=>`<col class="cw-month-col" style="width:${W_MV}px;">`).join('')}<col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-memo-col">${futurePlanMonths.map(()=>`<col class="cw-month-col cw-plan-col" style="width:${W_MV}px;">`).join('')}</colgroup>
   <thead>
   <tr>
     <th class="l sortable" rowspan="2" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
@@ -8937,8 +8939,8 @@ function renderChannelWape(){
     <th class="cw-grp cw-sep" rowspan="2">오차<br>기여도<br>(${contributionMonth?.label||''})</th>
     ${historyActualMonths.length?`<th class="cw-grp cw-act cw-sep" colspan="${historyActualMonths.length}">실적</th>`:''}
     <th class="cw-grp cw-act cw-sep" colspan="3">${compareMonth?.label||'최근 월'}</th>
-    ${futurePlanMonths.length?`<th class="cw-grp cw-plan cw-sep" colspan="${futurePlanMonths.length}" title="향후 판매계획 (억원)">판매계획<br><span>(억원)</span></th>`:''}
     <th class="l cw-memo-head cw-sep" rowspan="2">조치의견</th>
+    ${futurePlanMonths.length?`<th class="cw-grp cw-plan cw-sep" colspan="${futurePlanMonths.length}" title="향후 판매계획 (억원)">판매계획<br><span>(억원)</span></th>`:''}
   </tr>
   <tr>
     ${months.map(m=>`<th class="sortable" onclick="handleChWapeSort('${m.key}',event)">${m.label}<span data-sort-table="chwape" data-sort-key="${m.key}"></span></th>`).join('')}
@@ -8955,8 +8957,8 @@ function renderChannelWape(){
       <td class="cw-contrib cw-sep" title="${contributionMonth?.label||''}월 채널 |차이| ÷ 전체 |차이|">${contributionTotal>0?((r.cells[contributionMonth.key]?.abs||0)/contributionTotal*100).toFixed(1)+'%':'—'}</td>
       ${spark?channelMonthCells(r.ch,spark,historyActualMonths,[]):''}
       ${compareCells(r.cells[compareMonth?.key])}
-      ${spark?channelMonthCells(r.ch,spark,[],futurePlanMonths):''}
       ${hitChMemoCell(r.ch)}
+      ${spark?channelMonthCells(r.ch,spark,[],futurePlanMonths):''}
     </tr>`;
   });
   const totCell=(v,w,sep)=>v==null?`<td class="cw-na${sep?' cw-sep':''}">—</td>`:`<td${sep?' class="cw-sep"':''}><span class="cw-metric cw-status-${wapeClass(w??v)||'r'}">${v.toFixed(0)}%</span></td>`;
@@ -8967,8 +8969,8 @@ function renderChannelWape(){
     <td class="cw-contrib cw-sep">${contributionTotal>0?'100.0%':'—'}</td>
     ${spark?channelMonthCells('전체',spark,historyActualMonths,[]):''}
     ${compareCells(totalCells?.[compareMonth?.key],true)}
-    ${spark?channelMonthCells('전체',spark,[],futurePlanMonths):''}
     ${hitChMemoCell('전체')}
+    ${spark?channelMonthCells('전체',spark,[],futurePlanMonths):''}
   </tr></tbody></table>`;
   wrap.innerHTML=h;
   renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
