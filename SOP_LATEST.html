@@ -8912,8 +8912,8 @@ function renderChannelWape(){
   // 오른쪽 여백에 채널별 12개월 흐름(실적 1~7 / 계획 8~12)을 스파크라인으로 붙인다.
   // 판매계획 시트가 없으면 열 자체를 안 그린다(무회귀).
   const spark=channelPlanActual();
-  // 채널별 오차기여도는 최근 표시 월 기준으로 계산한다. 이전 월의 적중률은 각각 자기 월
-  // 헤더 아래에 두고, 최신 WAPE 기준월(=전월)은 적중률·계획·실적·차이·의견을 한 그룹으로 묶는다.
+  // 채널별 오차기여도는 최근 표시 월 기준으로 계산한다. 이전 월은 SF 실적과 적중률을 같은
+  // 월 헤더 아래에 나란히 두고, 최신 WAPE 기준월(=전월)은 계획·실적·차이·적중률·기여도·의견 순으로 묶는다.
   const contributionMonth=months[months.length-1];
   const contributionTotal=contributionMonth?(data.totalWape[contributionMonth.key]!=null
     ? (data.rows.reduce((sum,row)=>sum+(row.cells[contributionMonth.key]?.abs||0),0)) : 0):0;
@@ -8931,43 +8931,49 @@ function renderChannelWape(){
     return `${shown>0?'+':'−'}${core}`;
   };
   const compareCells=(c,isTotal=false)=>{
-    if(!c) return `<td class="cw-compare cw-na cw-prev-cell">—</td><td class="cw-compare cw-na cw-prev-cell">—</td><td class="cw-compare cw-na cw-prev-cell">—</td>`;
+    if(!c) return `<td class="cw-compare cw-na cw-prev-cell cw-prev-start">—</td><td class="cw-compare cw-na cw-prev-cell">—</td><td class="cw-compare cw-na cw-prev-cell">—</td>`;
     const plan=Number(c.plan)||0,actual=Number(c.actual)||0,absDiff=Number(c.abs)||0;
     const diffClass=absDiff>0?' cw-diff-neg':'';
     const titlePrefix=isTotal?'전체':compareMonth?.label||'기준월';
-    return `<td class="cw-compare cw-prev-cell" title="${titlePrefix} 당초계획 ${fmtCompare(plan)}${compareUnit}">${fmtCompare(plan)}</td>
+    return `<td class="cw-compare cw-prev-cell cw-prev-start" title="${titlePrefix} 당초계획 ${fmtCompare(plan)}${compareUnit}">${fmtCompare(plan)}</td>
       <td class="cw-compare cw-prev-cell" title="${titlePrefix} 실적 ${fmtCompare(actual)}${compareUnit}">${fmtCompare(actual)}</td>
       <td class="cw-compare cw-prev-cell${diffClass}" title="${titlePrefix} 차이합계 = 품목별 Σ|실적−당초계획| ${fmtCompare(absDiff)}${compareUnit}">${fmtCompare(absDiff)}</td>`;
   };
   const earlierMonths=months.slice(0,-1);
+  const pairedEarlierMonths=earlierMonths.filter(m=>historyActualMonths.some(mo=>Number(mo)===m.no));
+  const standaloneEarlierMonths=earlierMonths.filter(m=>!pairedEarlierMonths.some(p=>p.key===m.key));
+  const plainHistoryActualMonths=historyActualMonths.filter(mo=>!pairedEarlierMonths.some(m=>m.no===Number(mo)));
   const W_CH=128,W_MO=66,W_CONTRIB=90,W_MV=56,W_COMPARE=60,W_MEMO=240;
-  const fixedW=W_CH+(earlierMonths.length+1)*W_MO+W_CONTRIB
-    +(historyActualMonths.length+futurePlanMonths.length)*W_MV+3*W_COMPARE;
-  let h=`<table class="chwape chwape-lg" style="width:100%;min-width:${fixedW+W_MEMO}px;">
-  <colgroup><col class="cw-channel-col" style="width:${W_CH}px;">${earlierMonths.map(()=>`<col class="cw-metric-col" style="width:${W_MO}px;">`).join('')}<col class="cw-contrib-col" style="width:${W_CONTRIB}px;">${historyActualMonths.map(()=>`<col class="cw-month-col" style="width:${W_MV}px;">`).join('')}<col class="cw-metric-col" style="width:${W_MO}px;"><col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-memo-col" style="width:${W_MEMO}px;">${futurePlanMonths.map(()=>`<col class="cw-month-col cw-plan-col" style="width:${W_MV}px;">`).join('')}</colgroup>
+  const fixedW=W_CH+W_CONTRIB+plainHistoryActualMonths.length*W_MV
+    +pairedEarlierMonths.length*(W_MV+W_MO)+standaloneEarlierMonths.length*W_MO
+    +W_MO+3*W_COMPARE+W_MEMO+futurePlanMonths.length*W_MV;
+  let h=`<table class="chwape chwape-lg" style="width:100%;min-width:${fixedW}px;">
+  <colgroup><col class="cw-channel-col" style="width:${W_CH}px;">${plainHistoryActualMonths.map(()=>`<col class="cw-month-col" style="width:${W_MV}px;">`).join('')}${pairedEarlierMonths.map(()=>`<col class="cw-month-col" style="width:${W_MV}px;"><col class="cw-metric-col" style="width:${W_MO}px;">`).join('')}${standaloneEarlierMonths.map(()=>`<col class="cw-metric-col" style="width:${W_MO}px;">`).join('')}<col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-metric-col" style="width:${W_MO}px;"><col class="cw-contrib-col" style="width:${W_CONTRIB}px;"><col class="cw-memo-col" style="width:${W_MEMO}px;">${futurePlanMonths.map(()=>`<col class="cw-month-col cw-plan-col" style="width:${W_MV}px;">`).join('')}</colgroup>
   <thead>
   <tr>
     <th class="l sortable" rowspan="2" onclick="handleChWapeSort('ch',event)">채널<span data-sort-table="chwape" data-sort-key="ch"></span></th>
-    ${earlierMonths.map(m=>`<th class="cw-grp cw-sep" colspan="1">${m.label}</th>`).join('')}
-    <th class="cw-grp cw-sep" rowspan="2">오차<br>기여도<br>(${contributionMonth?.label||''})</th>
-    ${historyActualMonths.length?`<th class="cw-grp cw-act cw-sep" colspan="${historyActualMonths.length}">실적</th>`:''}
-    <th class="cw-grp cw-act cw-prev-group" colspan="5">${compareMonth?.label||'최근 월'}<span class="cw-prev-badge">전월</span></th>
+    ${plainHistoryActualMonths.length?`<th class="cw-grp cw-act cw-sep" colspan="${plainHistoryActualMonths.length}">실적</th>`:''}
+    ${pairedEarlierMonths.map(m=>`<th class="cw-grp cw-act cw-sep" colspan="2">${m.label}</th>`).join('')}
+    ${standaloneEarlierMonths.map(m=>`<th class="cw-grp cw-sep" colspan="1">${m.label}</th>`).join('')}
+    <th class="cw-grp cw-act cw-prev-group" colspan="6">${compareMonth?.label||'최근 월'}<span class="cw-prev-badge">전월</span></th>
     ${futurePlanMonths.length?`<th class="cw-grp cw-plan cw-sep" colspan="${futurePlanMonths.length}" title="향후 판매계획 (억원)">판매계획<br><span>(억원)</span></th>`:''}
   </tr>
   <tr>
-    ${earlierMonths.map(m=>`<th class="sortable cw-sep" onclick="handleChWapeSort('hr:${m.key}',event)">적중률<span data-sort-table="chwape" data-sort-key="hr:${m.key}"></span></th>`).join('')}
-    ${historyActualMonths.map((mo,i)=>`<th class="cw-mv cw-month-col${i===0?' cw-sep':''}" title="실적 ${mo}월 (억원)">${mo}월</th>`).join('')}
-    <th class="sortable cw-prev-cell cw-prev-start" onclick="handleChWapeSort('hr:${compareMonth?.key}',event)">적중률<span data-sort-table="chwape" data-sort-key="hr:${compareMonth?.key}"></span></th><th class="cw-compare cw-prev-cell">당초계획</th><th class="cw-compare cw-prev-cell">실적</th><th class="cw-compare cw-prev-cell" title="품목별 |실적−당초계획|의 합 · WAPE 분자와 동일">차이합계</th><th class="l cw-memo-head cw-prev-cell cw-prev-end">조치의견</th>
+    ${plainHistoryActualMonths.map((mo,i)=>`<th class="cw-mv cw-month-col${i===0?' cw-sep':''}" title="실적 ${mo}월 (억원)">${mo}월</th>`).join('')}
+    ${pairedEarlierMonths.map(m=>`<th class="cw-mv cw-month-col cw-sep" title="실적 ${m.label} (억원)">실적</th><th class="sortable" onclick="handleChWapeSort('hr:${m.key}',event)">적중률<span data-sort-table="chwape" data-sort-key="hr:${m.key}"></span></th>`).join('')}
+    ${standaloneEarlierMonths.map(m=>`<th class="sortable cw-sep" onclick="handleChWapeSort('hr:${m.key}',event)">적중률<span data-sort-table="chwape" data-sort-key="hr:${m.key}"></span></th>`).join('')}
+    <th class="cw-compare cw-prev-cell cw-prev-start">당초계획</th><th class="cw-compare cw-prev-cell">실적</th><th class="cw-compare cw-prev-cell" title="품목별 |실적−당초계획|의 합 · WAPE 분자와 동일">차이합계</th><th class="sortable cw-prev-cell" onclick="handleChWapeSort('hr:${compareMonth?.key}',event)">적중률<span data-sort-table="chwape" data-sort-key="hr:${compareMonth?.key}"></span></th><th class="cw-prev-cell">오차<br>기여도</th><th class="l cw-memo-head cw-prev-cell cw-prev-end">조치의견</th>
     ${futurePlanMonths.map((mo,i)=>`<th class="cw-mv cw-month-col cw-plan${i===0?' cw-sep':''}" title="판매계획 ${mo}월 (억원)">${mo}월</th>`).join('')}
   </tr></thead><tbody>`;
   sorted.forEach(r=>{
     h+=`<tr class="cw-ch${r.ch===selCh?' cw-sel':''}">
       <td class="l"><button type="button" class="cw-name" onclick="openChDrill(${esc(r.ch)})" title="${r.ch}의 오차 상세 보기 (차이 큰 순)">${r.ch}</button></td>
-      ${earlierMonths.map(m=>hitCell(r.hit[m.key],r.wape[m.key],r.ch,m.key,m.label,'cw-sep')).join('')}
-      <td class="cw-contrib cw-sep" title="${contributionMonth?.label||''}월 채널 |차이| ÷ 전체 |차이|">${contributionTotal>0?((r.cells[contributionMonth.key]?.abs||0)/contributionTotal*100).toFixed(1)+'%':'—'}</td>
-      ${spark?channelMonthCells(r.ch,spark,historyActualMonths,[]):''}
-      ${hitCell(r.hit[compareMonth?.key],r.wape[compareMonth?.key],r.ch,compareMonth?.key,compareMonth?.label,'cw-prev-cell cw-prev-start')}
+      ${spark?channelMonthCells(r.ch,spark,plainHistoryActualMonths,[]):''}
+      ${pairedEarlierMonths.map(m=>`${spark?channelMonthCells(r.ch,spark,[m.no],[]):''}${hitCell(r.hit[m.key],r.wape[m.key],r.ch,m.key,m.label)}`).join('')}
+      ${standaloneEarlierMonths.map(m=>hitCell(r.hit[m.key],r.wape[m.key],r.ch,m.key,m.label,'cw-sep')).join('')}
       ${compareCells(r.cells[compareMonth?.key])}
+      ${hitCell(r.hit[compareMonth?.key],r.wape[compareMonth?.key],r.ch,compareMonth?.key,compareMonth?.label,'cw-prev-cell')}
+      <td class="cw-contrib cw-prev-cell" title="${contributionMonth?.label||''}월 채널 |차이| ÷ 전체 |차이|">${contributionTotal>0?((r.cells[contributionMonth.key]?.abs||0)/contributionTotal*100).toFixed(1)+'%':'—'}</td>
       ${hitChMemoCell(r.ch,compareMonth?.key,false,'cw-prev-cell cw-prev-end')}
       ${spark?channelMonthCells(r.ch,spark,[],futurePlanMonths):''}
     </tr>`;
@@ -8975,11 +8981,12 @@ function renderChannelWape(){
   const totCell=(v,w,extraClass='')=>v==null?`<td class="cw-na${extraClass?' '+extraClass:''}">—</td>`:`<td${extraClass?` class="${extraClass}"`:''}><span class="cw-metric cw-status-${wapeClass(w??v)||'r'}">${v.toFixed(0)}%</span></td>`;
   h+=`<tr class="cw-total">
     <td class="l">전체</td>
-    ${earlierMonths.map(m=>totCell(totalHit[m.key],totalWape[m.key],'cw-sep')).join('')}
-    <td class="cw-contrib cw-sep">${contributionTotal>0?'100.0%':'—'}</td>
-    ${spark?channelMonthCells('전체',spark,historyActualMonths,[]):''}
-    ${totCell(totalHit[compareMonth?.key],totalWape[compareMonth?.key],'cw-prev-cell cw-prev-start')}
+    ${spark?channelMonthCells('전체',spark,plainHistoryActualMonths,[]):''}
+    ${pairedEarlierMonths.map(m=>`${spark?channelMonthCells('전체',spark,[m.no],[]):''}${totCell(totalHit[m.key],totalWape[m.key])}`).join('')}
+    ${standaloneEarlierMonths.map(m=>totCell(totalHit[m.key],totalWape[m.key],'cw-sep')).join('')}
     ${compareCells(totalCells?.[compareMonth?.key],true)}
+    ${totCell(totalHit[compareMonth?.key],totalWape[compareMonth?.key],'cw-prev-cell')}
+    <td class="cw-contrib cw-prev-cell">${contributionTotal>0?'100.0%':'—'}</td>
     ${hitChMemoCell('전체',compareMonth?.key,false,'cw-prev-cell cw-prev-end')}
     ${spark?channelMonthCells('전체',spark,[],futurePlanMonths):''}
   </tr></tbody></table>`;
