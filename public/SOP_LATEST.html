@@ -10934,7 +10934,10 @@ window.addEventListener('DOMContentLoaded',async()=>{
   runStep('renderSP', renderSP);
   runStep('updateSimTargets', updateSimTargets);
   runStep('renderPSI', renderPSI);
+  // 판매계획 적중률 표는 토글을 누르기 전에도 금액 기준으로 즉시 보여야 한다.
+  runStep('initHitTrendUnit', ()=>{hitTrendUnit='amt';});
   runStep('renderHitTrend', renderHitTrend);
+  runStep('renderChannelWape', renderChannelWape);
   runStep('renderPSIRiskChart', renderPSIRiskChart);
   runStep('renderStrategyKpis', renderStrategyKpis);
   runStep('renderRiskDonuts', renderRiskDonuts);
