@@ -364,14 +364,14 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .chwape-drill td.cw-item{white-space:normal;line-height:1.4;}
 .chwape-drill th{border:1px solid #c4ccd9;}
 .chwape-drill td{padding:9px 8px;border:1px solid #d9dee8;}
-/* 팝업의 적중률은 값 자체가 상태를 말하도록 신호등 테두리·옅은 배경을 함께 쓴다.
+/* 팝업의 적중률은 흰 배경·네이비 글자를 유지하고 신호등 테두리만 쓴다.
    기준은 본표와 동일하다: 70% 이상 정상 / 50~69% 주의 / 50% 미만 위험. */
-.chwape-drill th.cw-hit-col{background:#eef0f9;color:var(--navy);font-weight:900;border:2px solid var(--navy)!important;}
-.chwape-drill td.cw-hit-col{font-weight:900;border-width:2px!important;border-style:solid!important;}
-.chwape-drill td.cw-hit-g{color:#245b38;background:#f0f8f2;border-color:#4f9568!important;}
-.chwape-drill td.cw-hit-y{color:#765000;background:#fff8e7;border-color:#d39a24!important;}
-.chwape-drill td.cw-hit-r{color:#92343c;background:#fff1f2;border-color:#c34e59!important;}
-.chwape-drill td.cw-hit-na{color:var(--gray-m);background:#f7f8fa;border-color:#aeb6c5!important;}
+.chwape-drill th.cw-hit-col{background:#f7f8fa;color:var(--navy);font-weight:900;border:2px solid var(--navy)!important;}
+.chwape-drill td.cw-hit-col{color:var(--navy);background:#fff;font-weight:900;border-width:2px!important;border-style:solid!important;}
+.chwape-drill td.cw-hit-g{border-color:#4f9568!important;}
+.chwape-drill td.cw-hit-y{border-color:#d39a24!important;}
+.chwape-drill td.cw-hit-r{border-color:#c34e59!important;}
+.chwape-drill td.cw-hit-na{color:var(--gray-m);border-color:#aeb6c5!important;}
 .chwape-drill tr.cw-total td.cw-hit-col{border-width:2px!important;}
 /* 입력 중인 글자까지 가운데로 몰면 쓰기 불편하다 — 셀만 가운데, 입력 내용은 왼쪽. */
 .chwape-drill .chmemo-td{text-align:left;}
@@ -384,11 +384,11 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .modal-hit-grid{display:grid;gap:5px;min-width:max-content;}
 .modal-hit-cell{min-width:64px;padding:5px 4px;border:2px solid #aeb6c5;border-radius:6px;background:#fff;text-align:center;line-height:1.2;}
 .modal-hit-month{display:block;margin-bottom:2px;font-size:9.5px;font-weight:700;color:var(--muted);}
-.modal-hit-value{display:block;font-size:12px;font-weight:900;color:var(--gray-m);}
-.modal-hit-cell.cw-hit-g{border-color:#4f9568;background:#f0f8f2;}.modal-hit-cell.cw-hit-g .modal-hit-value{color:#245b38;}
-.modal-hit-cell.cw-hit-y{border-color:#d39a24;background:#fff8e7;}.modal-hit-cell.cw-hit-y .modal-hit-value{color:#765000;}
-.modal-hit-cell.cw-hit-r{border-color:#c34e59;background:#fff1f2;}.modal-hit-cell.cw-hit-r .modal-hit-value{color:#92343c;}
-.modal-hit-cell.cw-hit-na{border-color:#cbd1dc;background:#f7f8fa;}
+.modal-hit-value{display:block;font-size:12px;font-weight:900;color:var(--navy);}
+.modal-hit-cell.cw-hit-g{border-color:#4f9568;}
+.modal-hit-cell.cw-hit-y{border-color:#d39a24;}
+.modal-hit-cell.cw-hit-r{border-color:#c34e59;}
+.modal-hit-cell.cw-hit-na{border-color:#cbd1dc;}.modal-hit-cell.cw-hit-na .modal-hit-value{color:var(--gray-m);}
 .rem-r{background:var(--red-lt);color:var(--red);}
 .rem-y{background:var(--yellow-lt);color:#8a5c00;}
 .rem-g{background:var(--green-lt);color:var(--green);}
