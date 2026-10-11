@@ -266,7 +266,7 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .chwape.chwape-lg tbody tr.cw-ch:nth-child(even)>td,
 .chwape.chwape-lg tbody tr.cw-ch:nth-child(even)>td.l:first-child{background:var(--cw-stripe);}
 .chwape tr.cw-total td{border-top:2px solid var(--border);border-bottom:none;font-weight:900;color:var(--navy);background:#F7F8FA;}
-.chwape.chwape-lg tr.cw-total td,.chwape.chwape-lg tr.cw-total td.l:first-child{background:#e9edf5;border-top:2px solid var(--navy);}
+.chwape.chwape-lg tr.cw-total td,.chwape.chwape-lg tr.cw-total td.l:first-child{background:#dfe5f2;border-top:2px solid #717b96;border-bottom:2px solid #717b96;}
 /* 채널명 열 고정 — 좁은 화면에서 가로 스크롤이 생겼을 때를 위한 것.
    ⚠ :first-child로 좁힐 것. `.chwape td.l`만 쓰면 **조치의견 칸(class="l chmemo-td")까지** 왼쪽에
    달라붙어 채널명 위에 겹쳐 그려진다(2026-08-19 수정). */
@@ -354,7 +354,7 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
    2026-08-19 사용자 지정: 모든 열 가운데 정렬 · 여백 없이 넓게.
    ⚠ 이 규칙들은 전부 `.chwape-drill` 안으로 가둔다. `.chwape td.l{text-align:left}`나
       첫 열 sticky는 채널별 오차율 표(.chwape-lg)가 쓰는 공용 규칙이라 base에서 건드리면 같이 깨진다. */
-.chwape-drill{width:100%;min-width:1184px;border:1px solid #c4ccd9;}
+.chwape-drill{width:100%;min-width:1184px;border:1px solid #b8c0cf;border-collapse:separate;border-spacing:0;background:#fff;}
 .chwape-drill th,.chwape-drill td,
 .chwape-drill th.l,.chwape-drill td.l{text-align:center;}
 /* ⚠ sticky만 끄고 **background는 건드리지 않는다.** 예전에 여기서 `background:transparent`를 걸었더니
@@ -362,18 +362,30 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
    합계 행 첫 칸 배경은 base의 `.chwape tr.cw-total td.l:first-child` 규칙이 이미 맞춰준다. */
 .chwape-drill th.l:first-child,.chwape-drill td.l:first-child{position:static;}
 .chwape-drill td.cw-item{white-space:normal;line-height:1.4;}
-.chwape-drill th{border:1px solid #c4ccd9;}
-.chwape-drill td{padding:9px 8px;border:1px solid #d9dee8;}
+.chwape-drill th{border-right:1px solid #c4ccd9;border-bottom:1px solid #c4ccd9;}
+.chwape-drill th:last-child{border-right:0;}
+.chwape-drill td{padding:9px 8px;border-right:1px solid #d9dee8;border-bottom:1px solid #d9dee8;}
+.chwape-drill td:last-child{border-right:0;}
 /* 1차 팝업의 적중률은 품목마다 박스를 만들지 않고 열 전체를 하나의 진한 빨강 외곽선으로 묶는다. */
-.chwape-drill th.cw-hit-col{background:#fff7f7;color:#7f1724;font-weight:900;border:2px solid #8b1e2d!important;}
-.chwape-drill td.cw-hit-col{color:var(--navy);background:#fff;font-weight:900;border-left:2px solid #8b1e2d!important;border-right:2px solid #8b1e2d!important;border-bottom:1px solid #c98b92!important;}
-.chwape-drill tr.cw-total td.cw-hit-col{border-bottom:2px solid #8b1e2d!important;}
+.chwape-drill th.cw-hit-col{background:#fff7f7;color:#7f1724;font-weight:900;border-top:2px solid #8b1e2d!important;
+  border-left:2px solid #8b1e2d!important;border-right:2px solid #8b1e2d!important;border-bottom:1px solid #c98b92!important;}
+.chwape-drill td.cw-hit-col{color:var(--navy);background:#fff;font-weight:900;border-left:2px solid #8b1e2d!important;
+  border-right:2px solid #8b1e2d!important;border-bottom:1px solid #d9dee8!important;}
+.chwape-drill tbody tr:last-child>td.cw-hit-col{border-bottom:2px solid #8b1e2d!important;}
 /* 입력 중인 글자까지 가운데로 몰면 쓰기 불편하다 — 셀만 가운데, 입력 내용은 왼쪽. */
 .chwape-drill .chmemo-td{text-align:left;}
 .chwape-drill .chmemo-td textarea.action-memo{text-align:left;}
 #chDrillModal .sku-modal{overflow:hidden;}
 #chDrillBody{padding:10px 12px 16px;overflow:auto;min-height:0;flex:1 1 auto;}
-.chwape-drill thead{position:sticky;top:0;z-index:3;}
+.chwape-drill thead{position:sticky;top:0;z-index:4;background:#fff;box-shadow:0 6px 10px -7px rgba(16,20,92,.65);}
+.chwape-drill thead tr:first-child>th{background:#f4f6fa;}
+/* 합계는 컬럼 헤더보다 한 톤 진한 네이비 음영으로 분리한다. 배경을 불투명하게 유지해야
+   스크롤 중 본문 글자가 비치거나 헤더와 합계 사이가 뜬 것처럼 보이지 않는다. */
+.chwape-drill thead tr.cw-total>td{background:#e4e8f3!important;color:var(--navy);font-weight:900;
+  border-top:2px solid #717b96!important;border-bottom:2px solid #717b96!important;}
+.chwape-drill thead tr.cw-total>td:first-child{background:#e4e8f3!important;}
+.chwape-drill thead tr.cw-total>td.cw-hit-col{background:#fff7f7!important;border-left:2px solid #8b1e2d!important;
+  border-right:2px solid #8b1e2d!important;border-bottom:1px solid #c98b92!important;}
 /* 판매계획 보정 2차 팝업: 막대색은 계획/실적의 정체성만 표시한다.
    월별 적중률은 색상·개별 테두리 없이 숫자만 보조 정보로 둔다. */
 .modal-hit-wrap{margin-top:8px;padding:8px 10px 9px;border:1px solid #d9dee8;border-radius:6px;background:#fafbfe;overflow-x:auto;}
@@ -8751,17 +8763,19 @@ function renderChDrill(){
   // ⚠ 잔여 폭은 **품목명 열**이 가져간다 — 여기만 width를 비워 둔다. 조치의견을 auto로 두면
   //    1480px 모달에서 544px까지 부풀어 정작 품목명이 잘렸다.
   body.innerHTML=`<table class="chwape chwape-drill" style="font-size:12.5px;">
-    <colgroup><col style="width:116px;"><col><col style="width:58px;"><col style="width:86px;">
+    <colgroup><col style="width:116px;"><col><col style="width:58px;"><col style="width:86px;"><col style="width:86px;">
       <col style="width:92px;"><col style="width:92px;"><col style="width:96px;">
       <col style="width:86px;"><col style="width:86px;"><col style="width:96px;"><col style="width:240px;"></colgroup>
     <thead><tr>
-      <th class="l">품목코드</th><th class="l">품목</th><th>계층</th><th title="오차율분석 원천의 같은 채널·품목 최근 3개월 실제 실적 평균">3개월 실적<br><span>(평균·억)</span></th>
+      <th class="l">품목코드</th><th class="l">품목</th><th>계층</th><th title="오차율분석 원천의 같은 채널·품목 최근 3개월 실제 판매금액 평균">3개월 평균 판매<br><span>(억)</span></th>
+      <th title="오차율분석 원천의 같은 채널·품목 최근 6개월 실제 판매금액 평균">6개월 평균 판매<br><span>(억)</span></th>
       <th>계획(${unit})</th><th>실적(${unit})</th><th>차이</th><th>오차율</th><th class="cw-hit-col">적중률</th><th class="cw-sep">오차 기여도</th>
       <th class="l cw-sep">조치의견</th>
     </tr>
     <tr class="cw-total">
       <td class="l"></td><td class="l">합계</td><td></td>
-      <td title="품목별 최근 3개월 실적 평균은 합계 행에서 다시 합산하지 않습니다">—</td>
+      <td title="품목별 최근 3개월 평균 판매는 합계 행에서 다시 합산하지 않습니다">—</td>
+      <td title="품목별 최근 6개월 평균 판매는 합계 행에서 다시 합산하지 않습니다">—</td>
       <td>${fmt(plan)}</td><td>${fmt(actualTotal)}</td>
       <td title="Σ|차이| · 초과·미달을 상쇄하지 않고 절대값으로 합산 (오차율의 분자와 동일)">${fmt(absSum)}</td>
       <td>${wape==null?'—':wape.toFixed(1)+'%'}</td>
@@ -8771,13 +8785,15 @@ function renderChDrill(){
     </tr></thead><tbody>
     ${rows.map(r=>{
       const contrib=absSum>0&&r.plan>0?Math.abs(r.diff)/absSum*100:null;
-      const avg3Amt=getHitRecent3ActualAvgAmt(r,monthKey);
+      const avg3Amt=getHitRecentActualAvgAmt(r,monthKey,3);
+      const avg6Amt=getHitRecentActualAvgAmt(r,monthKey,6);
       const daiso=r._daisoIntegrated?'<span class="tag b" style="font-size:9px;padding:0 4px;margin-left:4px;" title="다이소 통합코드">통합</span>':'';
       return `<tr>
         <td class="l" style="color:var(--muted);font-weight:400;">${htmlSafe(r.mat||'—')}</td>
         <td class="l cw-item" title="${htmlSafe(r.n||'')}"><button class="link-btn item-ellipsis" title="${htmlSafe(r.n||'')} · 판매계획 보정 상세 보기" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;text-align:left;" onclick="event.stopPropagation();openPlanAdjustModalByKey('${hitRowKey(r).replace(/'/g,'&#39;')}','${String(monthKey).replace(/'/g,'&#39;')}')">${htmlSafe(r.n||'')}</button>${daiso}</td>
         <td style="font-weight:800;color:var(--navy);">${r.hierarchy||getHierarchyForMat(r.mat)||'—'}</td>
-        <td title="${avg3Amt==null?'최근 3개월 실적을 확인할 수 없습니다':'오차율분석 원천의 같은 채널·품목 최근 3개월 실제 실적 평균'}">${avg3Amt==null?'—':avg3Amt.toFixed(2)}</td>
+        <td title="${avg3Amt==null?'최근 3개월 판매실적을 확인할 수 없습니다':'오차율분석 원천의 같은 채널·품목 최근 3개월 실제 판매금액 평균'}">${avg3Amt==null?'—':avg3Amt.toFixed(2)}</td>
+        <td title="${avg6Amt==null?'최근 6개월 판매실적을 확인할 수 없습니다':'오차율분석 원천의 같은 채널·품목 최근 6개월 실제 판매금액 평균'}">${avg6Amt==null?'—':avg6Amt.toFixed(2)}</td>
         <td>${fmt(r.plan)}</td>
         <td>${fmt(r.actual)}</td>
         <td style="color:${r.diff>=0?'var(--green)':'var(--red)'};font-weight:900;">${r.diff>=0?'+':''}${fmt(r.diff)}</td>
@@ -8790,7 +8806,7 @@ function renderChDrill(){
     </tbody></table>
     <div style="margin-top:10px;font-size:10.5px;color:var(--muted);line-height:1.6;">
       <strong>|차이| 큰 순</strong>으로 정렬했습니다 · 오차 기여도 = |차이| ÷ 그 채널·월의 |차이| 합계 —
-      위쪽 몇 개가 그 채널 오차의 대부분을 만듭니다 · <strong>3개월 실적 평균(억)</strong>은 오차율분석 원천에서 같은 채널·품목의 최근 3개월 실제 실적금액을 평균한 값입니다 · 차이가 <span style="color:var(--green);font-weight:700;">+면 계획 초과</span>,
+      위쪽 몇 개가 그 채널 오차의 대부분을 만듭니다 · <strong>3개월·6개월 평균 판매(억)</strong>는 오차율분석 원천에서 같은 채널·품목의 선택월 포함 최근 실제 판매금액을 기간별로 평균한 값입니다 · 차이가 <span style="color:var(--green);font-weight:700;">+면 계획 초과</span>,
       <span style="color:var(--red);font-weight:700;">−면 미달</span>입니다 ·
       <strong>실적 합계</strong>는 오차율분석 원천의 계획 0·실적 행도 포함하고, <strong>WAPE·차이합계</strong>는 계획이 있는 행만 계산합니다 ·
       <strong>합계 행의 차이는 Σ|차이|</strong>(초과·미달 상쇄 없음)라 오차율 × 계획과 일치합니다 ·
@@ -8963,6 +8979,7 @@ function renderChannelWape(){
   const fixedW=W_CH+W_CONTRIB+plainHistoryActualMonths.length*W_MV
     +pairedEarlierMonths.length*(W_MV+W_MO)+standaloneEarlierMonths.length*W_MO
     +W_MO+3*W_COMPARE+W_MEMO+futurePlanMonths.length*W_MV;
+  const totCell=(v,w,extraClass='')=>v==null?`<td class="cw-na${extraClass?' '+extraClass:''}">—</td>`:`<td${extraClass?` class="${extraClass}"`:''}><span class="cw-metric cw-status-${wapeClass(w??v)||'r'}">${v.toFixed(0)}%</span></td>`;
   let h=`<table class="chwape chwape-lg" style="width:100%;min-width:${fixedW}px;">
   <colgroup><col class="cw-channel-col" style="width:${W_CH}px;">${plainHistoryActualMonths.map(()=>`<col class="cw-month-col" style="width:${W_MV}px;">`).join('')}${pairedEarlierMonths.map(()=>`<col class="cw-month-col" style="width:${W_MV}px;"><col class="cw-metric-col" style="width:${W_MO}px;">`).join('')}${standaloneEarlierMonths.map(()=>`<col class="cw-metric-col" style="width:${W_MO}px;">`).join('')}<col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-compare-col" style="width:${W_COMPARE}px;"><col class="cw-metric-col" style="width:${W_MO}px;"><col class="cw-contrib-col" style="width:${W_CONTRIB}px;"><col class="cw-memo-col" style="width:${W_MEMO}px;">${futurePlanMonths.map(()=>`<col class="cw-month-col cw-plan-col" style="width:${W_MV}px;">`).join('')}</colgroup>
   <thead>
@@ -8980,7 +8997,18 @@ function renderChannelWape(){
     ${standaloneEarlierMonths.map(m=>`<th class="sortable cw-sep" onclick="handleChWapeSort('hr:${m.key}',event)">적중률<span data-sort-table="chwape" data-sort-key="hr:${m.key}"></span></th>`).join('')}
     <th class="cw-compare cw-prev-cell cw-prev-start">당초계획</th><th class="cw-compare cw-prev-cell">실적</th><th class="cw-compare cw-prev-cell" title="품목별 |실적−당초계획|의 합 · WAPE 분자와 동일">차이합계</th><th class="sortable cw-prev-cell" onclick="handleChWapeSort('hr:${compareMonth?.key}',event)">적중률<span data-sort-table="chwape" data-sort-key="hr:${compareMonth?.key}"></span></th><th class="cw-prev-cell">오차<br>기여도</th><th class="l cw-memo-head cw-prev-cell cw-prev-end">조치의견</th>
     ${futurePlanMonths.map((mo,i)=>`<th class="cw-mv cw-month-col cw-plan${i===0?' cw-sep':''}" title="판매계획 ${mo}월 (억원)">${mo}월</th>`).join('')}
-  </tr></thead><tbody>`;
+  </tr></thead><tbody>
+  <tr class="cw-total">
+    <td class="l">전체</td>
+    ${spark?channelMonthCells('전체',spark,plainHistoryActualMonths,[]):''}
+    ${pairedEarlierMonths.map(m=>`${spark?channelMonthCells('전체',spark,[m.no],[]):''}${totCell(totalHit[m.key],totalWape[m.key])}`).join('')}
+    ${standaloneEarlierMonths.map(m=>totCell(totalHit[m.key],totalWape[m.key],'cw-sep')).join('')}
+    ${compareCells(totalCells?.[compareMonth?.key],true)}
+    ${totCell(totalHit[compareMonth?.key],totalWape[compareMonth?.key],'cw-prev-cell')}
+    <td class="cw-contrib cw-prev-cell">${contributionTotal>0?'100.0%':'—'}</td>
+    ${hitChMemoCell('전체',compareMonth?.key,false,'cw-prev-cell cw-prev-end')}
+    ${spark?channelMonthCells('전체',spark,[],futurePlanMonths):''}
+  </tr>`;
   sorted.forEach(r=>{
     h+=`<tr class="cw-ch${r.ch===selCh?' cw-sel':''}">
       <td class="l"><button type="button" class="cw-name" onclick="openChDrill(${esc(r.ch)})" title="${r.ch}의 오차 상세 보기 (차이 큰 순)">${r.ch}</button></td>
@@ -8994,18 +9022,7 @@ function renderChannelWape(){
       ${spark?channelMonthCells(r.ch,spark,[],futurePlanMonths):''}
     </tr>`;
   });
-  const totCell=(v,w,extraClass='')=>v==null?`<td class="cw-na${extraClass?' '+extraClass:''}">—</td>`:`<td${extraClass?` class="${extraClass}"`:''}><span class="cw-metric cw-status-${wapeClass(w??v)||'r'}">${v.toFixed(0)}%</span></td>`;
-  h+=`<tr class="cw-total">
-    <td class="l">전체</td>
-    ${spark?channelMonthCells('전체',spark,plainHistoryActualMonths,[]):''}
-    ${pairedEarlierMonths.map(m=>`${spark?channelMonthCells('전체',spark,[m.no],[]):''}${totCell(totalHit[m.key],totalWape[m.key])}`).join('')}
-    ${standaloneEarlierMonths.map(m=>totCell(totalHit[m.key],totalWape[m.key],'cw-sep')).join('')}
-    ${compareCells(totalCells?.[compareMonth?.key],true)}
-    ${totCell(totalHit[compareMonth?.key],totalWape[compareMonth?.key],'cw-prev-cell')}
-    <td class="cw-contrib cw-prev-cell">${contributionTotal>0?'100.0%':'—'}</td>
-    ${hitChMemoCell('전체',compareMonth?.key,false,'cw-prev-cell cw-prev-end')}
-    ${spark?channelMonthCells('전체',spark,[],futurePlanMonths):''}
-  </tr></tbody></table>`;
+  h+=`</tbody></table>`;
   wrap.innerHTML=h;
   renderSortIndicators('chwape',chWapeSort,'chWapeSortSummary');
   if(note){
@@ -9087,13 +9104,14 @@ function remapHitRowDaiso(row){
   if(!g) return row;
   return {...row,mat:g.code,n:g.name,name:g.name,hierarchy:getHierarchyForMat(g.code)||row.hierarchy||'',_daisoIntegrated:true,_origMat:mat};
 }
-// 오차 상세의 3개월 실적 평균은 2차 판매계획 보정 팝업과 같은 원천·집계를 쓴다.
-// 선택한 채널·품목의 선택월 포함 최근 3개월 실제 실적금액을 평균해 억 단위로 표시한다.
+// 오차 상세의 3개월·6개월 평균 판매는 2차 판매계획 보정 팝업과 같은 원천·집계를 쓴다.
+// 선택한 채널·품목의 선택월 포함 최근 N개월 실제 판매금액을 평균해 억 단위로 표시한다.
 // 다이소 통합행은 hitRowKey()가 쓰는 통합코드로 월별 집계와 동일하게 매칭된다.
-function getHitRecent3ActualAvgAmt(row,monthKey){
+function getHitRecentActualAvgAmt(row,monthKey,period){
   const selectedNo=monthNoFromKey(monthKey);
   if(!selectedNo) return null;
-  const start=Math.max(1,selectedNo-2);
+  const months=Math.max(1,Number(period)||1);
+  const start=Math.max(1,selectedNo-months+1);
   let total=0,count=0;
   for(let no=start;no<=selectedNo;no++){
     const month=HIT_MONTHS[no-1]||`${no}월`;
