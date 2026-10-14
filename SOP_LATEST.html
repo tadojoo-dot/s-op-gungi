@@ -335,6 +335,12 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .chmemo-td{vertical-align:top;padding:4px 6px!important;font-weight:400!important;}
 .chmemo-td textarea.action-memo{min-height:30px;height:30px;font-size:11.5px;}
 .chmemo-td textarea.action-memo:focus{height:80px;}
+.chmemo-edit-wrap{position:relative;width:100%;}
+.chmemo-edit-wrap textarea.action-memo{box-sizing:border-box;padding-right:34px!important;}
+.chmemo-clear-btn{position:absolute;top:3px;right:3px;width:14px;height:14px;line-height:12px;text-align:center;padding:0;border:none;border-radius:50%;background:rgba(214,69,112,.18);color:#a3405f;font-size:9px;font-weight:700;cursor:pointer;opacity:.6;transition:opacity .15s;}
+.chmemo-clear-btn:hover{opacity:1;background:#d64570;color:#fff;}
+.chmemo-save-btn{position:absolute;top:20px;right:2px;height:15px;line-height:13px;padding:0 3px;border:1px solid #9ec9df;border-radius:3px;background:#e3f4fb;color:#28739b;font-size:8px;font-weight:800;cursor:pointer;opacity:.8;}
+.chmemo-save-btn:hover{opacity:1;background:#cfeaf5;}
 .chmemo-carry{font-size:9.5px;font-weight:700;color:var(--terra);margin-top:2px;line-height:1.35;}
 .chmemo-hist{font-size:9.5px;color:var(--muted);margin-top:1px;cursor:help;}
 /* 채널별 오차율 표 쪽만 키운다 — 팝업(openChDrill)은 SKU가 수십 줄이라 촘촘한 채로 둔다 */
@@ -782,7 +788,7 @@ body:not(.admin-mode) .psi-buy-input,body:not(.admin-mode) textarea.action-memo,
 /* 비관리자에겐 '입력하세요' 안내를 띄우지 않는다 — 입력할 수 없는데 뜨면 빈 칸이 미입력인지
    권한 문제인지 헷갈린다. 빈 칸은 그냥 비워 둔다. */
 body:not(.admin-mode) .plan-cell:empty::before{content:'';}
-body:not(.admin-mode) .plan-clear-btn{display:none;}
+body:not(.admin-mode) .plan-clear-btn,body:not(.admin-mode) .plan-save-btn,body:not(.admin-mode) .chmemo-clear-btn,body:not(.admin-mode) .chmemo-save-btn{display:none;}
 body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel button{opacity:.55;cursor:not-allowed;}
 /* PRINT */
 @page{size:A4 landscape;margin:8mm;}
@@ -7702,6 +7708,19 @@ function saveSharedTextInput(el){
     });
   }
 }
+function clearSharedMemo(btn){
+  const el=btn.closest('.chmemo-edit-wrap')?.querySelector('textarea[data-memo-key]');
+  if(!el||!requireAdminMode()) return;
+  el.value='';
+  saveSharedTextInput(el);
+}
+function saveSharedMemo(btn){
+  const el=btn.closest('.chmemo-edit-wrap')?.querySelector('textarea[data-memo-key]');
+  if(!el||!requireAdminMode()) return;
+  saveSharedTextInput(el);
+  btn.textContent='완료';
+  setTimeout(()=>{if(btn.isConnected) btn.textContent='저장';},900);
+}
 function refreshSharedStateViews(){
   if(!BOOT_RENDER_DONE) return;
   renderActionLog();
@@ -8530,8 +8549,8 @@ function hitChMemoCell(ch,currentYm,sep=true,extraClass=''){
   const v=hitChMemoView(ch,currentYm);
   const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
   return `<td class="l chmemo-td${sep?' cw-sep':''}${extraClass?' '+extraClass:''}">
-    <textarea class="action-memo${v.text.trim()?' saved':''}" data-memo-key="${hitChMemoKey(ch,v.ym)}"
-      oninput="saveSharedTextInput(this)" placeholder="${_ymLabel(v.ym)} 조치의견">${esc(v.text)}</textarea>
+    <div class="chmemo-edit-wrap"><textarea class="action-memo${v.text.trim()?' saved':''}" data-memo-key="${hitChMemoKey(ch,v.ym)}"
+      oninput="saveSharedTextInput(this)" placeholder="${_ymLabel(v.ym)} 조치의견">${esc(v.text)}</textarea><button type="button" class="chmemo-clear-btn" title="조치의견 지우기" onclick="clearSharedMemo(this)">✕</button><button type="button" class="chmemo-save-btn" title="조치의견 저장" onclick="saveSharedMemo(this)">저장</button></div>
     </td>`;
 }
 
@@ -8869,8 +8888,8 @@ function _hitRowMemoCell(row,monthKey){
   const text=raw==null?(localStorage.getItem(legacyKey)||''):raw;
   const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const v=esc(text);
-  return `<td class="l chmemo-td cw-sep"><textarea class="action-memo${text.trim()?' saved':''}" data-memo-key="${esc(key)}"
-    oninput="saveSharedTextInput(this)" placeholder="${esc(_ymLabel(ym))} 조치의견">${v}</textarea></td>`;
+  return `<td class="l chmemo-td cw-sep"><div class="chmemo-edit-wrap"><textarea class="action-memo${text.trim()?' saved':''}" data-memo-key="${esc(key)}"
+    oninput="saveSharedTextInput(this)" placeholder="${esc(_ymLabel(ym))} 조치의견">${v}</textarea><button type="button" class="chmemo-clear-btn" title="조치의견 지우기" onclick="clearSharedMemo(this)">✕</button><button type="button" class="chmemo-save-btn" title="조치의견 저장" onclick="saveSharedMemo(this)">저장</button></div></td>`;
 }
 
 // 팝업에서 보던 채널·월을 아래 보정 대상 리스트에 그대로 넘긴다
