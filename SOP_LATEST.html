@@ -184,6 +184,8 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .plan-cell-td .plan-cell.saved{background:transparent!important;}
 .plan-clear-btn{position:absolute;top:2px;right:2px;width:14px;height:14px;line-height:12px;text-align:center;padding:0;border:none;border-radius:50%;background:rgba(214,69,112,.18);color:#a3405f;font-size:9px;font-weight:700;cursor:pointer;opacity:.5;transition:opacity .15s;}
 .plan-clear-btn:hover{opacity:1;background:#d64570;color:#fff;}
+.plan-save-btn{position:absolute;top:18px;right:2px;height:15px;line-height:13px;padding:0 3px;border:1px solid #9ec9df;border-radius:3px;background:#e3f4fb;color:#28739b;font-size:8px;font-weight:800;cursor:pointer;opacity:.75;}
+.plan-save-btn:hover{opacity:1;background:#cfeaf5;}
 .psi-buy-input,.psi-buy-trigger{width:78px;text-align:right;border:1px solid #b0c4e0;border-radius:3px;padding:1px 4px;font-size:11px;font-weight:700;background:#f0f8ff;color:var(--navy);height:21px;box-sizing:border-box;}
 .psi-buy-input:focus{outline:2px solid #4a90e2;background:#e8f4fd;}
 .psi-buy-trigger{cursor:pointer;font-family:inherit;}
@@ -2043,9 +2045,9 @@ function savePlanAction(meta, text){
   if(!requireAdminMode()) return;
   const val=String(text||'').trim();
   const actions=getPlanActions().filter(a=>a.key!==meta.key);
-  if(val){
-    actions.unshift({...meta,plan:val,ts:new Date().toLocaleString('ko-KR')});
-  }
+  // 빈 값도 저장한다. 삭제(x)도 변경사항이므로 빈 tombstone이 있어야
+  // 기존 키/레거시 키 폴백으로 지운 계획이 다시 나타나지 않는다.
+  actions.unshift({...meta,plan:val,ts:new Date().toLocaleString('ko-KR')});
   setPlanActions(actions.slice(0,200));
   renderActionLog();
 }
@@ -2091,6 +2093,10 @@ function clearPlanCell(btn){
   if(!cell||!cell.classList.contains('plan-cell')) return;
   cell.textContent='';
   cell.classList.remove('saved');
+  savePlanCellValue(cell);
+}
+function savePlanCellValue(cell){
+  if(!cell||!cell.classList.contains('plan-cell')) return;
   savePlanAction({
     key:cell.dataset.planKey,
     screen:cell.dataset.screen||'',
@@ -2098,7 +2104,15 @@ function clearPlanCell(btn){
     channel:cell.dataset.channel||'',
     sku:cell.dataset.sku||'',
     name:cell.dataset.name||''
-  },'');
+  },cell.textContent);
+}
+function savePlanCell(btn){
+  if(!requireAdminMode()) return;
+  const cell=btn.previousElementSibling?.previousElementSibling;
+  if(!cell||!cell.classList.contains('plan-cell')) return;
+  savePlanCellValue(cell);
+  btn.textContent='완료';
+  setTimeout(()=>{if(btn.isConnected) btn.textContent='저장';},900);
 }
 function clearAllPlanActions(){
   if(!requireAdminMode()) return;
@@ -3288,18 +3302,26 @@ function parsePSISheet(ws,holdByMat){
   // 표시용 실제 월 텍스트만 '자재코드' 헤더와 같은 행(월 블록 헤더 행)에서 동적으로 읽어 monthRealLabels로 제공한다.
   // (PSI 시트는 범위가 B2부터 시작해 행 인덱스가 밀리므로 고정 행번호 대신 headerRow를 그대로 재사용한다)
   const monthHeaderRow=(headerRow>=0?rows[headerRow]:null)||[];
-  const realMonthLabel=(idx,fallback)=>{
+  const rawMonthNumber=(idx)=>{
     const v=String(monthHeaderRow[idx]||'').trim();
     // 연말 롤링 시 '27.1월'처럼 연도가 붙는다. 마지막 월 숫자를 실제 월로 사용한다.
     const m=v.match(/^(?:\d{2,4}[.\/-])?(\d{1,2})월$/);
-    return m?`${m[1]}월`:fallback;
+    return m?Number(m[1]):null;
+  };
+  // 일부 월간 파일은 연말 이후 헤더를 '13월', '27.1월'처럼 기록한다.
+  // PSI 블록은 기준월부터 연속 5개월이므로 첫 월과 블록 위치를 기준으로 정상 월을 복원한다.
+  const firstMonth=rawMonthNumber(10);
+  const realMonthLabel=(idx,position,fallback)=>{
+    const expected=firstMonth?((firstMonth-1+position)%12)+1:null;
+    const actual=rawMonthNumber(idx);
+    return `${expected||actual||fallback.replace(/월$/,'')}월`;
   };
   const monthRealLabels={
-    '6월':realMonthLabel(10,'6월'),
-    '7월':realMonthLabel(26,'7월'),
-    '8월':realMonthLabel(37,'8월'),
-    '9월':realMonthLabel(47,'9월'),
-    '10월':realMonthLabel(57,'10월')
+    '6월':realMonthLabel(10,0,'6월'),
+    '7월':realMonthLabel(26,1,'7월'),
+    '8월':realMonthLabel(37,2,'8월'),
+    '9월':realMonthLabel(47,3,'9월'),
+    '10월':realMonthLabel(57,4,'10월')
   };
   const result=[];
   data.forEach(row=>{
@@ -5671,7 +5693,7 @@ function _renderDDTbody(){
       <td class="c" style="font-size:11px;color:var(--muted);">${s.e||'—'}</td>
       <td class="c"><span class="tag" style="background:${AGING_COL[cat]||'#eee'};color:#fff;font-size:10px;">${grade}</span></td>
       <td class="c">${soojinChip}</td>
-      <td class="l plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="${planKeyOf(s)}" data-plan-legacy-key="${legacyKeyOf(s)}" data-plan-legacy-sku="${legacySkuOf(s)}" data-screen="재고 Aging" data-bucket="${cat}" data-channel="${ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button></td>
+      <td class="l plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="${planKeyOf(s)}" data-plan-legacy-key="${legacyKeyOf(s)}" data-plan-legacy-sku="${legacySkuOf(s)}" data-screen="재고 Aging" data-bucket="${cat}" data-channel="${ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button><button type="button" class="plan-save-btn" title="소진계획 저장" onclick="savePlanCell(this)">저장</button></td>
     </tr>`;
   });
   const tbody=document.querySelector('#ddBody .dd-table tbody');
@@ -5854,7 +5876,7 @@ function _renderSenTbody(){
       <td class="c"><span class="tag gray">${s.nowCat}</span></td>
       <td class="c"><span class="tag" style="background:${catCol};color:#fff;font-size:10px;">${s.futureCat}</span></td>
       <td class="c">${soojinChip}</td>
-      <td class="l plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="${senPlanKey(s)}" data-plan-legacy-key="${senLegacyKey(s)}" data-screen="Aging Sensing" data-bucket="${sensingLabel} ${cat}" data-channel="${s.ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button></td>
+      <td class="l plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="${senPlanKey(s)}" data-plan-legacy-key="${senLegacyKey(s)}" data-screen="Aging Sensing" data-bucket="${sensingLabel} ${cat}" data-channel="${s.ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button><button type="button" class="plan-save-btn" title="소진계획 저장" onclick="savePlanCell(this)">저장</button></td>
     </tr>`;
   });
   const tbody=document.querySelector('#senCategoryRows tbody');
@@ -8497,7 +8519,9 @@ function hitChMemoView(ch,currentYm){
   const ym=hitMemoMonthKey(currentYm||skuMemoMonth());
   const cur=localStorage.getItem(hitChMemoKey(ch,ym));
   const hist=hitChMemoHistory(ch,ym);
-  if(cur!=null&&cur!=='') return {ym,text:cur,carriedFrom:'',hist};
+  // 현재월 키가 존재하면 빈 문자열도 사용자가 지운 값이다.
+  // 빈 값일 때 지난달 이력으로 폴백하면 삭제 후 다시 이전 의견이 나타난다.
+  if(cur!=null) return {ym,text:cur,carriedFrom:'',hist};
   return {ym,text:hist[0]?.text||'',carriedFrom:hist[0]?.label||'',hist};
 }
 // 표 셀 하나. 이어받은 의견은 입력칸에만 보이고 별도 안내 문구는 그리지 않는다.
