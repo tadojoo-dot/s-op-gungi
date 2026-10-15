@@ -5310,6 +5310,7 @@ function renderMatrix(){
   let html=`<thead><tr><th class="ch-head">채널 / 생산처</th>`;
   cats.forEach(c=>html+=`<th style="color:#fff;background:${catCol[c]||'#888'}">${c}</th>`);
   html+=`<th>합계</th><th>매출환산</th><th class="sf-head">재고 보유 SKU<br>판매계획</th><th class="months-head">재고개월</th></tr></thead><tbody>`;
+  const bodyStart=html.length;
 
   const totals={};cats.forEach(c=>totals[c]={a:0,q:0});let grandA=0,grandQ=0,grandRev=0,grandSf=0,grandSfMatched=0,grandSfMissing=0;
   const grandRatioMatched=new Set(),grandRatioFallback=new Set();
@@ -5396,6 +5397,9 @@ function renderMatrix(){
     html+=`<td class="months-col"${monthTitle}><div class="cell-val">${agingMonthsText(rowMonths)}</div><div class="cell-qty">SF 대비</div></td></tr>`;
   });
 
+  // 채널별 행을 먼저 계산해야 합계를 만들 수 있지만, 표시할 때는 합계가 항상 첫 행이다.
+  const detailRowsHtml=html.slice(bodyStart);
+  html=html.slice(0,bodyStart);
   html+=`<tr class="total-row"><td>합계</td>`;
   cats.forEach(c=>{
     const d=totals[c];
@@ -5415,6 +5419,7 @@ function renderMatrix(){
     ?`<td class="sf-col"${grandSfTitle}><div class="cell-val" style="font-size:14px;">${fmtAmt(grandSf)}</div><div class="cell-qty">SF 월계획</div></td>`
     :`<td class="sf-col zero"><div class="cell-val">—</div><div class="cell-qty">SF 월계획</div></td>`;
   html+=`<td class="months-col"${grandSfTitle}><div class="cell-val" style="font-size:14px;">${agingMonthsText(grandMonths)}</div><div class="cell-qty">SF 대비</div></td></tr>`;
+  html+=detailRowsHtml;
   html+=`</tbody>`;
   document.getElementById('agingMatrix').innerHTML=html;
   const note=document.getElementById('matrixRevNote');
