@@ -884,7 +884,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
         </div>
       </div>
       <div class="sec-body">
-        <div class="cw" style="height:280px;"><canvas id="chAgingChart"></canvas><div id="chAgingFallback" class="fallback-chart"></div></div>
+        <div class="cw" id="chAgingChartWrap" style="height:460px;"><canvas id="chAgingChart"></canvas><div id="chAgingFallback" class="fallback-chart"></div></div>
         <div id="chSmallLabels" class="small-labels"></div>
       </div>
     </div>
@@ -5026,6 +5026,15 @@ function renderChAgingChart(){
   var fallback=document.getElementById('chAgingFallback');
   function cellAmt(v){return typeof v==='number'?v:(Number(v?.a)||0);}
   if(!canvas) return;
+  // 품목군은 현재 표시 기준의 재고금액이 큰 순서로 고정한다. 원장 입력 순서를 그대로 쓰면
+  // 핵심 품목군이 아래에 묻힌다. 행 수에 맞춰 높이도 늘려 막대가 얇아지지 않게 한다.
+  var allChs=chData&&Object.keys(chData).length?Object.keys(chData):CHANNELS;
+  if(chData) allChs.sort(function(a,b){
+    var total=function(group){return ACT_CATS.reduce(function(sum,cat){return sum+cellAmt((chData[group]||{})[cat]);},0);};
+    return total(b)-total(a)||String(a).localeCompare(String(b),'ko');
+  });
+  var chartWrap=document.getElementById('chAgingChartWrap');
+  if(chartWrap) chartWrap.style.height=(chData?Math.min(620,Math.max(400,allChs.length*38+90)):300)+'px';
   renderChSmallLabels(chData,ACT_CATS,ACT_COL,getTrendData()[CURRENT_DETAIL_MONTH]||{});
   if(typeof Chart==='undefined'){
     renderChAgingFallback(chData,ACT_CATS,ACT_COL,getTrendData()[CURRENT_DETAIL_MONTH]||{});
@@ -5048,7 +5057,6 @@ function renderChAgingChart(){
     return;
   }
 
-  var allChs=Object.keys(chData).length?Object.keys(chData):CHANNELS;
   var activeCats=ACT_CATS.filter(function(c){return allChs.some(function(ch){return cellAmt((chData[ch]||{})[c])>0;});});
   if(!activeCats.length){
     renderChAgingFallback(null,ACT_CATS,ACT_COL,null);
@@ -5069,27 +5077,29 @@ function renderChAgingChart(){
         data:allChs.map(function(ch){return Math.round(cellAmt((chData[ch]||{})[cat])*10)/10;}),
         rawData:allChs.map(function(ch){return cellAmt((chData[ch]||{})[cat]);}),
         backgroundColor:ACT_COL[cat]||'#888',borderRadius:3,borderSkipped:false,stack:'s'};})},
-      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:230}},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:105}},
         plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:11,padding:6}},
           tooltip:{mode:'index',intersect:false,callbacks:{
             label:function(c){return c.dataset.label+': '+fmtAmt(c.parsed.x);},
             afterBody:function(items){return['합계: '+fmtAmt(items.reduce(function(s,i){return s+(i.parsed.x||0);},0))];}}},
-          datalabels:{display:function(ctx){return (ctx.dataset.data[ctx.dataIndex]||0)>=0.05;},formatter:function(v){return v>=0.1?v.toFixed(1)+'억':v.toFixed(2)+'억';},color:'#fff',font:{size:9,weight:'bold'},clamp:true}},
-        scales:{y:{grid:{display:false},ticks:{font:{size:13,weight:'bold'}}},
-          x:{stacked:true,grid:{color:'#f0f1f5'},ticks:{callback:function(v){return v+'억';},font:{size:10}},border:{display:false}}}}});
+          datalabels:{display:function(ctx){return (ctx.dataset.data[ctx.dataIndex]||0)>=0.05;},formatter:function(v){return v>=0.1?v.toFixed(1)+'억':v.toFixed(2)+'억';},color:'#fff',font:{size:10,weight:'bold'},clamp:true}},
+        scales:{y:{grid:{display:false},ticks:{font:{size:12,weight:'bold'},padding:6}},
+          x:{stacked:true,grid:{color:'#e8eaf0'},ticks:{callback:function(v){return v+'억';},font:{size:11}},border:{display:false}}},
+        datasets:{bar:{barPercentage:.78,categoryPercentage:.86}}}});
   } else {
-    var COLORS=['#1D2783','#C46B4D','#33512E','#E3B341','#9B59B6'];
+    var COLORS=['#1D2783','#C46B4D','#33512E','#E3B341','#7B61A8','#E3521A','#3C7D8A','#8A6D3B','#5AA469','#7A8099'];
     chChart=new Chart(canvas,{type:'bar',plugins:[ChartDataLabels,stackedTotalLabelPlugin('chTotalGrouped','x')],
       data:{labels:activeCats,datasets:allChs.map(function(ch,ci){return{label:ch,
         data:activeCats.map(function(cat){return Math.round(cellAmt((chData[ch]||{})[cat])*10)/10;}),
         rawData:activeCats.map(function(cat){return cellAmt((chData[ch]||{})[cat]);}),
-        backgroundColor:COLORS[ci%5],borderRadius:4,borderSkipped:false};})},
-      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:210}},
-        plugins:{legend:{position:'top',labels:{font:{size:10},boxWidth:11}},
-          tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+fmtAmt(c.parsed.x);}}},
-          datalabels:{anchor:'end',align:'right',offset:4,display:function(ctx){return (ctx.dataset.data[ctx.dataIndex]||0)>=0.01;},formatter:function(v){return v>=0.1?v.toFixed(1)+'억':v.toFixed(2)+'억';},color:'#10145C',font:{size:11,weight:'900'},clamp:false,clip:false}},
-        scales:{y:{grid:{display:false},ticks:{font:{size:10}}},
-          x:{grid:{color:'#f0f1f5'},ticks:{callback:function(v){return v+'억';},font:{size:10}},border:{display:false}}}}});
+        backgroundColor:COLORS[ci%COLORS.length],borderColor:'#fff',borderWidth:1,borderRadius:3,borderSkipped:false,stack:'s'};})},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:105}},
+        plugins:{legend:{position:'top',labels:{font:{size:10,weight:'bold'},boxWidth:11,padding:8}},
+          tooltip:{mode:'index',intersect:false,callbacks:{label:function(c){return c.dataset.label+': '+fmtAmt(c.parsed.x);}}},
+          datalabels:{display:function(ctx){return (ctx.dataset.data[ctx.dataIndex]||0)>=0.05;},formatter:function(v){return v>=0.1?v.toFixed(1)+'억':v.toFixed(2)+'억';},color:'#fff',font:{size:9,weight:'bold'},clamp:true}},
+        scales:{y:{stacked:true,grid:{display:false},ticks:{font:{size:11,weight:'bold'},padding:6}},
+          x:{stacked:true,grid:{color:'#e8eaf0'},ticks:{callback:function(v){return v+'억';},font:{size:11}},border:{display:false}}},
+        datasets:{bar:{barPercentage:.72,categoryPercentage:.84}}}});
   }
   }catch(e){
     console.warn('[SOP] 품목군별 AGING Chart.js 렌더 실패, HTML 막대그래프로 대체', e);
