@@ -776,6 +776,15 @@ table.base tr:last-child td{border-bottom:none;}
 .risk-trend-tbl tr:last-child td{font-weight:800;background:#FAFBFF;}
 .risk-trend-note{padding:9px 12px;border-top:1px solid var(--border);background:#FFFCF5;
   font-size:11.5px;line-height:1.6;color:#5a3000;}
+.action-history{margin-top:12px;border:1px solid var(--border);border-radius:7px;overflow:hidden;background:#fff;}
+.action-history-head{padding:9px 12px;background:#F4F6FB;border-bottom:1px solid var(--border);font-size:12px;font-weight:900;color:var(--navy);}
+.action-history-empty{padding:10px 12px;font-size:11.5px;color:var(--muted);}
+.action-history-row{display:grid;grid-template-columns:150px 128px minmax(0,1fr);gap:10px;padding:9px 12px;border-bottom:1px solid #eef0f5;font-size:11.5px;line-height:1.5;align-items:start;}
+.action-history-row:last-child{border-bottom:none;}
+.action-history-date{color:var(--muted);font-variant-numeric:tabular-nums;}
+.action-history-meta{color:var(--navy);font-weight:800;}
+.action-history-plan{white-space:pre-wrap;overflow-wrap:anywhere;}
+@media(max-width:640px){.action-history-row{grid-template-columns:1fr;gap:2px;}}
 .dd-table tr.clickable-row{cursor:pointer;}
 .dd-table tr.clickable-row:hover td{background:#eef3ff;}
 .admin-btn{height:28px;border:1px solid rgba(255,255,255,.35);border-radius:6px;background:rgba(255,255,255,.12);color:#fff;font-size:11px;font-weight:800;padding:0 10px;cursor:pointer;}
@@ -2046,6 +2055,24 @@ function setPlanActions(actions){
   localStorage.setItem(PLAN_KEY,JSON.stringify(actions));
   queueSharedStateSave();
 }
+function renderPlanActionHistory(mat){
+  const m=String(mat||'').trim();
+  const rows=getPlanActions().filter(a=>{
+    if(!String(a?.plan||'').trim()) return false;
+    if(String(a?.sku||'').trim()===m) return true;
+    const p=String(a?.key||'').split('|');
+    return p[0]==='AGING'&&(p.length===8?String(p[4])===m:p.length===4&&String(p[3])===m);
+  });
+  const body=rows.length?rows.map(a=>`<div class="action-history-row">
+    <div class="action-history-date">${htmlSafe(a.ts||'날짜 미상')}</div>
+    <div class="action-history-meta">${htmlSafe(a.channel||'—')} · ${htmlSafe(a.bucket||'—')}</div>
+    <div class="action-history-plan">${htmlSafe(a.plan||'')}</div>
+  </div>`).join(''):'<div class="action-history-empty">저장된 조치의견이 없습니다.</div>';
+  return `<div class="action-history">
+    <div class="action-history-head">📝 조치의견 히스토리</div>
+    ${body}
+  </div>`;
+}
 function savePlanAction(meta, text){
   if(!requireAdminMode()) return;
   const val=String(text||'').trim();
@@ -2064,14 +2091,23 @@ function bindPlanCells(root){
     // 여기서 옛 키로 폴백하면 지운 메모가 되살아난다(find는 없을 때만 undefined를 준다).
     const legacyKey=cell.dataset.planLegacyKey||'';
     const legacySku=cell.dataset.planLegacySku||'';
+    const keyParts=String(key||'').split('|');
+    // 기준정보의 품목군(예: 건기식 → 닥터베어)이 바뀌어도 같은 배치의 조치의견은 이어받는다.
+    // 새 형식: AGING|구분|보기기준|구간|자재|배치|플랜트|저장위치
+    const compatibleBatch=keyParts.length===8?actions.find(a=>{
+      const p=String(a.key||'').split('|');
+      return p.length===8&&p[0]==='AGING'
+        &&p[4]===keyParts[4]&&p[5]===keyParts[5]&&p[6]===keyParts[6]&&p[7]===keyParts[7];
+    }):null;
+    const legacyMat=legacySku?legacySku.split('|').pop():'';
     const saved=actions.find(a=>a.key===key)
-      ||(legacyKey?actions.find(a=>a.key===legacyKey&&String(a.plan||'').trim()!==''):null)
+      ||compatibleBatch
+      ||(legacyKey?actions.find(a=>a.key===legacyKey):null)
       // 구간이 바뀌었거나 납품기한 보기로 전환된 옛 기록도 같은 SKU의 최신 행에 보여준다.
-      // 옛 키는 AGING|채널|구간|자재 형식이라 새 행 키로 자동 변환하지 않고, 표시만 이어받는다.
+      // 옛 키는 AGING|구분|구간|자재 형식이라 구분명이 바뀌어도 자재코드로 표시만 이어받는다.
       ||(legacySku?actions.find(a=>{
         const p=String(a.key||'').split('|');
-        return p.length===4&&p[0]==='AGING'&&p[1]===legacySku.split('|')[0]&&p[3]===legacySku.split('|')[1]
-          &&String(a.plan||'').trim()!=='';
+        return p.length===4&&p[0]==='AGING'&&p[3]===legacyMat;
       }):null);
     if(saved){cell.textContent=saved.plan;cell.classList.add('saved');}
     // ⚠ 편집 권한은 **바인딩 시점에** 건다. 마크업이 contenteditable="true"로 고정돼 있어서,
@@ -6401,6 +6437,7 @@ function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
     </div>
     <div class="sku-insight${soojin.status==='정상소진 가능'?' good':''}">${insight}</div>
     ${renderRiskTrend(mat,ch)}
+    ${renderPlanActionHistory(mat)}
     <div class="sku-memo-box">
       <div class="sku-memo-head">
         <span>담당 의견 <span id="skuMemoMonth" style="color:var(--terra);"></span></span>
