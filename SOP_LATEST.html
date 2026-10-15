@@ -944,7 +944,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
     <div class="sec-body flush" style="overflow-x:auto;">
       <table class="aging-matrix" id="agingMatrix"></table>
       <div id="matrixFilterNote" style="display:none;margin:8px 16px 0;font-size:10.5px;color:var(--terra);font-weight:800;"></div>
-      <div id="matrixRevNote" style="display:none;margin:8px 16px 0;font-size:10.5px;color:var(--muted);">※ 매출환산: 건기식·구강·세븐일레븐은 재고금액(원가 기준) ÷ 25%, 건기식(다이소)는 재고금액 ÷ 70%로 계산합니다. 재고개월 = 매출환산 ÷ 해당월 SF 월계획입니다.</div>
+      <div id="matrixRevNote" style="display:none;margin:8px 16px 0;font-size:10.5px;color:var(--muted);">※ 매출환산: 원가 시트의 전체 원가금액 합계 ÷ 전체 순매출액 합계로 산출한 가중 원가율을 재고금액(원가 기준)에 적용합니다. 재고개월 = 매출환산 ÷ 해당월 SF 월계획입니다.</div>
     </div>
     <div class="drilldown" id="drilldown">
       <div class="dd-header">
@@ -3766,8 +3766,10 @@ function parseCostSheet(ws){
     byMat[mat].costAmt+=costAmt;
     if(costAmt>0){totalNetSales+=netSales;totalCost+=costAmt;}
   });
+  // 전체 합계 기준 가중 원가율. Aging 매출환산은 SKU/채널별 임의 비율 대신 이 값 하나를 쓴다.
+  const costRate=totalNetSales>0?totalCost/totalNetSales:0;
   const avgRatio=totalCost>0?totalNetSales/totalCost:1;
-  return {byMat,avgRatio};
+  return {byMat,avgRatio,costRate,totalNetSales,totalCost};
 }
 function getCostData(){return UPLOADED?.cost_data||null;}
 function getMatRatio(mat){
@@ -3777,16 +3779,11 @@ function getMatRatio(mat){
   if(rec&&rec.costAmt>0) return {ratio:rec.netSales/rec.costAmt,matched:true};
   return {ratio:cd.avgRatio||1,matched:false};
 }
-// 재고 Aging의 매출환산은 전월 SKU별 배율이 아니라 품목군별 원가율을 적용한다.
-// 원가 재고금액(백만원) ÷ 원가율 = 매출환산 금액(백만원).
-const AGING_REVENUE_COST_RATES=Object.freeze({
-  '건기식':0.25,
-  '구강':0.25,
-  '세븐일레븐':0.25,
-  '건기식(다이소)':0.70
-});
-function getAgingRevenueCostRate(channel){
-  return AGING_REVENUE_COST_RATES[String(channel||'').trim()]||0;
+// 재고 Aging의 매출환산은 원가 시트의 전체 원가/순매출 합계로 구한 가중 원가율을 적용한다.
+// 원가 재고금액(백만원) ÷ 가중 원가율 = 매출환산 금액(백만원).
+function getAgingRevenueMultiplier(){
+  const cd=getCostData();
+  return cd?.costRate>0?1/cd.costRate:0;
 }
 function parseMasterRefSheet(ws){
   // 기준정보 시트는 월별로 열이 추가된다(26/9 P열 '계층구분' 추가로 뒤쪽 채널 열이 한 칸 이동).
@@ -5267,12 +5264,14 @@ function renderMatrix(){
   }
 
   const costData=getCostData();
+  const revenueMultiplier=getAgingRevenueMultiplier();
+  const weightedCostRate=costData?.costRate||0;
 
   let html=`<thead><tr><th class="ch-head">채널 / 생산처</th>`;
   cats.forEach(c=>html+=`<th style="color:#fff;background:${catCol[c]||'#888'}">${c}</th>`);
   html+=`<th>합계</th><th>매출환산</th><th class="months-head">재고개월</th></tr></thead><tbody>`;
 
-  const totals={};cats.forEach(c=>totals[c]={a:0,q:0});let grandA=0,grandQ=0,grandRev=0,grandSf=0,grandSfMatched=0,grandSfMissing=0,grandUnmatched=0;
+  const totals={};cats.forEach(c=>totals[c]={a:0,q:0});let grandA=0,grandQ=0,grandRev=0,grandSf=0,grandSfMatched=0,grandSfMissing=0;
 
   const rowSpecs=[];
   chs.forEach(ch=>{
@@ -5294,8 +5293,7 @@ function renderMatrix(){
       ?`<span class="aging-tree-caret">${spec.open?'▼':'▶'}</span>${ch}<span class="aging-tree-hint">생산처별 재고 ${spec.open?'접기':'보기'}</span>`
       :(spec.child?`<span class="aging-tree-caret">└</span>${spec.label}`:(spec.label||ch));
     html+=`<tr${rowClass?` class="${rowClass}"`:''}${groupClick}><td>${rowLabel}</td>`;
-    let rowA=0,rowQ=0,rowRev=0,rowUnmatched=0;
-    const fixedRate=getAgingRevenueCostRate(ch);
+    let rowA=0,rowQ=0,rowRev=0;
     const rowSkus=[];
     cats.forEach(c=>{
       const raw=(mxData[ch]||{})[c]||{a:0,q:0,s:[]};
@@ -5306,14 +5304,7 @@ function renderMatrix(){
       (d.s||[]).forEach(sku=>{
         const amtMil=Number(sku.a)||0;
         if(amtMil<=0) return;
-        if(fixedRate>0){
-          rowRev+=amtMil/fixedRate;
-        }else if(costData){
-          // 지정되지 않은 신규 채널은 기존 배율로 폴백하되, 현재 4개 Aging 채널은 위 고정율을 탄다.
-          const{ratio,matched}=getMatRatio(sku.m);
-          rowRev+=amtMil*ratio;
-          if(!matched) rowUnmatched++;
-        }
+        if(revenueMultiplier>0) rowRev+=amtMil*revenueMultiplier;
       });
       if(!d.a&&!(d.q||0)&&(!d.s||!d.s.length)){html+=`<td class="zero">—</td>`;return;}
       const isWarn=agingViewMode==='delivery'?(c==='납품일정 초과'||c==='환입'):c==='환입'||c==='유효기간 초과'||c==='6개월 미만'||c==='7개월 미만';
@@ -5338,13 +5329,11 @@ function renderMatrix(){
     const rowMonths=rowRevEok>0&&sfAmtEok>0?rowRevEok/sfAmtEok:null;
     if(spec.countTotals!==false){
       grandA+=rowA; grandQ+=rowQ; grandRev+=rowRev; grandSf+=sfAmtEok;
-      grandSfMatched+=sfInfo.matched; grandSfMissing+=sfInfo.missing; grandUnmatched+=rowUnmatched;
+      grandSfMatched+=sfInfo.matched; grandSfMissing+=sfInfo.missing;
     }
     html+=`<td class="total-col"><div class="cell-val">${fmtAmt(rowA)}</div><div class="cell-qty">${formatQty(rowQ)}</div></td>`;
-    if(fixedRate>0||costData){
-      const titleAttr=fixedRate>0
-        ?` title="${ch} 원가율 ${(fixedRate*100).toFixed(0)}% 적용 · 재고금액 ÷ ${(fixedRate*100).toFixed(0)}%"`
-        :(rowUnmatched>0?` title="원가 시트 미매칭 SKU ${rowUnmatched}건 · 전사 평균 배율(${costData.avgRatio.toFixed(2)}배) 적용"`:'');
+    if(revenueMultiplier>0){
+      const titleAttr=` title="원가 시트 전체 가중 원가율 ${(weightedCostRate*100).toFixed(2)}% 적용 · 재고금액 ÷ ${(weightedCostRate*100).toFixed(2)}%"`;
       html+=`<td class="rev-col"${titleAttr}><div class="cell-val">${fmtAmt(rowRev/100)}</div><div class="cell-qty">&nbsp;</div></td>`;
     }else{
       html+=`<td class="rev-col zero" title="원가 시트 업로드 필요"><div class="cell-val">—</div><div class="cell-qty">&nbsp;</div></td>`;
@@ -5360,11 +5349,8 @@ function renderMatrix(){
     html+=`<td><div class="cell-val">${d.a.toFixed(1)}억</div><div class="cell-qty">${formatQty(d.q)}</div></td>`;
   });
   html+=`<td class="total-col"><div class="cell-val" style="font-size:14px;">${grandA.toFixed(1)}억</div><div class="cell-qty">${formatQty(grandQ)}</div></td>`;
-  const hasFixedAgingRate=chs.some(ch=>getAgingRevenueCostRate(ch)>0);
-  if(hasFixedAgingRate||costData){
-    const totTitleAttr=hasFixedAgingRate
-      ?` title="품목군별 고정 원가율 적용 · 일반 채널 25%, 건기식(다이소) 70%"`
-      :(grandUnmatched>0?` title="원가 시트 미매칭 SKU ${grandUnmatched}건 · 전사 평균 배율 적용"`:'');
+  if(revenueMultiplier>0){
+    const totTitleAttr=` title="원가 시트 전체 원가금액 합계 ÷ 전체 순매출액 합계 = 가중 원가율 ${(weightedCostRate*100).toFixed(2)}%"`;
     html+=`<td class="rev-col"${totTitleAttr}><div class="cell-val" style="font-size:14px;">${fmtAmt(grandRev/100)}</div><div class="cell-qty">&nbsp;</div></td>`;
   }else{
     html+=`<td class="rev-col zero"><div class="cell-val">—</div><div class="cell-qty">&nbsp;</div></td>`;
@@ -5375,7 +5361,7 @@ function renderMatrix(){
   html+=`</tbody>`;
   document.getElementById('agingMatrix').innerHTML=html;
   const note=document.getElementById('matrixRevNote');
-  if(note) note.style.display=(costData||hasFixedAgingRate)?'block':'none';
+  if(note) note.style.display=revenueMultiplier>0?'block':'none';
   // 필터를 걸면 이 표만 걸러진다. 상단 KPI 카드는 '현황' 시트 SUMIFS 결과라 생산처/자재유형 축이 없어
   // 따라올 수 없다 — 말없이 두면 한 화면에서 총액이 갈린 것처럼 보인다.
   // (추이 차트의 월별 총액은 원장 있는 달을 원장 값으로 맞춰뒀다 — 위 handleUpload 주석 참고)
