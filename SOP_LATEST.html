@@ -6802,8 +6802,6 @@ function renderSensing(months){
 }
 
 // ═══════════ PSI 정렬 & 소진판단 ═════════════════════════════
-const _psiSoojinCls={'정상소진 가능':'g','미소진 Risk':'r','판매계획 없음':'y'};
-const _psiSoojinLabel={'정상소진 가능':'정상소진','미소진 Risk':'미소진Risk','판매계획 없음':'판매계획없음'};
 
 function sortPsiCol(col){
   if(_psiSort.col===col){
@@ -6816,7 +6814,7 @@ function sortPsiCol(col){
 }
 
 function _psiSortKey(item,col){
-  const{d,soojinStatus}=item;
+  const{d}=item;
   if(col==='mat') return String(d.mat||'');
   if(col==='name') return String(d.name||'');
   if(col==='hierarchy') return String(d.hierarchy||'');
@@ -6824,7 +6822,6 @@ function _psiSortKey(item,col){
   if(col==='type') return item.isIntegrated?'다이소 통합':item.isDaisoComponent?'다이소 원본':'일반';
   if(col==='plant') return String(d.plant||'');
   if(col==='avg3') return Number(d.avg3)||0;
-  if(col==='soojin') return soojinStatus||'';
   const parts=col.split('-');
   if(parts.length===2){
     const moIdx=PSI_MONTHS.findIndex(m=>m.key===parts[0]);
@@ -6910,7 +6907,6 @@ function renderPsiSubtotal(){
   h+=sharedAvg3
     ?`<th class="psi-sub r muted" title="3평판은 통합코드 단위라 플랜트·하위코드가 나눠 쓰는 값입니다 — 더하면 중복 계상됩니다">—</th>`
     :`<th class="psi-sub r">${fmtPsiInt(avg3Sum)}</th>`;
-  h+=`<th class="psi-sub c"></th>`;
   PSI_MONTHS.forEach((m,i)=>{
     const a=per[i];
     h+=(psiHasBeginCol(m)?`<th class="psi-sub r month-start">${val(a.begin,a.beginA)}</th>`:'')
@@ -6934,7 +6930,7 @@ function _renderPsiTbody(){
   const overrides=getPsiSimBuy();
   let h='';
   sorted.forEach(item=>{
-    const{d,soojinStatus,isIntegrated,isDaisoComponent}=item;
+    const{d,isIntegrated,isDaisoComponent}=item;
     const rowOv=overrides[d.mat]||{};
     let prev=null;
     const cells=PSI_MONTHS.map(m=>{
@@ -6964,8 +6960,6 @@ function _renderPsiTbody(){
       if(!psiHasBeginCol(m)) buyCell=buyCell.replace('<td class="r','<td class="r month-start');
       return `${beginCell}${buyCell}<td class="r"${psiCellTitle(r.plan,d.mat)}>${fmtPsiCell(r.plan,d.mat)}</td><td class="r"${endCls}${psiCellTitle(r.end,d.mat)}>${fmtPsiCell(r.end,d.mat)}</td><td class="c month-end"${daysTitle}><span class="sig-dot ${sig}"></span> ${psiDaysHtml(r.days,r.sig,r.noStock)}</td>`;
     }).join('');
-    const sCls=_psiSoojinCls[soojinStatus]||'gray';
-    const sLbl=_psiSoojinLabel[soojinStatus]||'판단필요';
     h+=`<tr data-mat="${d.mat}" data-name="${escapeSensingText(d.name||'')}" data-ch="${escapeSensingText(d.pkg||'')}" data-qty="${d.inv||0}" data-rem="" data-ch-rem-mo="" class="clickable-row" onclick="openSkuDetailFromRow(this)">
       <td class="l" style="font-size:11px;color:var(--muted);font-weight:800;cursor:text;user-select:all;-webkit-user-select:all;" onclick="event.stopPropagation()" title="클릭하면 자재코드 전체 선택 → Ctrl+C로 복사">${d.mat||'—'}</td>
       <td class="l"><strong>${d.name}</strong></td>
@@ -6974,7 +6968,6 @@ function _renderPsiTbody(){
       <td class="l" style="font-size:11px;font-weight:800;color:${isIntegrated?'#0f766e':isDaisoComponent?'#b45309':'var(--muted)'};">${d._plantScoped?`다이소 통합 <span style="color:#b45309;">· ${d._plantOf} 몫</span>`:isIntegrated?'다이소 통합':isDaisoComponent?'다이소 원본':'일반'}</td>
       <td class="l" style="font-size:11px;color:var(--muted);font-weight:700;">${d.plant||''}</td>
       <td class="r"${(d._plantScoped||d._sharedAvg3)?' title="3평판(수요)은 통합코드 단위라 플랜트가 나눠 쓰는 값입니다 — 플랜트별로 더하면 안 됩니다"':''}>${fmtPsiInt(d.avg3)}${(d._plantScoped||d._sharedAvg3)?'<span style="color:#b45309;font-size:9px;font-weight:900;"> 통합</span>':''}</td>
-      <td class="c" onclick="event.stopPropagation();openSkuDetail('${d.mat}','${escapeSensingText(d.name||'')}','${escapeSensingText(d.pkg||'')}',${d.inv||0},null,0)"><span class="tag ${sCls}" style="font-size:10px;padding:2px 6px;cursor:pointer;">${sLbl}</span></td>
       ${cells}
       <td class="l plan-cell" contenteditable="true" onclick="event.stopPropagation()" data-plan-key="PSI|${d.mat}" data-screen="PSI 전 품목 현황" data-bucket="${d.sp||''}" data-channel="${d.pkg||''}" data-sku="${d.mat||''}" data-name="${String(d.name||'').replace(/"/g,'&quot;')}"></td>
     </tr>`;
@@ -7005,7 +6998,7 @@ const PSI_MONTHS=[
 //   `7+mi*7`이나 `bi+3` 같은 고정식은 두 번째 달부터 어긋난다.
 const psiHasBeginCol=m=>!!m.progress;
 const psiMonthSpan=m=>m.progress?5:4;
-const PSI_FIXED_COLS=8;                                   // 자재코드~소진판단 (계층 포함)
+const PSI_FIXED_COLS=7;                                   // 자재코드~3평판 (계층 포함)
 const psiMonthCellOffset=mi=>PSI_MONTHS.slice(0,mi).reduce((s,m)=>s+psiMonthSpan(m),PSI_FIXED_COLS);
 const psiTotalCols=()=>PSI_FIXED_COLS+PSI_MONTHS.reduce((s,m)=>s+psiMonthSpan(m),0)+1; // +1 = 소진계획
 const fmtPsiInt=v=>Math.round(Number(v)||0).toLocaleString('ko-KR');
@@ -8167,7 +8160,6 @@ function renderPSI(){
         <th rowspan="3" class="l" style="min-width:76px;cursor:pointer;" onclick="sortPsiCol('type')" data-scol="type">구분 ${si('type')}</th>
         <th rowspan="3" class="l" style="min-width:74px;cursor:pointer;" onclick="sortPsiCol('plant')" data-scol="plant">플랜트 ${si('plant')}</th>
         <th rowspan="3" class="r" style="cursor:pointer;" onclick="sortPsiCol('avg3')" data-scol="avg3">3평판 ${si('avg3')}</th>
-        <th rowspan="3" class="c" style="min-width:60px;cursor:pointer;" onclick="sortPsiCol('soojin')" data-scol="soojin">소진판단 ${si('soojin')}</th>
         ${months.map(m=>`<th colspan="${psiMonthSpan(m)}" class="plan-hd month-group" style="text-align:center;">${moLabel(m)}</th>`).join('')}
         <th rowspan="3" class="l" style="min-width:130px;">소진계획</th>
       </tr>
@@ -8180,10 +8172,7 @@ function renderPSI(){
       <tr id="psiSubtotalRow"></tr>
     </thead><tbody id="psiTbody"></tbody></table></div>`;
 
-  _psiState.data=data.map(d=>{
-    const soojin=computeSoojin(d.mat,d.inv,null,d.pkg,0);
-    return {d,soojinStatus:soojin.mainStatus||soojin.status,isIntegrated:isPsiIntegrated(d),isDaisoComponent:isPsiDaisoComponent(d)};
-  });
+  _psiState.data=data.map(d=>({d,isIntegrated:isPsiIntegrated(d),isDaisoComponent:isPsiDaisoComponent(d)}));
   document.getElementById('psiWrap').innerHTML=h;
   _renderPsiTbody();
 }
@@ -9899,14 +9888,30 @@ function getSPRows(mode=spMode){
   const uploaded=UPLOADED?.sales_plan?.__summary?.[key];
   const fallback=mode==='brand'?SP_BRAND:SP_CH;
   const clean=rows=>rows.filter(r=>!SP_EXCLUDED_ROWS.has(String(r.name||'').trim()));
+  const reconcileBrandRows=rows=>{
+    // SF 원본의 브랜드 구분에는 일부 채널 계획이 빠지는 달이 있다. 26/10 원본은
+    // 10~12월에 각각 0.8/4.2/5.2억이 빠져 브랜드 탭 합계와 채널 탭 합계가 달랐다.
+    // 채널 합계를 기준으로 차이를 별도 행에 드러내 합계를 맞춘다. 임의 브랜드에
+    // 배분하지 않아 원본의 분류 누락도 함께 확인할 수 있다.
+    if(!UPLOADED?.sales_plan?.__summary?.ch?.length) return rows;
+    const channelRows=getSPRows('ch');
+    const diff=field=>{
+      const count=Math.max(...rows.map(r=>(r[field]||[]).length),...channelRows.map(r=>(r[field]||[]).length),0);
+      return Array.from({length:count},(_,i)=>channelRows.reduce((s,r)=>s+(Number(r[field]?.[i])||0),0)-rows.reduce((s,r)=>s+(Number(r[field]?.[i])||0),0));
+    };
+    const prevActual=diff('prevActual'),actual=diff('actual'),plan=diff('plan');
+    if(![...prevActual,...actual,...plan].some(v=>Math.abs(v)>0.01)) return rows;
+    return [...rows,{name:'기타(브랜드 미분류)',prevActual,actual,plan,__reconciliation:true}];
+  };
   if(uploaded?.length){
     const fallbackByName=new Map(fallback.map(r=>[r.name,r]));
-    return clean(uploaded).map(r=>{
+    const rows=clean(uploaded).map(r=>{
       const fb=fallbackByName.get(r.name)||{};
       const actual=[...(r.actual||[])];
       if(actual.length<5&&fb.actual?.[4]!=null) actual[4]=fb.actual[4];
       return {...r,actual,prevActual:(r.prevActual?.length?r.prevActual:fb.prevActual)||[],plan:(r.plan?.length?r.plan:fb.plan)||[]};
     });
+    return mode==='brand'?reconcileBrandRows(rows):rows;
   }
   return clean(fallback);
 }
