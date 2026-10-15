@@ -2367,7 +2367,11 @@ function setUploadStatus(kind, message){
   });
 }
 function findSheetName(wb, keyword){
-  return wb.SheetNames.find(n=>String(n).replace(/\s/g,'').includes(keyword));
+  const target=String(keyword||'').replace(/\s/g,'').toLowerCase();
+  const normalized=wb.SheetNames.map(name=>({name,key:String(name).replace(/\s/g,'').toLowerCase()}));
+  // `PSI`보다 `다이소(PSI)`가 앞에 오는 월간 파일도 있다. 정확히 같은 시트명을 먼저 찾지 않으면
+  // 포함 검색이 보조 시트를 원본으로 오인해 PSI 원본 0건으로 발행한다.
+  return normalized.find(s=>s.key===target)?.name||normalized.find(s=>s.key.includes(target))?.name;
 }
 function sumNestedAging(data){
   if(!data) return 0;
