@@ -5590,8 +5590,10 @@ function renderPkgDelta(){
   const keys=[...new Set([...Object.keys(P.byPkg),...Object.keys(C.byPkg)])];
   const rows=keys.map(k=>{
     const p=_pkgVal(P.byPkg[k]), c=_pkgVal(C.byPkg[k]);
-    return {k,p,c,d:c-p};
-  }).sort((x,y)=>y.d-x.d);
+    // 표의 단위 토글과 무관하게 당월 재고금액이 큰 품목군부터 보여준다.
+    // 금액이 같으면 전월 금액, 품목군명 순으로 고정해 재렌더 때 순서가 흔들리지 않게 한다.
+    return {k,p,c,d:c-p,sortAmt:Number(C.byPkg[k]?.a)||0,prevSortAmt:Number(P.byPkg[k]?.a)||0};
+  }).sort((x,y)=>y.sortAmt-x.sortAmt||y.prevSortAmt-x.prevSortAmt||String(x.k).localeCompare(String(y.k),'ko'));
   const tp=_pkgVal(P.total), tc=_pkgVal(C.total), td=tc-tp;
   // 생산처 토글은 금액·증감 표시만 좁힌다. 증가 기여율은 항상 전체 품목군 증감액을 분모로 써서
   // 향남/횡성 중 하나를 골라도 '전사 증가분 중 해당 품목군의 몫'으로 읽히게 한다.
@@ -5606,7 +5608,15 @@ function renderPkgDelta(){
     <th class="l">품목군 / SKU</th>
     <th class="r" title="기준일 ${pDay}">${prevWord}(${pLab})</th><th class="r" title="기준일 ${cDay}">당월(${cLab})</th>
     <th class="r">증감</th><th class="r">증감률</th><th class="r" title="생산처 토글과 무관하게 전체 품목군 전월대비 증감액을 분모로 계산">증가 기여율</th>
-  </tr></thead><tbody>`;
+  </tr></thead><tbody>
+  <tr style="background:#F7F8FA;">
+    <td class="l" style="font-weight:900;color:var(--navy);">합계</td>
+    <td class="r" style="font-weight:800;">${_pkgFmt(tp)}</td>
+    <td class="r" style="font-weight:800;">${_pkgFmt(tc)}</td>
+    <td class="r" ${_pkgDiffCls(td)}>${_pkgFmtDiff(td)}</td>
+    <td class="r" style="font-weight:800;">${_pkgRate(tp,tc)}</td>
+    <td class="r">—</td>
+  </tr>`;
   rows.forEach(r=>{
     const open=_pkgDeltaOpen.has(r.k);
     // 기여율은 '전체가 늘어난 몫을 누가 얼마나 차지했나'라서 늘어난 행에만 의미가 있다
@@ -5639,13 +5649,7 @@ function renderPkgDelta(){
       </tr>`;
     });
   });
-  h+=`</tbody><tfoot><tr style="background:#F7F8FA;">
-    <td class="l" style="font-weight:900;color:var(--navy);">합계</td>
-    <td class="r" style="font-weight:800;">${_pkgFmt(tp)}</td>
-    <td class="r" style="font-weight:800;">${_pkgFmt(tc)}</td>
-    <td class="r" ${_pkgDiffCls(td)}>${_pkgFmtDiff(td)}</td>
-    <td class="r" style="font-weight:800;">${_pkgRate(tp,tc)}</td>
-    <td class="r">—</td></tr></tfoot>`;
+  h+=`</tbody>`;
   tbl.innerHTML=h;
 }
 
