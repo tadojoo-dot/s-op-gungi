@@ -5188,20 +5188,24 @@ function syncMatrixFilterOptions(mxData){
 }
 // 다이소 채널은 생산처를 하위행으로 펼친다. sourceFilter를 따로 고르지 않아도
 // 향남·횡성 재고와 SF 대비 재고개월을 한 화면에서 비교할 수 있게 하는 ①탭 전용 계층이다.
+function isDaisoAgingChannel(ch){
+  // 10월부터 Aging 원장의 채널 축이 브랜드 축으로 바뀌어 닥터베어가
+  // '닥터베어(다이소)'로 들어온다. 예전 '건기식(다이소)'도 계속 지원한다.
+  return String(ch||'')==='건기식(다이소)'||String(ch||'').includes('닥터베어(다이소)');
+}
 function matrixSourceRows(mxData,ch,cats,f){
   const set=new Set();
   for(const c of cats){
     (mxData?.[ch]?.[c]?.s||[]).forEach(s=>{if(f.pass(s)&&s.sp) set.add(String(s.sp));});
   }
-  const preferred=['향남','횡성'];
-  return [...set].sort((a,b)=>{
-    const ai=preferred.indexOf(a),bi=preferred.indexOf(b);
-    if(ai>=0||bi>=0) return (ai<0?preferred.length:ai)-(bi<0?preferred.length:bi);
-    return a.localeCompare(b,'ko');
-  });
+  // 닥터베어는 생산처를 개별 공장명이 아니라 '횡성 / 횡성 외' 두 그룹으로 본다.
+  // 향남 등 명칭이 바뀌어도 횡성이 아닌 재고가 같은 줄에 남는다.
+  const groups=new Set([...set].map(src=>src==='횡성'?'횡성':'횡성 외'));
+  return ['횡성','횡성 외'].filter(group=>groups.has(group));
 }
 function matrixFilterForSource(f,src){
-  return {...f,on:true,srcF:src,pass:s=>(!f.typeF||s.t===f.typeF)&&String(s.sp||'')===String(src)};
+  const isOther=src==='횡성 외';
+  return {...f,on:true,srcF:src,pass:s=>(!f.typeF||s.t===f.typeF)&&(isOther?String(s.sp||'')!=='횡성':String(s.sp||'')===String(src))};
 }
 function matrixDrillArg(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 // 생산처 필터는 매트릭스와 품목군 전월대비 카드에 같이 걸린다 — 한 화면에서 기준이 갈리지 않게.
@@ -5240,6 +5244,12 @@ function renderMatrix(){
     const d=filterMatrixCell((mxData[ch]||{})[c]||{a:0,q:0,s:[]},f);
     return d.a||d.q||(d.s&&d.s.length);
   }));
+  // 채널/브랜드 행은 현재 표시 조건의 재고금액 합계가 큰 순서로 둔다.
+  // 닥터베어의 생산처 하위행은 부모 바로 아래에 붙여 비교할 수 있게 한다.
+  if(mxData) chs.sort((a,b)=>{
+    const amount=ch=>cats.reduce((sum,c)=>sum+(filterMatrixCell((mxData[ch]||{})[c]||{a:0,q:0,s:[]},f).a||0),0);
+    return amount(b)-amount(a)||String(a).localeCompare(String(b),'ko');
+  });
 
   /* 선택 월 데이터 없을 때 → 집계 표시 */
   if(!mxData){
@@ -5275,10 +5285,11 @@ function renderMatrix(){
 
   const rowSpecs=[];
   chs.forEach(ch=>{
-    const split=ch==='건기식(다이소)'&&!f.srcF;
+    const split=isDaisoAgingChannel(ch)&&!f.srcF;
     const srcs=split?matrixSourceRows(mxData,ch,cats,f):[];
     if(srcs.length>=2){
-      const open=_agingGroupOpen.has(ch);
+      // 닥터베어의 횡성/횡성 외는 기본으로 펼쳐 둔다. 사용자가 접은 경우만 접힌다.
+      const open=!_agingGroupOpen.has(`closed:${ch}`);
       rowSpecs.push({ch,src:'',label:ch,parent:true,open,countTotals:true});
       if(open) srcs.forEach(src=>rowSpecs.push({ch,src,label:`${src}`,child:true,countTotals:false}));
     }else rowSpecs.push({ch,src:f.srcF||'',label:f.srcF&&ch==='건기식(다이소)'?f.srcF:ch,countTotals:true});
@@ -5288,9 +5299,9 @@ function renderMatrix(){
     const ch=spec.ch;
     const rowF=spec.src?matrixFilterForSource(f,spec.src):f;
     const rowClass=spec.parent?'aging-parent-row':(spec.child?'aging-child-row':'');
-    const groupClick=spec.parent?` onclick="toggleAgingGroup('${matrixDrillArg(ch)}')" onkeydown="if((event.key==='Enter'||event.key===' ')&&event.target===this){event.preventDefault();toggleAgingGroup('${matrixDrillArg(ch)}')}" role="button" tabindex="0" aria-expanded="${spec.open?'true':'false'}" title="클릭하여 향남·횡성 생산처별 재고 ${spec.open?'접기':'펼치기'}"`:'';
+    const groupClick=spec.parent?` onclick="toggleAgingGroup('closed:${matrixDrillArg(ch)}')" onkeydown="if((event.key==='Enter'||event.key===' ')&&event.target===this){event.preventDefault();toggleAgingGroup('closed:${matrixDrillArg(ch)}')}" role="button" tabindex="0" aria-expanded="${spec.open?'true':'false'}" title="클릭하여 횡성·횡성 외 생산처별 재고 ${spec.open?'접기':'펼치기'}"`:'';
     const rowLabel=spec.parent
-      ?`<span class="aging-tree-caret">${spec.open?'▼':'▶'}</span>${ch}<span class="aging-tree-hint">생산처별 재고 ${spec.open?'접기':'보기'}</span>`
+      ?`<span class="aging-tree-caret">${spec.open?'▼':'▶'}</span>${ch}<span class="aging-tree-hint">횡성 / 횡성 외 ${spec.open?'접기':'보기'}</span>`
       :(spec.child?`<span class="aging-tree-caret">└</span>${spec.label}`:(spec.label||ch));
     html+=`<tr${rowClass?` class="${rowClass}"`:''}${groupClick}><td>${rowLabel}</td>`;
     let rowA=0,rowQ=0,rowRev=0;
