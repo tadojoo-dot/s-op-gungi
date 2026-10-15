@@ -142,8 +142,8 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .aging-matrix td.months-col{background:#fff8e7;font-weight:800;color:#9a6810;}
 .aging-matrix th.months-head{background:#9a6810;}
 .aging-matrix tr.aging-parent-row td{border-top:2px solid #aeb7c9;font-weight:800;}
-.aging-matrix tr.aging-parent-row td:first-child{background:#e9edf5;color:var(--navy);cursor:pointer;white-space:nowrap;}
-.aging-matrix tr.aging-parent-row:hover td:first-child{background:#dfe5f2;}
+.aging-matrix tr.aging-parent-row td:first-child{color:var(--navy);cursor:pointer;white-space:nowrap;}
+.aging-matrix tr.aging-parent-row:hover td:first-child{background:#f7f8fa;}
 .aging-matrix tr.aging-child-row td:first-child{padding-left:28px;color:#4f5870;font-weight:700;border-left:3px solid #c9d0df;}
 .aging-matrix .aging-tree-caret{display:inline-block;width:18px;color:var(--navy);font-size:11px;}
 .aging-matrix .aging-tree-hint{display:block;margin:2px 0 0 18px;color:var(--muted);font-size:9.5px;font-weight:600;}
@@ -871,15 +871,15 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
 
   <!-- 당월 실행 화면 + 월별 성과 추이 -->
   <div class="g2">
-    <!-- ① 당월 채널별 Aging 구성 바 차트 -->
+    <!-- ① 당월 품목군별 Aging 구성 바 차트 -->
     <div class="sec-card">
       <div class="sec-head">
         <div class="sec-tw"><div class="sec-bar"></div><div>
-          <div class="sec-title">당월 채널별 AGING</div>
-          <div class="sec-sub">기초재고(월초) 기준 · 채널별 = 채널 내 Aging 구성 · 구간별 = Aging 구간별 채널 비교</div>
+          <div class="sec-title">당월 품목군별 AGING</div>
+          <div class="sec-sub">기초재고(월초)·기준정보 품목군 기준 · 품목군별 = 품목군 내 Aging 구성 · 구간별 = Aging 구간별 품목군 비교</div>
         </div></div>
         <div class="no-print" style="display:flex;gap:6px;">
-          <button class="sc-btn on" onclick="setChartMode('stacked',this)" id="btnStacked">채널별</button>
+          <button class="sc-btn on" onclick="setChartMode('stacked',this)" id="btnStacked">품목군별</button>
           <button class="sc-btn" onclick="setChartMode('grouped',this)" id="btnGrouped">구간별</button>
         </div>
       </div>
@@ -926,13 +926,9 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
         <button class="aging-mode-btn" onclick="setAgingMode('delivery',this)">납품기한 Aging</button>
         <div style="width:1px;height:20px;background:var(--border);"></div>
         <select id="chFilter" onchange="onAgingFilterChange()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;">
-          <option value="">전체 채널</option>
-          <option value="건기식">건기식</option>
-          <option value="건기식(다이소)">건기식(다이소)</option>
-          <option value="구강">구강</option>
-          <option value="세븐일레븐">세븐일레븐</option>
+          <option value="">전체 품목군</option>
         </select>
-        <select id="monthFilter" onchange="setAgingViewMonth(this.value)" title="올린 Aging 파일 기준입니다. 과거월도 당월과 같은 원장 기준이라 채널·수량·SKU 드릴다운이 모두 나옵니다." style="display:none;height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:800;">
+        <select id="monthFilter" onchange="setAgingViewMonth(this.value)" title="올린 Aging 파일 기준입니다. 과거월도 당월과 같은 원장 기준이라 품목군·수량·SKU 드릴다운이 모두 나옵니다." style="display:none;height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:800;">
         </select>
         <select id="sourceFilter" onchange="onAgingFilterChange()" title="품목 기준 생산처(다이소 마스터). 창고 위치가 아닙니다 — 횡성 생산 품목이 향남 창고에 있어도 횡성으로 잡힙니다." style="display:none;height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;">
           <option value="">전체 생산처</option>
@@ -2388,7 +2384,7 @@ function parseNum(v){
 }
 function inventoryStatsText(stats){
   if(!stats) return '';
-  return `총 ${stats.totalRows.toLocaleString()}행 중 반영 ${stats.usedRows.toLocaleString()}행, 채널 공백 ${stats.skippedNoChannel.toLocaleString()}행, AGING 공백 ${stats.skippedNoAging.toLocaleString()}행, 금액 0/비숫자 ${stats.skippedNoAmount.toLocaleString()}행`;
+  return `총 ${stats.totalRows.toLocaleString()}행 중 반영 ${stats.usedRows.toLocaleString()}행, 구분 공백 ${stats.skippedNoChannel.toLocaleString()}행, AGING 공백 ${stats.skippedNoAging.toLocaleString()}행, 금액 0/비숫자 ${stats.skippedNoAmount.toLocaleString()}행`;
 }
 function parseBaseLabel(ws){
   const cell=ws?.['AM2'];
@@ -2516,11 +2512,11 @@ function handleUpload(file){
             const top=[...p.stats.skippedNoChannelMats].sort((a,b)=>b.a-a.a).slice(0,3)
               .map(x=>`${x.m} ${x.n}(${x.a.toFixed(2)}억)`).join(', ');
             // errors가 아니라 warnings — 업로드 자체를 막으면 나머지 탭까지 못 쓴다. 대신 상태줄에 ⚠로 뜬다.
-            warnings.push(`⚠ ${invSheet}: 채널 공백 ${p.stats.skippedNoChannel}행 · ${p.stats.skippedNoChannelAmt.toFixed(2)}억원이 Aging에서 누락 (${top}) · 원장 (채널)유통채널 수식 / 기준정보 자재코드 확인 필요`);
+            warnings.push(`⚠ ${invSheet}: 품목군·채널 구분 공백 ${p.stats.skippedNoChannel}행 · ${p.stats.skippedNoChannelAmt.toFixed(2)}억원이 Aging에서 누락 (${top}) · 기준정보 품목군 / 원장 (채널)유통채널 확인 필요`);
           }
         }
       }else{
-        warnings.push('현재고 시트 없음: 채널별 AGING은 기존 데이터 유지');
+        warnings.push('현재고 시트 없음: 품목군별 AGING은 기존 데이터 유지');
       }
       const trendSheet=findSheetName(wb,'현황');
       const psiSheet=findSheetName(wb,'PSI');
@@ -2535,9 +2531,13 @@ function handleUpload(file){
         result.trend_data=h.trend||{};
         result.hyunhwang_current_label=h.latestLabel||'당월';
         if(h.latestChAmt&&Object.keys(h.latestChAmt).length){
-          result.monthly_ch_amt={...(result.monthly_ch_amt||{}),[CURRENT_DETAIL_MONTH]:h.latestChAmt};
-          result.kpi_curr=h.latestKpi||result.kpi_curr;
-          warnings.push(`${trendSheet}: ${h.latestLabel} 당월 채널별 AGING 반영`);
+          // 원장에 기준정보 품목군으로 만든 당월 집계가 있으면 현황 시트의 옛 채널 집계로 덮지 않는다.
+          // 원장을 읽지 못한 경우에만 현황 집계를 상단 차트의 대체값으로 쓴다.
+          if(!result.monthly_ch_amt?.[CURRENT_DETAIL_MONTH]){
+            result.monthly_ch_amt={...(result.monthly_ch_amt||{}),[CURRENT_DETAIL_MONTH]:h.latestChAmt};
+            result.kpi_curr=h.latestKpi||result.kpi_curr;
+            warnings.push(`${trendSheet}: ${h.latestLabel} 당월 AGING 대체 집계 반영`);
+          }
         }
         warnings.push(`${trendSheet}: ${Object.keys(result.trend_data||{}).length}개 현황 스냅샷 반영`);
         // ⚠ '현황' 시트는 **당월 블록만 수식**이고 과거월은 값으로 박혀 있다.
@@ -2645,7 +2645,7 @@ function handleUpload(file){
       if(actualSheet){result.actual_unit=parseActualQtySheet(wb.Sheets[actualSheet]);}
       const salesPlanSheet=findSheetName(wb,'판매계획(SF)')||findSheetName(wb,'판매계획');
       if(salesPlanSheet){
-        result.sales_plan=parseSalesPlanSheet(wb.Sheets[salesPlanSheet]);
+        result.sales_plan=parseSalesPlanSheet(wb.Sheets[salesPlanSheet],pkgMap);
         const spCount=Object.keys(result.sales_plan).length;
         const hasTarget=!!result.sales_plan?.__summary?.target;
         if(spCount>0) warnings.push(`${salesPlanSheet}: ${spCount.toLocaleString()}개 SKU 단가/실적 반영${hasTarget?' · 사업계획 목표 반영':' · 사업계획 목표 미인식'}`);
@@ -2842,12 +2842,18 @@ function parseInventory(ws,pkgMap,srcMap,hierarchyMap){
     const amt=(parseNum(row[C.AVAIL_AMT])+parseNum(row[C.QC_AMT])+parseNum(row[C.HOLD_AMT]))/1e8;
     const aoType=normalizeAgingBucket(row[C.AO]);
     const matType=String(row[C.AP]||'');
-    const ch=String(row[C.CHANNEL]||'');
+    const rawCh=String(row[C.CHANNEL]||'').trim();
+    // ①탭의 구분은 아래 전월대비 표와 같은 `기준정보` 품목군을 단일 원천으로 쓴다.
+    // 원장의 (채널)유통채널 수식과 기준정보가 어긋나면 한 화면의 위·아래에서 같은 자재가
+    // 서로 다른 그룹으로 보이므로, 기준정보 시트 자체가 없는 옛 파일에서만 원장 채널로 폴백한다.
+    // 기준정보는 있지만 개별 자재 매핑만 빠졌다면 아래 표와 똑같이 `미분류`로 묶는다.
+    const pkg=String(pkgMap?.[String(mat)]||'').trim();
+    const ch=pkg||(!pkgMap?rawCh:(rawCh?'미분류':''));
     const rem=parseNum(row[C.REM]);
     const azType=normalizeDeliveryBucket(row[C.AZ]);
     if(!ch){
       stats.skippedNoChannel++;
-      // ⚠ 채널 공백이 전부 사고인 건 아니다 — 기초재고 시트에는 의약품 등 타사업부 원장이 통째로 섞여 있고
+      // ⚠ 구분 공백이 전부 사고인 건 아니다 — 기초재고 시트에는 의약품 등 타사업부 원장이 통째로 섞여 있고
       //   (26/7 파일 7,269행 1,698억) 그건 채널이 없는 게 정상이다. 기준정보(품목군 맵)에 등록된
       //   건기식 자재인데 채널만 비어 있을 때만 '수식 미채움/VLOOKUP #N/A' 사고로 본다.
       if(!pkgMap||pkgMap[String(mat)]){
@@ -2868,10 +2874,10 @@ function parseInventory(ws,pkgMap,srcMap,hierarchyMap){
     const src=normalizeSourcePlant((srcMap&&srcMap.get(String(mat)))||row[C.PLANT_NAME]);
     if(src) sources[src]=true;
     if(pkgMap){
-      const pkg=pkgMap[String(mat)]||'미분류';
+      const pkgGroup=pkg||'미분류';
       // ⚠ 매트릭스의 sku.a는 0.1백만원 반올림이라 그걸 다시 더하면 총액이 어긋난다. 원본 amt로 더할 것.
       const bump=agg=>{
-        const g=agg[pkg]||(agg[pkg]={a:0,q:0,skus:{}});
+        const g=agg[pkgGroup]||(agg[pkgGroup]={a:0,q:0,skus:{}});
         g.a+=amt; g.q+=qty;
         const sk=g.skus[mat]||(g.skus[mat]={n:name,a:0,q:0});
         if(!sk.n&&name) sk.n=name;
@@ -2890,7 +2896,7 @@ function parseInventory(ws,pkgMap,srcMap,hierarchyMap){
     const chRemMo=Math.round(parseNum(row[C.CHDL_MO]))||0;
     const plant=String(row[C.PLANT]||'').trim();
     if(plant&&!plants[plant]) plants[plant]=String(row[C.PLANT_NAME]||'').trim()||plant;
-    const sku={m:mat,n:name,hierarchy:hierarchyMap?.[String(mat)]||'',q:qty,av,qc,hd,a:Math.round(amt*1e8/1e6*10)/10,t:matType,r:rem,chRemMo,p:plant,sp:src,
+    const sku={m:mat,n:name,pkg:ch,hierarchy:hierarchyMap?.[String(mat)]||'',q:qty,av,qc,hd,a:Math.round(amt*1e8/1e6*10)/10,t:matType,r:rem,chRemMo,p:plant,sp:src,
       // b/lc는 화면에 안 그린다 — 드릴다운 소진계획 메모 키를 행 단위로 만들기 위한 식별자다.
       b:String(row[C.BATCH]||'').trim(), lc:String(row[C.LOC]||'').trim()};
     // 유통기한 기준 (AO열)
@@ -3467,7 +3473,63 @@ function splitSalesPlanHeaderBlocks(headerRow){
   return blocks;
 }
 
-function parseSalesPlanSheet(ws){
+function salesPlanBrandFromDetail(mat,a,pkgMap){
+  const mapped=String(pkgMap?.[String(mat)]||'').trim();
+  if(mapped) return mapped;
+  const name=String(a?.name||'').trim();
+  // 판매계획(SF) 상세 C열 채널이 다이소이고 품명이 닥터베어면 신규 자재가 기준정보에
+  // 아직 등록되지 않았더라도 닥터베어(다이소)로 분류한다.
+  const channels=Object.keys(a?.byChannel||{}).map(v=>String(v).trim());
+  if(channels.includes('다이소')&&name.includes('닥터베어')) return '닥터베어(다이소)';
+  if(name.includes('흑곰샷')) return '흑곰샷';
+  return '기타';
+}
+function rebuildSalesPlanBrandSummary(summary,acc,actMonthMeta,planMonthMeta,pkgMap){
+  const baseYear=Number(summary?.__layout?.baseYear)||new Date().getFullYear();
+  const actualMonths=(summary?.actualMonths||[]).map(Number);
+  const groups={};
+  Object.entries(acc||{}).forEach(([mat,a])=>{
+    const name=salesPlanBrandFromDetail(mat,a,pkgMap);
+    const g=groups[name]||(groups[name]={name,prevActual:Array(12).fill(0),actual:Array(actualMonths.length).fill(0),plan:Array(planMonthMeta.length).fill(0),__detailGrouped:true});
+    (a.monthlyAmts||[]).forEach((amt,i)=>{
+      const meta=actMonthMeta[i],value=(Number(amt)||0)/1e8;
+      if(!meta||!value) return;
+      if(meta.year===baseYear-1) g.prevActual[meta.month-1]+=value;
+      if(meta.year===baseYear){const ai=actualMonths.indexOf(meta.month);if(ai>=0) g.actual[ai]+=value;}
+    });
+    (a.planAmts||[]).forEach((amt,i)=>{g.plan[i]+=(Number(amt)||0)/1e8;});
+  });
+  const preferred=['닥터베어','닥터베어(다이소)','플래티넘','집중샷','흑곰샷','퍼펙트샷','에너씨슬','합쎈','덴티가드','투윅스','기타'];
+  return Object.values(groups)
+    .filter(r=>[...r.prevActual,...r.actual,...r.plan].some(v=>Math.abs(Number(v)||0)>1e-10))
+    .sort((a,b)=>{
+      const ai=preferred.indexOf(a.name),bi=preferred.indexOf(b.name);
+      return (ai<0?preferred.length:ai)-(bi<0?preferred.length:bi)||a.name.localeCompare(b.name,'ko');
+    });
+}
+function rebuildSalesPlanChannelSummary(summary,detailByChannel,actMonthMeta,planMonthMeta){
+  const baseYear=Number(summary?.__layout?.baseYear)||new Date().getFullYear();
+  const actualMonths=(summary?.actualMonths||[]).map(Number);
+  const preferredRows=summary?.ch||[];
+  const preferred=preferredRows.map(r=>String(r.name||'').replace(/\s/g,''));
+  const displayByKey=Object.fromEntries(preferredRows.map(r=>[String(r.name||'').replace(/\s/g,''),String(r.name||'')]));
+  return Object.entries(detailByChannel||{}).map(([key,d])=>{
+    const row={name:displayByKey[key]||d.name||key,prevActual:Array(12).fill(0),actual:Array(actualMonths.length).fill(0),plan:Array(planMonthMeta.length).fill(0),__detailGrouped:true};
+    (d.monthlyAmts||[]).forEach((amt,i)=>{
+      const meta=actMonthMeta[i],value=(Number(amt)||0)/1e8;
+      if(!meta||!value) return;
+      if(meta.year===baseYear-1) row.prevActual[meta.month-1]+=value;
+      if(meta.year===baseYear){const ai=actualMonths.indexOf(meta.month);if(ai>=0) row.actual[ai]+=value;}
+    });
+    (d.planAmts||[]).forEach((amt,i)=>{row.plan[i]+=(Number(amt)||0)/1e8;});
+    return {key,row};
+  }).filter(({row})=>[...row.prevActual,...row.actual,...row.plan].some(v=>Math.abs(Number(v)||0)>1e-10))
+    .sort((a,b)=>{
+      const ai=preferred.indexOf(a.key),bi=preferred.indexOf(b.key);
+      return (ai<0?preferred.length:ai)-(bi<0?preferred.length:bi)||a.row.name.localeCompare(b.row.name,'ko');
+    }).map(x=>x.row);
+}
+function parseSalesPlanSheet(ws,pkgMap){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
   // 34행=판매계획 헤더, 35행=년월(I~AF 실적 컬럼의 실제 년월은 이 헤더에서 직접 읽음, 고정 배치 가정 안 함)
   // I(8)~AF(31): 실적금액  AG(32)~AK(36): 계획금액(월 롤링, 매달 컬럼이 밀림)
@@ -3541,7 +3603,7 @@ function parseSalesPlanSheet(ws){
     Object.values(a.byChannel||{}).forEach(c=>{
       const key=channelKey(c.ch);
       if(!key) return;
-      const d=detailByChannel[key]||(detailByChannel[key]={monthlyAmts:new Array(24).fill(0),planAmts:new Array(5).fill(0)});
+      const d=detailByChannel[key]||(detailByChannel[key]={name:c.ch,monthlyAmts:new Array(24).fill(0),planAmts:new Array(5).fill(0)});
       c.monthlyAmts.forEach((v,i)=>{d.monthlyAmts[i]+=Number(v)||0;});
       c.planAmts.forEach((v,i)=>{d.planAmts[i]+=Number(v)||0;});
     });
@@ -3566,6 +3628,12 @@ function parseSalesPlanSheet(ws){
     return restored;
   }).filter(row=>[...(row.prevActual||[]),...(row.actual||[]),...(row.plan||[])].some(v=>Number(v)!==0));
   summary.__restoredChannels=restoredChannels;
+  // 채널도 H열 요약 수식이 아니라 SKU 상세 C열을 단일 원천으로 다시 집계한다.
+  summary.ch=rebuildSalesPlanChannelSummary(summary,detailByChannel,actMonthMeta,planMonthMeta);
+  summary.__restoredChannels=[];
+  // 브랜드 요약은 H열 합계 차액으로 임의 보정하지 않는다. SKU 상세의 C열 채널과 D열 자재코드를
+  // 기준정보 품목군에 매칭해 다시 묶는다. 이 경로가 닥터베어(다이소)와 신규 흑곰샷을 구분한다.
+  summary.brand=rebuildSalesPlanBrandSummary(summary,acc,actMonthMeta,planMonthMeta,pkgMap);
 
   const result={__summary:summary};
   Object.entries(acc).forEach(([mat,a])=>{
@@ -4930,13 +4998,13 @@ function renderChAgingFallback(chData, cats, colors, snap){
   }
   rows.sort(function(a,b){return b.total-a.total;});
   if(!rows.length){
-    box.innerHTML='<div class="fb-note" style="margin-left:0;">표시할 채널별 Aging 데이터가 없습니다.</div>';
+    box.innerHTML='<div class="fb-note" style="margin-left:0;">표시할 품목군별 Aging 데이터가 없습니다.</div>';
     return;
   }
 
   var max=Math.max.apply(null,rows.map(function(r){return r.total;}))||1;
   var activeCats=cats.filter(function(c){return rows.some(function(r){return r.vals.some(function(v){return v.cat===c&&v.val>0;});});});
-  var html='<div class="fb-note">외부 차트 라이브러리가 차단되어 HTML 막대그래프로 표시 중입니다. 금액 큰 채널 순서입니다.</div>';
+  var html='<div class="fb-note">외부 차트 라이브러리가 차단되어 HTML 막대그래프로 표시 중입니다. 금액 큰 품목군 순서입니다.</div>';
   rows.forEach(function(r){
     var width=Math.max(4,Math.round((r.total/max)*100));
     html+='<div class="fb-row"><div class="fb-label" title="'+r.label+'">'+r.label+'</div><div class="fb-track" style="width:'+width+'%">';
@@ -4984,11 +5052,11 @@ function renderChAgingChart(){
   var activeCats=ACT_CATS.filter(function(c){return allChs.some(function(ch){return cellAmt((chData[ch]||{})[c])>0;});});
   if(!activeCats.length){
     renderChAgingFallback(null,ACT_CATS,ACT_COL,null);
-    if(fallback) fallback.innerHTML='<div class="fb-note" style="margin-left:0;color:var(--red);font-weight:800;">채널별 AGING 데이터가 없습니다. 업로드한 현재고 시트의 AO/AZ 구간명, AV 채널, AT 재고금액 컬럼을 확인해 주세요.</div>';
+    if(fallback) fallback.innerHTML='<div class="fb-note" style="margin-left:0;color:var(--red);font-weight:800;">품목군별 AGING 데이터가 없습니다. 업로드한 현재고 시트의 AO/AZ 구간명, 기준정보 품목군, 재고금액 컬럼을 확인해 주세요.</div>';
     return;
   }
 
-  // 먼저 HTML 막대그래프를 그려둔다. Chart.js가 실패해도 당월 채널별 AGING은 반드시 보인다.
+  // 먼저 HTML 막대그래프를 그려둔다. Chart.js가 실패해도 당월 품목군별 AGING은 반드시 보인다.
   renderChAgingFallback(chData,ACT_CATS,ACT_COL,null);
   if(typeof Chart==='undefined') return;
   canvas.style.display='block';
@@ -5024,7 +5092,7 @@ function renderChAgingChart(){
           x:{grid:{color:'#f0f1f5'},ticks:{callback:function(v){return v+'억';},font:{size:10}},border:{display:false}}}}});
   }
   }catch(e){
-    console.warn('[SOP] 채널별 AGING Chart.js 렌더 실패, HTML 막대그래프로 대체', e);
+    console.warn('[SOP] 품목군별 AGING Chart.js 렌더 실패, HTML 막대그래프로 대체', e);
     canvas.style.display='none';
     renderChAgingFallback(chData,ACT_CATS,ACT_COL,null);
   }
@@ -5203,6 +5271,7 @@ function _syncFilterSelect(id,pairs,allLabel){
   sel.value=pairs.some(x=>x[0]===prev)?prev:'';
 }
 function syncMatrixFilterOptions(mxData){
+  _syncFilterSelect('chFilter',Object.keys(mxData||{}).sort((a,b)=>String(a).localeCompare(String(b),'ko')).map(v=>[v,v]),'전체 품목군');
   // 생산처 목록은 파서가 모아준 것을 쓰되, 옛 파싱본(sources 없음)이면 매트릭스의 sku.sp에서 줍는다.
   let srcs=Object.keys(getInvSources()||{});
   if(!srcs.length){
@@ -5294,7 +5363,7 @@ function renderMatrix(){
       html+=`<td><div class="cell-val">${v.toFixed(1)}억</div></td>`;
     });
     html+=`<td class="total-col"><div class="cell-val" style="font-size:14px;">${(snap['계']||total).toFixed(1)}억</div></td></tr>`;
-    html+=`<tr><td colspan="${cats.length+2}" style="text-align:center;padding:12px;color:var(--muted);font-size:11px;">📌 당월 채널별 상세 데이터 미확보 — 최신 현재고 업로드 후 자동 반영</td></tr>`;
+    html+=`<tr><td colspan="${cats.length+2}" style="text-align:center;padding:12px;color:var(--muted);font-size:11px;">📌 당월 품목군별 상세 데이터 미확보 — 최신 현재고 업로드 후 자동 반영</td></tr>`;
     html+=`</tbody>`;
     document.getElementById('agingMatrix').innerHTML=html;
     const fallbackNote=document.getElementById('matrixRevNote');
@@ -5307,7 +5376,7 @@ function renderMatrix(){
   const costData=getCostData();
   const weightedCostRate=costData?.costRate||0;
 
-  let html=`<thead><tr><th class="ch-head">채널 / 생산처</th>`;
+  let html=`<thead><tr><th class="ch-head">구분</th>`;
   cats.forEach(c=>html+=`<th style="color:#fff;background:${catCol[c]||'#888'}">${c}</th>`);
   html+=`<th>합계</th><th>매출환산</th><th class="sf-head">재고 보유 SKU<br>판매계획</th><th class="months-head">재고개월</th></tr></thead><tbody>`;
   const bodyStart=html.length;
@@ -5437,7 +5506,7 @@ function renderMatrix(){
     }
     if(f.srcF) parts.push(`생산처 ${f.srcF}(품목 기준)`);
     if(f.typeF) parts.push(`자재유형 ${f.typeF}`);
-    if(chF) parts.push(`채널 ${chF}`);
+    if(chF) parts.push(`품목군 ${chF}`);
     if(parts.length){
       fNote.style.display='block';
       fNote.textContent=`※ 이 표에만 적용 중 (${parts.join(' · ')}) — 걸러진 건 이 표·SKU 드릴다운과 아래 품목군 전월대비(생산처만)입니다. 상단 KPI 카드와 재고 추이 차트는 현황 시트 기준 당월(${(getKpiCurr()?.['계']??0).toFixed(2)}억) 그대로입니다.`;
@@ -9955,21 +10024,6 @@ function getSPRows(mode=spMode){
   const uploaded=UPLOADED?.sales_plan?.__summary?.[key];
   const fallback=mode==='brand'?SP_BRAND:SP_CH;
   const clean=rows=>rows.filter(r=>!SP_EXCLUDED_ROWS.has(String(r.name||'').trim()));
-  const reconcileBrandRows=rows=>{
-    // SF 원본의 브랜드 구분에는 일부 채널 계획이 빠지는 달이 있다. 26/10 원본은
-    // 10~12월에 각각 0.8/4.2/5.2억이 빠져 브랜드 탭 합계와 채널 탭 합계가 달랐다.
-    // 채널 합계를 기준으로 차이를 별도 행에 드러내 합계를 맞춘다. 임의 브랜드에
-    // 배분하지 않아 원본의 분류 누락도 함께 확인할 수 있다.
-    if(!UPLOADED?.sales_plan?.__summary?.ch?.length) return rows;
-    const channelRows=getSPRows('ch');
-    const diff=field=>{
-      const count=Math.max(...rows.map(r=>(r[field]||[]).length),...channelRows.map(r=>(r[field]||[]).length),0);
-      return Array.from({length:count},(_,i)=>channelRows.reduce((s,r)=>s+(Number(r[field]?.[i])||0),0)-rows.reduce((s,r)=>s+(Number(r[field]?.[i])||0),0));
-    };
-    const prevActual=diff('prevActual'),actual=diff('actual'),plan=diff('plan');
-    if(![...prevActual,...actual,...plan].some(v=>Math.abs(v)>0.01)) return rows;
-    return [...rows,{name:'기타(브랜드 미분류)',prevActual,actual,plan,__reconciliation:true}];
-  };
   if(uploaded?.length){
     const fallbackByName=new Map(fallback.map(r=>[r.name,r]));
     const rows=clean(uploaded).map(r=>{
@@ -9978,7 +10032,7 @@ function getSPRows(mode=spMode){
       if(actual.length<5&&fb.actual?.[4]!=null) actual[4]=fb.actual[4];
       return {...r,actual,prevActual:(r.prevActual?.length?r.prevActual:fb.prevActual)||[],plan:(r.plan?.length?r.plan:fb.plan)||[]};
     });
-    return mode==='brand'?reconcileBrandRows(rows):rows;
+    return rows;
   }
   return clean(fallback);
 }
