@@ -40,12 +40,22 @@ const checkAuth = has('--check-auth');
 const PAGES_PROJECT = 's-op-gungi';
 const GIT_DEPLOY_REMOTE = 'origin';
 const GIT_DEPLOY_BRANCH = 'main';
+// 2026.10은 직전 운영 스냅샷이 유실된 상태에서 품목군 체계까지 바뀌었다.
+// 이 달만 9월 기초재고를 10월 기준정보로 재매칭하고, 이후에는 아래의 라이브 직전 스냅샷을 우선한다.
+const PKG_REMAP_CURRENT_MONTH = '2026.10';
 const PAGES_ACCOUNT_ID = readLocalEnv('CLOUDFLARE_ACCOUNT_ID') || '14c780e41fc86dde4101283fb427b14e';
 const WRANGLER_VERSION = '4.110.0';
 
 const md5 = buf => crypto.createHash('md5').update(buf).digest('hex');
 const step = (n, total, title) => console.log(`\n[${n}/${total}] ${title}`);
 const say = (...m) => console.log('      ' + m.join(' '));
+
+function previousYearMonth(yearMonth) {
+  const m = String(yearMonth || '').match(/^(\d{4})\.(\d{2})$/);
+  if (!m) return '';
+  const date = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 2, 1));
+  return `${date.getUTCFullYear()}.${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+}
 
 // 일부 Codespaces/제한 실행 환경에서는 Node의 spawnSync/execFileSync가
 // 자식 프로세스가 정상 종료된 뒤에도 EPERM을 반환한다. 배포/진단 명령을
@@ -276,6 +286,17 @@ if (!codeOnly) {
   const prevPaths = prevFile
     ? [path.resolve(ROOT, prevFile)]
     : findPrevAgingExcels(found.path).map(f => f.path);
+  const currentYearMonth = agingYearMonth(path.basename(found.path));
+  let livePkgSnapshot = null;
+  // 다음 달부터는 직전 발행 때 얼려 둔 스냅샷을 그대로 이어받는다. 명시적 --prev는 사용자의 선택을 우선한다.
+  if (!prevFile) {
+    try {
+      const candidate = await readLivePkgSnapshot(base);
+      if (candidate?.yearmonth === previousYearMonth(currentYearMonth)) livePkgSnapshot = candidate;
+    } catch (e) {
+      say(`⚠ 라이브 직전 스냅샷 확인 실패(${String(e.message || e).slice(0, 60)}) — 과거 파일로 보완합니다`);
+    }
+  }
   let prevSalesTarget = null;
   for (const prevPath of prevPaths) {
     try {
@@ -297,16 +318,19 @@ if (!codeOnly) {
       // ⚠ 한 파일이 여러 달을 담는다 — 26/7 파일은 기초재고=6/1, 현재고=7/8이다.
       //    3번째 인자(당월 기준월)로 당월 이후를 걸러내고, 4번째(생산처 맵 소스)는 반드시 **당월 파일**이다
       //    (다이소 마스터의 생산처 지정이 달마다 바뀌어, 각 달 마스터를 쓰면 이관이 증감으로 잡힌다).
-      const months = readPrevMonths(prevPaths, base, agingYearMonth(path.basename(found.path)), found.path);
+      const remapPkgToCurrent = currentYearMonth === PKG_REMAP_CURRENT_MONTH;
+      const months = readPrevMonths(prevPaths, base, currentYearMonth, found.path, { remapPkgToCurrent });
       months.forEach(m => say(
         `과거월 ${m.yearmonth} (${m.label} · ${m.sheet} 시트) ${m.total.a.toFixed(2)}억` +
-        (m.bySrc ? ` · ${Object.entries(m.bySrc).map(([k, v]) => `${k} ${v.total.a.toFixed(2)}`).join(' / ')}` : '')
+        (m.bySrc ? ` · ${Object.entries(m.bySrc).map(([k, v]) => `${k} ${v.total.a.toFixed(2)}`).join(' / ')}` : '') +
+        (m.pkgFrom ? ` · 품목군 ${m.pkgFrom}` : '')
       ));
       // Risk 이력은 **모든 과거월**을 쓴다(품목군 카드는 바로 앞 달 하나만).
       //   어느 파일의 어느 시트가 그 달을 대표하는지 여기서 이미 정해졌으므로 그 결정을 그대로 넘긴다.
       prevMonthRecords = months.map(m => ({ yearmonth: m.yearmonth, sheet: m.sheet, file: m.file, label: m.label }));
       // 품목군 전월대비 카드는 **바로 앞 달** 하나만 쓴다(readPrevMonths가 최신순으로 준다).
-      prevPkg = months[0] || null;
+      prevPkg = livePkgSnapshot || months[0] || null;
+      if (livePkgSnapshot) say(`전월 스냅샷을 라이브에서 이어받았습니다 (${livePkgSnapshot.yearmonth} 기준일 ${livePkgSnapshot.label} · ${livePkgSnapshot.total.a.toFixed(2)}억)`);
       if (prevPkg) prevPkg.months = months.map(m => m.month);
       else say('⚠ 과거 파일에서 품목군 집계를 얻지 못했습니다 — 전월대비 표는 표시되지 않습니다');
     } catch (e) {

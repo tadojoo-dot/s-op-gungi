@@ -204,9 +204,14 @@ export function agingYearMonth(name) {
 // srcMasterPath: 생산처(향남/횡성) 지정을 읽어올 파일. ⚠ **당월 파일을 넘겨야 한다.**
 //   '다이소 마스터'의 생산처 지정은 달마다 바뀌어(26/7→26/8에 22개 코드) 각 달의 마스터를 각각 쓰면
 //   이관 자체가 재고 증감으로 잡힌다. 안 넘기면 생산처 분해 없이(bySrc 없음) 스냅샷을 만든다.
-export function readPrevMonths(prevPaths, base = LIVE_BASE, curYearMonth = null, srcMasterPath = null) {
+// opts.remapPkgToCurrent: 당월 파일의 기준정보 품목군을 과거월 원장에도 자재코드로 적용한다.
+//   2026.10 전월대비 복구 전용이다. 당시 9월 스냅샷이 KV에 남지 않았고 10월에 품목군 체계가
+//   크게 바뀌었으므로, 9월 기초재고의 수량/금액은 유지하면서 두 달의 분류 기준만 10월로 맞춘다.
+//   당월 맵에 없는 자재는 과거 파일의 품목군으로 폴백한다.
+export function readPrevMonths(prevPaths, base = LIVE_BASE, curYearMonth = null, srcMasterPath = null, opts = {}) {
   const browser = createBrowser(base);
   browser.sandbox.__curYm = curYearMonth || null;
+  browser.sandbox.__remapPkgToCurrent = !!opts.remapPkgToCurrent;
   browser.sandbox.__srcBin = srcMasterPath && fs.existsSync(srcMasterPath)
     ? fs.readFileSync(srcMasterPath).toString('binary') : null;
   browser.sandbox.__bins = (Array.isArray(prevPaths) ? prevPaths : [prevPaths])
@@ -214,11 +219,15 @@ export function readPrevMonths(prevPaths, base = LIVE_BASE, curYearMonth = null,
     .map(p => ({ name: path.basename(p), bin: fs.readFileSync(p).toString('binary') }));
   const months = browser.run(`(function(){
     // 생산처 맵은 **당월 파일**의 다이소 마스터에서 온다 — 두 달을 같은 기준으로 묶기 위해서다.
-    let srcMap=null;
+    let srcMap=null, currentPkgMap=null;
     if(__srcBin){
       const cw=XLSX.read(__srcBin,{type:'binary'});
       const dm=cw.SheetNames.find(n=>String(n).replace(/\s/g,'')==='다이소마스터');
       if(dm) srcMap=parseDaisoMasterSheet(cw.Sheets[dm]).plantByMaterial;
+      if(__remapPkgToCurrent){
+        const ref=findSheetName(cw,'기준정보');
+        if(ref) currentPkgMap=parsePkgGroupMap(cw.Sheets[ref]);
+      }
     }
     const byYm=new Map();   // 기준월 → 그 달을 대표하는 원장 시트
     __bins.forEach(f=>{
@@ -240,11 +249,14 @@ export function readPrevMonths(prevPaths, base = LIVE_BASE, curYearMonth = null,
       byYm.set(pick.ym,{name:pick.name,sheet:pick.sheet,ym:pick.ym,file:f.name,ws:pick.ws,pkgMap});
     });
     const out=[...byYm.values()].sort((a,b)=>b.ym.localeCompare(a.ym)).map(m=>{
-      const p=parseInventory(m.ws,m.pkgMap,srcMap);
+      // 이번 달 한정 보정: 당월 품목군을 우선하고, 당월에 없는 옛 자재만 과거 맵으로 보완한다.
+      const effectivePkgMap=currentPkgMap?Object.assign({},m.pkgMap||{},currentPkgMap):m.pkgMap;
+      const p=parseInventory(m.ws,effectivePkgMap,srcMap);
       const snap=buildPkgSnapshot(p.pkgAgg,parseBaseLabel(m.ws),m.ym,p.pkgAggBySrc);
       if(!snap) return null;
       snap.sheet=m.sheet; snap.file=m.file;
       snap.srcFrom=__srcBin?'당월 마스터':'(생산처 분해 없음)';
+      snap.pkgFrom=currentPkgMap?'당월 기준정보(자재코드 재매칭)':'해당 월 기준정보';
       // ①탭 월 필터용 매트릭스. 과거월 파일도 원장 전체를 갖고 있어 당월과 **똑같은 수준**으로 볼 수 있다
       //   (채널 4개·수량·SKU 드릴다운·생산처 필터 전부). 현황 시트 요약과는 다른 소스다.
       snap.month={
