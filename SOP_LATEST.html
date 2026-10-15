@@ -947,6 +947,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
       <table class="aging-matrix" id="agingMatrix"></table>
       <div id="matrixFilterNote" style="display:none;margin:8px 16px 0;font-size:10.5px;color:var(--terra);font-weight:800;"></div>
       <div id="matrixRevNote" style="display:none;margin:8px 16px 0;font-size:10.5px;color:var(--muted);">※ 매출환산: 원가 시트의 전체 원가금액 합계 ÷ 전체 순매출액 합계로 산출한 가중 원가율을 재고금액(원가 기준)에 적용합니다. 재고개월 = 매출환산 ÷ 해당월 SF 월계획입니다.</div>
+      <div id="matrixSfCoverageNote" style="display:none;margin:8px 16px 12px;font-size:11px;color:var(--text);"></div>
     </div>
     <div class="drilldown" id="drilldown">
       <div class="dd-header">
@@ -2303,6 +2304,32 @@ function agingSfSummary(skus,channel,mKey){
   });
   return {yearmonth,amt,matched,missing,total:seen.size};
 }
+function agingSfCoverage(mxData,mKey){
+  const yearmonth=agingYearMonthForKey(mKey);
+  const inventoryMats=new Set();
+  Object.values(mxData||{}).forEach(ch=>Object.values(ch||{}).forEach(cell=>(cell?.s||[]).forEach(s=>inventoryMats.add(String(s.m||'')))));
+  let total=0,excludedAmt=0;
+  const excluded=[];
+  Object.entries(getSalesPlanData()||{}).forEach(([mat,rec])=>{
+    if(String(mat).startsWith('__')) return;
+    const plan=(rec?.planAmt||[]).find(x=>`${x?.year}.${String(x?.month??'').padStart(2,'0')}`===yearmonth);
+    const amt=Number(plan?.amt)||0;
+    if(amt<=0) return;
+    total+=amt;
+    if(!inventoryMats.has(String(mat))){excludedAmt+=amt;excluded.push({mat:String(mat),name:rec?.name||'',amt});}
+  });
+  excluded.sort((a,b)=>b.amt-a.amt||a.mat.localeCompare(b.mat));
+  return {yearmonth,total,included:total-excludedAmt,excludedAmt,excluded};
+}
+function renderAgingSfCoverageNote(mxData,mKey){
+  const el=document.getElementById('matrixSfCoverageNote');
+  if(!el) return;
+  const c=agingSfCoverage(mxData,mKey);
+  if(!c.total||!c.excluded.length){el.style.display='none';el.innerHTML='';return;}
+  const rows=c.excluded.map(x=>`<tr><td style="padding:4px 8px;border-bottom:1px solid var(--border);font-weight:800;">${escapeSensingText(x.mat)}</td><td style="padding:4px 8px;border-bottom:1px solid var(--border);">${escapeSensingText(x.name||'품목명 없음')}</td><td style="padding:4px 8px;border-bottom:1px solid var(--border);text-align:right;font-weight:800;">${fmtAmt(x.amt/1e8)}</td></tr>`).join('');
+  el.style.display='block';
+  el.innerHTML=`<details><summary style="cursor:pointer;font-weight:800;color:var(--navy);">SF 전체 ${fmtAmt(c.total/1e8)} · 재고 보유 SKU ${fmtAmt(c.included/1e8)} · 재고 없는 계획 SKU ${c.excluded.length}개 ${fmtAmt(c.excludedAmt/1e8)} 제외</summary><div style="overflow-x:auto;margin-top:6px;"><table style="width:100%;border-collapse:collapse;font-size:10.5px;"><thead><tr><th style="text-align:left;padding:4px 8px;background:#eef0f9;">자재코드</th><th style="text-align:left;padding:4px 8px;background:#eef0f9;">품목명</th><th style="text-align:right;padding:4px 8px;background:#eef0f9;">SF 판매계획</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+}
 function agingMonthsText(v){
   return v==null||!Number.isFinite(v)?'—':`${v.toFixed(1)}개월`;
 }
@@ -3461,6 +3488,7 @@ function parseSalesPlanSheet(ws){
     const mat=String(row[3]||'').trim();
     if(!mat||!/^\d+$/.test(mat)) return;
     const ch=String(row[2]||row[1]||row[0]||'미분류').trim()||'미분류';
+    const name=String(row[4]||'').trim();
     let unitPrice=Number(row[37])||0; // AL: 이번 달(현재월) 판매단가
     if(!unitPrice){
       for(let c=0;c<=4;c++){
@@ -3469,9 +3497,10 @@ function parseSalesPlanSheet(ws){
       }
     }
     if(!acc[mat]){
-      acc[mat]={unitPrice:0,monthlyAmts:new Array(24).fill(0),monthlyHas:new Array(24).fill(false),planAmts:new Array(5).fill(0),planQtys:new Array(5).fill(0),byChannel:{}};
+      acc[mat]={name,unitPrice:0,monthlyAmts:new Array(24).fill(0),monthlyHas:new Array(24).fill(false),planAmts:new Array(5).fill(0),planQtys:new Array(5).fill(0),byChannel:{}};
     }
     const a=acc[mat];
+    if(!a.name&&name) a.name=name;
     if(unitPrice>0&&a.unitPrice===0) a.unitPrice=unitPrice;
     if(!a.byChannel[ch]) a.byChannel[ch]={ch,unitPrice:0,monthlyAmts:new Array(24).fill(0),monthlyHas:new Array(24).fill(false),planAmts:new Array(5).fill(0),planQtys:new Array(5).fill(0)};
     if(unitPrice>0&&a.byChannel[ch].unitPrice===0) a.byChannel[ch].unitPrice=unitPrice;
@@ -3558,7 +3587,7 @@ function parseSalesPlanSheet(ws){
         planQty:c.planQtys.map((qty,i)=>({year:planYear(i),month:planMonth(i),qty}))
       };
     });
-    result[mat]={mat,monthly,unitPrice,planAmt,planQty,byChannel};
+    result[mat]={mat,name:a.name||'',monthly,unitPrice,planAmt,planQty,byChannel};
   });
   return result;
 }
@@ -5272,6 +5301,8 @@ function renderMatrix(){
     document.getElementById('agingMatrix').innerHTML=html;
     const fallbackNote=document.getElementById('matrixRevNote');
     if(fallbackNote) fallbackNote.style.display='none';
+    const sfCoverageNote=document.getElementById('matrixSfCoverageNote');
+    if(sfCoverageNote){sfCoverageNote.style.display='none';sfCoverageNote.innerHTML='';}
     return;
   }
 
@@ -5281,7 +5312,7 @@ function renderMatrix(){
 
   let html=`<thead><tr><th class="ch-head">채널 / 생산처</th>`;
   cats.forEach(c=>html+=`<th style="color:#fff;background:${catCol[c]||'#888'}">${c}</th>`);
-  html+=`<th>합계</th><th>매출환산</th><th class="sf-head">판매계획</th><th class="months-head">재고개월</th></tr></thead><tbody>`;
+  html+=`<th>합계</th><th>매출환산</th><th class="sf-head">재고 보유 SKU<br>판매계획</th><th class="months-head">재고개월</th></tr></thead><tbody>`;
 
   const totals={};cats.forEach(c=>totals[c]={a:0,q:0});let grandA=0,grandQ=0,grandRev=0,grandSf=0,grandSfMatched=0,grandSfMissing=0;
 
@@ -5384,6 +5415,7 @@ function renderMatrix(){
   document.getElementById('agingMatrix').innerHTML=html;
   const note=document.getElementById('matrixRevNote');
   if(note) note.style.display=revenueMultiplier>0?'block':'none';
+  renderAgingSfCoverageNote(mxData,mKey);
   // 필터를 걸면 이 표만 걸러진다. 상단 KPI 카드는 '현황' 시트 SUMIFS 결과라 생산처/자재유형 축이 없어
   // 따라올 수 없다 — 말없이 두면 한 화면에서 총액이 갈린 것처럼 보인다.
   // (추이 차트의 월별 총액은 원장 있는 달을 원장 값으로 맞춰뒀다 — 위 handleUpload 주석 참고)
