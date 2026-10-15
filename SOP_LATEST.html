@@ -3106,7 +3106,33 @@ function getRiskHistory(){return UPLOADED?.risk_history||null;}
 // 그 달 · 그 (자재|채널)의 얼린 기록
 function riskHistoryRow(ym,mat,ch){
   const h=getRiskHistory();
-  return h?.[ym]?.rows?.[String(mat)+'|'+String(ch)]||null;
+  const rows=h?.[ym]?.rows;
+  if(!rows) return null;
+  const exact=rows[String(mat)+'|'+String(ch)];
+  if(exact) return exact;
+  // 2026.10부터 Aging의 구분 축이 옛 원장 채널 → 기준정보 품목군으로 바뀌었다.
+  // 과거 스냅샷은 `자재|건기식` 같은 키라 현재 `자재|에너씨슬`로는 찾을 수 없다.
+  // 동일 자재의 과거 채널 행을 합산해 축 변경 전후의 이력을 이어 붙인다.
+  const matches=Object.values(rows).filter(r=>String(r?.m||'')===String(mat));
+  if(!matches.length) return null;
+  if(matches.length===1) return matches[0];
+  const statusPriority=['미소진 Risk','판매계획 없음','정상소진 가능'];
+  const minRem=matches.map(r=>r.rem).filter(v=>v!=null&&Number.isFinite(Number(v))).map(Number);
+  const minValid=matches.map(r=>r.validDays).filter(v=>v!=null&&Number.isFinite(Number(v))).map(Number);
+  const expRem=matches.reduce((s,r)=>s+(Number(r.expRem)||0),0);
+  const amtCost=matches.reduce((s,r)=>s+(Number(r.amtCost)||0),0);
+  return {
+    ...matches[0],ch:String(ch),
+    q:matches.reduce((s,r)=>s+(Number(r.q)||0),0),
+    a:matches.reduce((s,r)=>s+(Number(r.a)||0),0),
+    rem:minRem.length?Math.min(...minRem):null,
+    st:statusPriority.find(st=>matches.some(r=>r.st===st))||matches[0].st||'',
+    expRem,amtCost,
+    unit:expRem>0?amtCost*1e6/expRem:Number(matches[0].unit)||0,
+    avgPlan:matches.reduce((s,r)=>s+(Number(r.avgPlan)||0),0),
+    validDays:minValid.length?Math.min(...minValid):0,
+    validEnd:matches.find(r=>r.validEnd)?.validEnd||''
+  };
 }
 // 이력이 있는 기준월을 오래된 순으로
 function riskHistoryMonths(){
