@@ -10061,6 +10061,53 @@ let spMetric = 'amount';
 let spYear = 2026;
 let spChart = null;
 
+// 2026년 12월 판매계획 일회성 경영 조정:
+// 브랜드/채널의 기존 계획 구성비는 유지하면서 전체 계획 합계를 사업계획 목표의 105%로 맞춘다.
+// 연도와 월을 함께 고정해 이후 연도 데이터에는 적용되지 않게 한다.
+const SP_ONE_OFF_PLAN_OVERRIDE={year:2026,month:12,goalRate:1.05};
+
+function spPlanSourceIndex(summary,year,month){
+  const rawMonths=summary?.planMonths||[];
+  const baseYear=Number(summary?.__layout?.baseYear)||year;
+  let planYear=baseYear,prevMonth=null;
+  for(let i=0;i<rawMonths.length;i++){
+    const planMonth=Number(rawMonths[i]);
+    if(!(planMonth>=1&&planMonth<=12)) continue;
+    if(prevMonth!=null&&planMonth<prevMonth) planYear++;
+    prevMonth=planMonth;
+    if(planYear===year&&planMonth===month) return i;
+  }
+  return -1;
+}
+function getSPOneOffPlanOverride(){
+  if(spYear!==SP_ONE_OFF_PLAN_OVERRIDE.year) return null;
+  const summary=UPLOADED?.sales_plan?.__summary;
+  const sourceIndex=spPlanSourceIndex(summary,SP_ONE_OFF_PLAN_OVERRIDE.year,SP_ONE_OFF_PLAN_OVERRIDE.month);
+  const target=Number(summary?.target?.plan?.[sourceIndex]);
+  if(sourceIndex<0||!(target>0)) return null;
+  return {...SP_ONE_OFF_PLAN_OVERRIDE,sourceIndex,total:target*SP_ONE_OFF_PLAN_OVERRIDE.goalRate};
+}
+function applySPOneOffPlanOverride(rows){
+  const override=getSPOneOffPlanOverride();
+  if(!override||!rows.length) return rows;
+  let weightIndex=override.sourceIndex;
+  let weightTotal=rows.reduce((sum,row)=>sum+(Number(row.plan?.[weightIndex])||0),0);
+  // 12월 원본 계획이 비어 있는 예외에는 가장 가까운 앞 계획월의 구성비를 사용한다.
+  while(!(weightTotal>0)&&weightIndex>0){
+    weightIndex--;
+    weightTotal=rows.reduce((sum,row)=>sum+(Number(row.plan?.[weightIndex])||0),0);
+  }
+  let allocated=0;
+  return rows.map((row,index)=>{
+    const plan=[...(row.plan||[])];
+    const weight=weightTotal>0?(Number(row.plan?.[weightIndex])||0)/weightTotal:1/rows.length;
+    const value=index===rows.length-1?override.total-allocated:override.total*weight;
+    allocated+=value;
+    plan[override.sourceIndex]=value;
+    return {...row,plan};
+  });
+}
+
 function toggleSP(mode, btn){
   spMode = mode;
   document.querySelectorAll('#spBrandBtn,#spChBtn').forEach(b=>b.classList.remove('on'));
@@ -10105,9 +10152,9 @@ function getSPRows(mode=spMode){
       if(actual.length<5&&fb.actual?.[4]!=null) actual[4]=fb.actual[4];
       return {...r,actual,prevActual:(r.prevActual?.length?r.prevActual:fb.prevActual)||[],plan:(r.plan?.length?r.plan:fb.plan)||[]};
     });
-    return rows;
+    return applySPOneOffPlanOverride(rows);
   }
-  return clean(fallback);
+  return applySPOneOffPlanOverride(clean(fallback));
 }
 function getSPTarget(){
   if(spYear===2025) return null; // 25년은 사업계획 목표 미보유
@@ -10134,12 +10181,17 @@ function getSPNetTotals(periods){
   const net=UPLOADED?.sales_plan?.__summary?.net;
   if(!net) return null;
   const pick=v=>{const n=Number(v);return Number.isFinite(n)&&n>0?n:null;};
+  const oneOff=getSPOneOffPlanOverride();
   return periods.displayMonths.map(m=>{
     if(spYear===2025) return pick(net.prevActual?.[m-1]);
     const ai=periods.actualMonths.indexOf(m);
     if(ai>=0) return pick(net.actual?.[ai]);
-    const pi=periods.planMonths.indexOf(m);
-    if(pi>=0) return pick(net.plan?.[pi]);
+    const mappedPi=periods.planSourceIndex?.[m];
+    const pi=Number.isInteger(mappedPi)?mappedPi:periods.planMonths.indexOf(m);
+    if(pi>=0){
+      if(oneOff&&m===oneOff.month&&pi===oneOff.sourceIndex) return oneOff.total;
+      return pick(net.plan?.[pi]);
+    }
     return null;
   });
 }
@@ -10161,7 +10213,7 @@ function getSPChannelNetFactors(periods){
     if(denom<=0) return null;
     const factor=(net-daiso)/denom;
     // 배율이 0 이하/1 초과면 시트 쪽 값이 깨진 것이므로 폴백에 맡긴다
-    return (factor>0&&factor<=1)?factor:null;
+    return (factor>0&&factor<=1.000000001)?Math.min(1,factor):null;
   });
 }
 function spNetFactor(row,monthIdx,periods){
