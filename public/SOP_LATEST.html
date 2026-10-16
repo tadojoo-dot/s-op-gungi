@@ -10061,6 +10061,40 @@ let spMetric = 'amount';
 let spYear = 2026;
 let spChart = null;
 
+// 2026년 12월 판매계획 일회성 조정: 각 브랜드·채널의 원계획을 일괄 5% 증량한다.
+// 순매출은 12월 원본 할인율 대신 직전월(11월)의 순매출 환산율을 이어서 적용한다.
+const SP_ONE_OFF_PLAN_UPLIFT={year:2026,month:12,multiplier:1.05};
+
+function spPlanSourceIndex(summary,year,month){
+  const rawMonths=summary?.planMonths||[];
+  const baseYear=Number(summary?.__layout?.baseYear)||year;
+  let planYear=baseYear,prevMonth=null;
+  for(let i=0;i<rawMonths.length;i++){
+    const planMonth=Number(rawMonths[i]);
+    if(!(planMonth>=1&&planMonth<=12)) continue;
+    if(prevMonth!=null&&planMonth<prevMonth) planYear++;
+    prevMonth=planMonth;
+    if(planYear===year&&planMonth===month) return i;
+  }
+  return -1;
+}
+function getSPOneOffPlanUplift(){
+  if(spYear!==SP_ONE_OFF_PLAN_UPLIFT.year) return null;
+  const summary=UPLOADED?.sales_plan?.__summary;
+  const sourceIndex=spPlanSourceIndex(summary,SP_ONE_OFF_PLAN_UPLIFT.year,SP_ONE_OFF_PLAN_UPLIFT.month);
+  return sourceIndex>=0?{...SP_ONE_OFF_PLAN_UPLIFT,sourceIndex}:null;
+}
+function applySPOneOffPlanUplift(rows){
+  const uplift=getSPOneOffPlanUplift();
+  if(!uplift) return rows;
+  return rows.map(row=>{
+    const plan=[...(row.plan||[])];
+    const original=Number(plan[uplift.sourceIndex]);
+    if(Number.isFinite(original)) plan[uplift.sourceIndex]=original*uplift.multiplier;
+    return {...row,plan};
+  });
+}
+
 function toggleSP(mode, btn){
   spMode = mode;
   document.querySelectorAll('#spBrandBtn,#spChBtn').forEach(b=>b.classList.remove('on'));
@@ -10105,9 +10139,9 @@ function getSPRows(mode=spMode){
       if(actual.length<5&&fb.actual?.[4]!=null) actual[4]=fb.actual[4];
       return {...r,actual,prevActual:(r.prevActual?.length?r.prevActual:fb.prevActual)||[],plan:(r.plan?.length?r.plan:fb.plan)||[]};
     });
-    return rows;
+    return applySPOneOffPlanUplift(rows);
   }
-  return clean(fallback);
+  return applySPOneOffPlanUplift(clean(fallback));
 }
 function getSPTarget(){
   if(spYear===2025) return null; // 25년은 사업계획 목표 미보유
@@ -10147,9 +10181,17 @@ function getSPChannelNetFactors(periods){
   const netTotals=getSPNetTotals(periods);
   if(!netTotals) return periods.displayMonths.map(()=>null);
   const chRows=getSPRows('ch');
-  return periods.displayMonths.map((m,i)=>{
+  const uplift=getSPOneOffPlanUplift();
+  const factors=[];
+  periods.displayMonths.forEach((m,i)=>{
+    // 12월 순매출은 직전월의 비다이소 순매출/매출 환산율을 그대로 적용한다.
+    if(uplift&&m===uplift.month){
+      const prevIndex=periods.displayMonths.indexOf(m-1);
+      factors[i]=prevIndex>=0?factors[prevIndex]:null;
+      return;
+    }
     const net=netTotals[i];
-    if(net==null) return null;
+    if(net==null){factors[i]=null;return;}
     let gross=0,daiso=0;
     chRows.forEach(row=>{
       const value=spRawValue(row,m,periods);
@@ -10158,11 +10200,12 @@ function getSPChannelNetFactors(periods){
       if(String(row.name||'').trim()==='다이소') daiso+=value;
     });
     const denom=gross-daiso;
-    if(denom<=0) return null;
+    if(denom<=0){factors[i]=null;return;}
     const factor=(net-daiso)/denom;
     // 배율이 0 이하/1 초과면 시트 쪽 값이 깨진 것이므로 폴백에 맡긴다
-    return (factor>0&&factor<=1)?factor:null;
+    factors[i]=(factor>0&&factor<=1)?factor:null;
   });
+  return factors;
 }
 function spNetFactor(row,monthIdx,periods){
   if(spMode==='brand'){
