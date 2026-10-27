@@ -1,6 +1,18 @@
 # s-op-gungi
 s&amp;op gungi
 
+## Node.js
+
+배포 도구는 보안 패치가 적용된 Node.js `24.22.1` LTS를 사용합니다.
+
+```bash
+nvm install
+nvm use
+node --version
+```
+
+이 사이트의 운영 요청은 Cloudflare Pages Functions에서 처리되며, Node.js는 로컬 및 CI의 배포 도구 실행에 사용됩니다.
+
 ## Cloudflare Pages
 
 This is a static HTML site. Use these settings when connecting the GitHub repository to Cloudflare Pages:
