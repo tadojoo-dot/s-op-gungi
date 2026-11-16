@@ -474,12 +474,17 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .psi-tbl.monthly th.psi-sub.c{text-align:center;}
 .psi-tbl.monthly th.psi-sub.muted{color:#8189b8;font-weight:700;}
 .sp-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:0;}
+.sp-table-viewport{overflow:auto;max-height:420px;}
 .sp-table th{font-size:13px;font-weight:900;}
 .sp-table td{font-size:12.5px;font-weight:700;}
 .sp-table th,.sp-table td{box-sizing:border-box;white-space:nowrap;}
 .sp-table .sp-name-col{width:9%;}
 .sp-table .sp-month-col{width:7%;}
 .sp-table .sp-cum-col{width:7%;}
+.sp-table thead{position:sticky;top:0;z-index:3;}
+.sp-table thead .sp-summary-row td{font-size:13.5px;line-height:1.35;padding:8px 4px!important;border-top:1px solid #cbd2df;}
+.sp-table thead .sp-summary-row td:first-child{padding-left:8px!important;text-align:left;}
+.sp-table thead .sp-total-row td{background:#dfe5f2;font-weight:900;border-top:2px solid #717b96;border-bottom:2px solid #717b96;}
 .sp-table .sp-goal-row td{background:#f7f8fb;font-weight:900;}
 .sp-table .sp-goal-rate-row td{background:#fffaf1;font-weight:900;}
 .sp-sim{margin-top:14px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:12px 14px;}
@@ -1056,7 +1061,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
     <div class="sec-body">
       <div style="display:grid;grid-template-columns:48fr 52fr;gap:14px;align-items:start;">
         <div><div class="cw" style="height:300px;"><canvas id="spChart"></canvas></div></div>
-        <div style="overflow-x:auto;"><div id="spTableWrap"></div></div>
+        <div class="sp-table-viewport"><div id="spTableWrap"></div></div>
       </div>
       <div class="sp-sim">
         <div class="sp-sim-title">판매 시뮬레이션</div>
@@ -10345,9 +10350,9 @@ function spGoalRowsHtml(totalSeries,targetSeries,periods){
   if(!(spMetric==='amount'||spMetric==='net')){
     const emptyCells=periods.displayMonths.map(()=>`<td style="padding:5px 4px;text-align:right;">-</td>`).join('');
     return `
-      <tr class="sp-goal-row"><td style="padding:5px 8px;">사업계획 목표</td>${emptyCells}<td style="padding:5px 4px;text-align:right;">-</td></tr>
-      <tr class="sp-goal-rate-row"><td style="padding:5px 8px;">달성율</td>${emptyCells}<td style="padding:5px 4px;text-align:right;">-</td></tr>
-      <tr class="sp-goal-rate-row"><td style="padding:5px 8px;">누계 달성율</td>${emptyCells}<td style="padding:5px 4px;text-align:right;">-</td></tr>`;
+      <tr class="sp-summary-row sp-goal-row"><td style="padding:5px 8px;">사업계획 목표</td>${emptyCells}<td style="padding:5px 4px;text-align:right;">-</td></tr>
+      <tr class="sp-summary-row sp-goal-rate-row"><td style="padding:5px 8px;">달성율</td>${emptyCells}<td style="padding:5px 4px;text-align:right;">-</td></tr>
+      <tr class="sp-summary-row sp-goal-rate-row"><td style="padding:5px 8px;">누계 달성율</td>${emptyCells}<td style="padding:5px 4px;text-align:right;">-</td></tr>`;
   }
   let actualCum=0,targetCum=0;
   const monthlyRates=totalSeries.values.map((v,i)=>{
@@ -10360,17 +10365,17 @@ function spGoalRowsHtml(totalSeries,targetSeries,periods){
     return targetCum>0?actualCum/targetCum*100:null;
   });
   return `
-    <tr class="sp-goal-row">
+    <tr class="sp-summary-row sp-goal-row">
       <td style="padding:5px 8px;">사업계획 목표</td>
       ${targetValues.map(v=>`<td style="padding:5px 4px;text-align:right;">${fmtSPMetric(v)}</td>`).join('')}
       <td style="padding:5px 4px;text-align:right;">${fmtSPMetric(targetSeries.cumul)}</td>
     </tr>
-    <tr class="sp-goal-rate-row">
+    <tr class="sp-summary-row sp-goal-rate-row">
       <td style="padding:5px 8px;">달성율</td>
       ${monthlyRates.map(v=>`<td class="${spGoalRateClass(v)}" style="padding:5px 4px;text-align:right;">${fmtSPGoalRate(v)}</td>`).join('')}
       <td class="${spGoalRateClass(totalSeries.cumul/(targetSeries.cumul||0)*100)}" style="padding:5px 4px;text-align:right;">${fmtSPGoalRate(targetSeries.cumul>0?totalSeries.cumul/targetSeries.cumul*100:null)}</td>
     </tr>
-    <tr class="sp-goal-rate-row">
+    <tr class="sp-summary-row sp-goal-rate-row">
       <td style="padding:5px 8px;">누계 달성율</td>
       ${cumulRates.map(v=>`<td class="${spGoalRateClass(v)}" style="padding:5px 4px;text-align:right;">${fmtSPGoalRate(v)}</td>`).join('')}
       <td class="${spGoalRateClass(totalSeries.cumul/(targetSeries.cumul||0)*100)}" style="padding:5px 4px;text-align:right;">${fmtSPGoalRate(targetSeries.cumul>0?totalSeries.cumul/targetSeries.cumul*100:null)}</td>
@@ -10480,6 +10485,12 @@ function renderSP(){
           return `<th class="sp-month-col" style="background:${bg};color:#fff;padding:7px 4px;text-align:center;">${label}</th>`;
         }).join('')}
       </tr>
+      <tr class="sp-summary-row sp-total-row">
+        <td>합 계</td>
+        ${totalValues.map((v,i)=>`<td class="${spMetricClass(v)}" style="text-align:right;${periods.planMonths.includes(periods.displayMonths[i])?'color:var(--muted);':''}">${fmtSPMetric(v)}</td>`).join('')}
+        <td class="${spMetricClass(totalSeries.cumul)}" style="text-align:right;">${fmtSPMetric(totalSeries.cumul)}</td>
+      </tr>
+      ${spGoalRowsHtml(totalSeries,targetSeries,periods)}
     </thead><tbody>`;
   rows.forEach(r=>{
     const series=spPointSeries(r,periods);
@@ -10490,13 +10501,6 @@ function renderSP(){
       <td class="${spMetricClass(series.cumul)}" style="padding:5px 4px;text-align:right;font-weight:900;background:#f5f7ff;">${fmtSPMetric(series.cumul)}</td>
     </tr>`;
   });
-  // 합계 행
-  h+=`<tr style="background:#eef0f9;font-weight:800;">
-    <td style="padding:5px 8px;">합 계</td>
-    ${totalValues.map((v,i)=>`<td class="${spMetricClass(v)}" style="padding:5px 4px;text-align:right;${periods.planMonths.includes(periods.displayMonths[i])?'color:var(--muted);':''}">${fmtSPMetric(v)}</td>`).join('')}
-    <td class="${spMetricClass(totalSeries.cumul)}" style="padding:5px 4px;text-align:right;font-weight:900;background:#e5e9f7;">${fmtSPMetric(totalSeries.cumul)}</td>
-  </tr>`;
-  h+=spGoalRowsHtml(totalSeries,targetSeries,periods);
   h+='</tbody></table>';
   tbl.innerHTML = h;
 }
