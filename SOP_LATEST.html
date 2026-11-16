@@ -473,27 +473,15 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .psi-tbl.monthly th.psi-sub.r{text-align:right;}
 .psi-tbl.monthly th.psi-sub.c{text-align:center;}
 .psi-tbl.monthly th.psi-sub.muted{color:#8189b8;font-weight:700;}
-.sp-content-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start;}
-.sp-chart-panel .cw{height:260px!important;}
-.sp-table-scroll{overflow:auto;max-width:100%;border:1px solid var(--border);border-radius:8px;background:#fff;-webkit-overflow-scrolling:touch;}
-.sp-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed;min-width:1180px;}
-.sp-table th{font-size:12.5px;font-weight:900;letter-spacing:.01em;}
-.sp-table td{font-size:13px;font-weight:750;line-height:1.35;padding:8px 7px!important;}
-.sp-table th,.sp-table td{box-sizing:border-box;white-space:nowrap;border-right:1px solid #e3e6ef;border-bottom:1px solid #e3e6ef;}
-.sp-table th:last-child,.sp-table td:last-child{border-right:0;}
-.sp-table tbody tr:last-child td{border-bottom:0;}
-.sp-table .sp-name-col{width:132px;}
-.sp-table .sp-month-col{width:78px;}
-.sp-table .sp-cum-col{width:90px;}
-.sp-table th.sp-name-col,.sp-table td:first-child{position:sticky;left:0;z-index:2;background:#fff;box-shadow:2px 0 0 #cfd4e2;}
-.sp-table th.sp-cum-col,.sp-table td:last-child{position:sticky;right:0;z-index:2;box-shadow:-2px 0 0 #cfd4e2;}
-.sp-table thead th.sp-name-col,.sp-table thead th.sp-cum-col{z-index:4;}
-.sp-table tbody td:first-child{font-weight:850;color:var(--navy);}
-.sp-table tbody td:last-child{background:#f0f3fb!important;font-weight:900;}
+.sp-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:0;}
+.sp-table th{font-size:11px;font-weight:900;}
+.sp-table td{font-size:11.5px;font-weight:700;}
+.sp-table th,.sp-table td{box-sizing:border-box;white-space:nowrap;}
+.sp-table .sp-name-col{width:9%;}
+.sp-table .sp-month-col{width:7%;}
+.sp-table .sp-cum-col{width:7%;}
 .sp-table .sp-goal-row td{background:#f7f8fb;font-weight:900;}
 .sp-table .sp-goal-rate-row td{background:#fffaf1;font-weight:900;}
-.sp-table .sp-goal-row td:first-child{background:#f7f8fb;}
-.sp-table .sp-goal-rate-row td:first-child{background:#fffaf1;}
 .sp-sim{margin-top:14px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:12px 14px;}
 .sp-sim-title{font-size:14px;font-weight:900;color:var(--navy);margin-bottom:8px;}
 .sp-sim-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
@@ -1066,9 +1054,9 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
       </div>
     </div>
     <div class="sec-body">
-      <div class="sp-content-grid">
-        <div class="sp-chart-panel"><div class="cw"><canvas id="spChart"></canvas></div></div>
-        <div class="sp-table-scroll"><div id="spTableWrap"></div></div>
+      <div style="display:grid;grid-template-columns:48fr 52fr;gap:14px;align-items:start;">
+        <div><div class="cw" style="height:300px;"><canvas id="spChart"></canvas></div></div>
+        <div style="overflow-x:auto;"><div id="spTableWrap"></div></div>
       </div>
       <div class="sp-sim">
         <div class="sp-sim-title">판매 시뮬레이션</div>
@@ -10498,14 +10486,14 @@ function renderSP(){
     const values=series.values;
     h+=`<tr style="border-bottom:1px solid var(--border);">
       <td style="padding:5px 8px;font-weight:700;color:var(--text);">${r.name}</td>
-      ${values.map((v,i)=>`<td class="${spMetricClass(v)}" style="padding:8px 7px;text-align:right;${periods.planMonths.includes(periods.displayMonths[i])?'color:#343b61;font-weight:800;':''}">${fmtSPMetric(v)}</td>`).join('')}
+      ${values.map((v,i)=>`<td class="${spMetricClass(v)}" style="padding:5px 4px;text-align:right;${periods.planMonths.includes(periods.displayMonths[i])?'color:var(--muted);':''}">${fmtSPMetric(v)}</td>`).join('')}
       <td class="${spMetricClass(series.cumul)}" style="padding:5px 4px;text-align:right;font-weight:900;background:#f5f7ff;">${fmtSPMetric(series.cumul)}</td>
     </tr>`;
   });
   // 합계 행
   h+=`<tr style="background:#eef0f9;font-weight:800;">
     <td style="padding:5px 8px;">합 계</td>
-    ${totalValues.map((v,i)=>`<td class="${spMetricClass(v)}" style="padding:8px 7px;text-align:right;${periods.planMonths.includes(periods.displayMonths[i])?'color:#343b61;font-weight:800;':''}">${fmtSPMetric(v)}</td>`).join('')}
+    ${totalValues.map((v,i)=>`<td class="${spMetricClass(v)}" style="padding:5px 4px;text-align:right;${periods.planMonths.includes(periods.displayMonths[i])?'color:var(--muted);':''}">${fmtSPMetric(v)}</td>`).join('')}
     <td class="${spMetricClass(totalSeries.cumul)}" style="padding:5px 4px;text-align:right;font-weight:900;background:#e5e9f7;">${fmtSPMetric(totalSeries.cumul)}</td>
   </tr>`;
   h+=spGoalRowsHtml(totalSeries,targetSeries,periods);
