@@ -270,7 +270,7 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .chwape.chwape-lg tbody tr.cw-ch:nth-child(even)>td,
 .chwape.chwape-lg tbody tr.cw-ch:nth-child(even)>td.l:first-child{background:var(--cw-stripe);}
 .chwape tr.cw-total td{border-top:2px solid var(--border);border-bottom:none;font-weight:900;color:var(--navy);background:#F7F8FA;}
-.chwape.chwape-lg tr.cw-total td,.chwape.chwape-lg tr.cw-total td.l:first-child{background:#dfe5f2;border-top:2px solid #717b96;border-bottom:2px solid #717b96;}
+.chwape.chwape-lg tr.cw-total td,.chwape.chwape-lg tr.cw-total td.l:first-child{background:#fff7f7;border-top:2px solid #717b96;border-bottom:2px solid #717b96;}
 /* 채널명 열 고정 — 좁은 화면에서 가로 스크롤이 생겼을 때를 위한 것.
    ⚠ :first-child로 좁힐 것. `.chwape td.l`만 쓰면 **조치의견 칸(class="l chmemo-td")까지** 왼쪽에
    달라붙어 채널명 위에 겹쳐 그려진다(2026-08-19 수정). */
@@ -483,8 +483,9 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .sp-table thead .sp-summary-row td{font-size:13.5px;line-height:1.35;padding:8px 4px!important;border-top:1px solid #cbd2df;}
 .sp-table thead .sp-summary-row td:first-child{padding-left:8px!important;text-align:left;}
 .sp-table thead .sp-total-row td{background:#dfe5f2;font-weight:900;border-top:2px solid #717b96;border-bottom:2px solid #717b96;}
-.sp-table .sp-goal-row td{background:#f7f8fb;font-weight:900;}
+.sp-table .sp-goal-row td{background:var(--green-lt);font-weight:900;}
 .sp-table .sp-goal-rate-row td{background:#fffaf1;font-weight:900;}
+.sp-table thead tr.sp-summary-row:last-child td{border-bottom:3px solid #4f5870;}
 .sp-sim{margin-top:14px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:12px 14px;}
 .sp-sim-title{font-size:14px;font-weight:900;color:var(--navy);margin-bottom:8px;}
 .sp-sim-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
