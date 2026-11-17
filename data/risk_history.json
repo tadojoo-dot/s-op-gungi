@@ -8014,7 +8014,7 @@
   "yearmonth": "2026.11",
   "label": "11/1/26",
   "sheet": "기초재고",
-  "builtAt": "2026-11-16T23:22:16.574Z",
+  "builtAt": "2026-11-17T01:00:19.782Z",
   "rows": {
    "2302181|퍼펙트샷": {
     "m": "2302181",
@@ -8842,8 +8842,8 @@
     "st": "정상소진 가능",
     "expRem": 0,
     "amtCost": 0,
-    "unit": 2150,
-    "src": "원가시트 배율 역산(직접)",
+    "unit": 1970,
+    "src": "결산 표준원가",
     "avgPlan": 1313,
     "validDays": 422,
     "validEnd": "27/12/28"
@@ -8858,8 +8858,8 @@
     "st": "정상소진 가능",
     "expRem": 0,
     "amtCost": 0,
-    "unit": 1920,
-    "src": "현재고",
+    "unit": 1960,
+    "src": "결산 표준원가",
     "avgPlan": 439,
     "validDays": 465,
     "validEnd": "28/2/9"
@@ -8890,8 +8890,8 @@
     "st": "정상소진 가능",
     "expRem": 0,
     "amtCost": 0,
-    "unit": 2766,
-    "src": "현재고",
+    "unit": 2872,
+    "src": "결산 표준원가",
     "avgPlan": 560,
     "validDays": 841,
     "validEnd": "29/2/19"
@@ -9658,8 +9658,8 @@
     "st": "정상소진 가능",
     "expRem": 0,
     "amtCost": 0,
-    "unit": 1087,
-    "src": "현재고",
+    "unit": 1082,
+    "src": "결산 표준원가",
     "avgPlan": 24937,
     "validDays": 466,
     "validEnd": "28/2/10"
@@ -9675,7 +9675,7 @@
     "expRem": 0,
     "amtCost": 0,
     "unit": 2340,
-    "src": "현재고",
+    "src": "결산 표준원가",
     "avgPlan": 12900,
     "validDays": 446,
     "validEnd": "28/1/21"
@@ -9690,8 +9690,8 @@
     "st": "정상소진 가능",
     "expRem": 0,
     "amtCost": 0,
-    "unit": 2274,
-    "src": "현재고",
+    "unit": 2275,
+    "src": "결산 표준원가",
     "avgPlan": 8970,
     "validDays": 494,
     "validEnd": "28/3/9"
@@ -9706,7 +9706,7 @@
     "st": "정상소진 가능",
     "expRem": 0,
     "amtCost": 0,
-    "unit": 5924,
+    "unit": 5927,
     "src": "결산 표준원가",
     "avgPlan": 43557,
     "validDays": 432,
@@ -9786,7 +9786,7 @@
     "st": "정상소진 가능",
     "expRem": 0,
     "amtCost": 0,
-    "unit": 2638,
+    "unit": 2674,
     "src": "결산 표준원가",
     "avgPlan": 15562,
     "validDays": 416,
@@ -9818,7 +9818,7 @@
     "st": "정상소진 가능",
     "expRem": 0,
     "amtCost": 0,
-    "unit": 2863,
+    "unit": 2865,
     "src": "결산 표준원가",
     "avgPlan": 32713,
     "validDays": 377,
@@ -9899,7 +9899,7 @@
     "expRem": 0,
     "amtCost": 0,
     "unit": 2270,
-    "src": "현재고",
+    "src": "결산 표준원가",
     "avgPlan": 9495,
     "validDays": 287,
     "validEnd": "27/8/15"
@@ -10170,8 +10170,8 @@
     "st": "정상소진 가능",
     "expRem": 0,
     "amtCost": 0,
-    "unit": 19452,
-    "src": "원가시트 배율 역산(전사평균)",
+    "unit": 9320,
+    "src": "원가시트 배율 역산(직접)",
     "avgPlan": 1855,
     "validDays": 355,
     "validEnd": "27/10/22"
@@ -10182,10 +10182,8 @@
    "riskCount": 17,
    "riskAmtCost": 940.9,
    "costSrc": {
-    "결산 표준원가": 77,
-    "원가시트 배율 역산(직접)": 4,
-    "현재고": 6,
-    "원가시트 배율 역산(전사평균)": 1
+    "결산 표준원가": 84,
+    "원가시트 배율 역산(직접)": 4
    }
   }
  }
