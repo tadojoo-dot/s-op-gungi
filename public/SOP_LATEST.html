@@ -180,9 +180,9 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .plan-cell:focus{outline:2px solid #e783a9;background:#ffe6f0!important;}
 .plan-cell:empty::before{content:'소진계획 입력';color:#c96b91;font-weight:700;}
 .plan-cell.saved{background:#e3f4fb!important;border-color:#6cb6e0!important;box-shadow:inset 0 0 0 1px rgba(60,140,190,.15)!important;}
-.plan-cell-td{position:relative;background:#fff0f6!important;border:1px solid #f3b6cf!important;box-shadow:inset 0 0 0 1px rgba(214,69,112,.06);padding-right:18px!important;}
+.plan-cell-td{position:relative;background:#fff0f6!important;border:1px solid #f3b6cf!important;box-shadow:inset 0 0 0 1px rgba(214,69,112,.06);padding-right:18px!important;text-align:center!important;}
 .plan-cell-td:has(.plan-cell.saved){background:#e3f4fb!important;border-color:#6cb6e0!important;box-shadow:inset 0 0 0 1px rgba(60,140,190,.15)!important;}
-.plan-cell-td .plan-cell{display:block;background:transparent!important;border:none!important;box-shadow:none!important;color:var(--text);font-size:11px;line-height:1.35;white-space:normal;min-height:14px;outline:none;}
+.plan-cell-td .plan-cell{display:block;background:transparent!important;border:none!important;box-shadow:none!important;color:var(--text);font-size:11px;line-height:1.35;white-space:normal;min-height:14px;outline:none;text-align:center;}
 .plan-cell-td .plan-cell:focus{background:#ffe6f0!important;}
 .plan-cell-td .plan-cell.saved{background:transparent!important;}
 .plan-clear-btn{position:absolute;top:2px;right:2px;width:14px;height:14px;line-height:12px;text-align:center;padding:0;border:none;border-radius:50%;background:rgba(214,69,112,.18);color:#a3405f;font-size:9px;font-weight:700;cursor:pointer;opacity:.5;transition:opacity .15s;}
@@ -5641,7 +5641,7 @@ function drilldown(ch, cat, source=''){
     <th class="c" data-scol="exp" onclick="sortDDCol('exp')" style="cursor:pointer;">유효기간${si('exp')}</th>
     <th class="c" data-scol="grade" onclick="sortDDCol('grade')" style="cursor:pointer;">Aging등급${si('grade')}</th>
     <th class="c" data-scol="soojin" onclick="sortDDCol('soojin')" style="cursor:pointer;">정상소진${si('soojin')}</th>
-    <th class="l">소진계획</th>
+    <th class="c">소진계획</th>
   </tr></thead><tbody></tbody></table>`;
   body.innerHTML=h;
   _renderDDTbody();
@@ -5898,7 +5898,7 @@ function _renderDDTbody(){
       <td class="c" style="font-size:11px;color:var(--muted);">${s.e||'—'}</td>
       <td class="c"><span class="tag" style="background:${AGING_COL[cat]||'#eee'};color:#fff;font-size:10px;">${grade}</span></td>
       <td class="c">${soojinChip}</td>
-      <td class="l plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="${planKeyOf(s)}" data-plan-legacy-key="${legacyKeyOf(s)}" data-plan-legacy-sku="${legacySkuOf(s)}" data-screen="재고 Aging" data-bucket="${cat}" data-channel="${ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button><button type="button" class="plan-save-btn" title="소진계획 저장" onclick="savePlanCell(this)">저장</button></td>
+      <td class="c plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="${planKeyOf(s)}" data-plan-legacy-key="${legacyKeyOf(s)}" data-plan-legacy-sku="${legacySkuOf(s)}" data-screen="재고 Aging" data-bucket="${cat}" data-channel="${ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button><button type="button" class="plan-save-btn" title="소진계획 저장" onclick="savePlanCell(this)">저장</button></td>
     </tr>`;
   });
   const tbody=document.querySelector('#ddBody .dd-table tbody');
@@ -6003,7 +6003,7 @@ function showSenDrill(cat,options={}){
     <th class="c" data-scol="curgrade" onclick="sortSenCol('curgrade')" style="cursor:pointer;">현재등급${si('curgrade')}</th>
     <th class="c" data-scol="futgrade" onclick="sortSenCol('futgrade')" style="cursor:pointer;">미래등급${si('futgrade')}</th>
     <th class="c" data-scol="soojin" onclick="sortSenCol('soojin')" style="cursor:pointer;">정상소진${si('soojin')}</th>
-    <th class="l">소진계획</th>
+    <th class="c">소진계획</th>
   </tr></thead><tbody></tbody></table></div>`;
   }
   body.innerHTML=h;
@@ -6081,7 +6081,7 @@ function _renderSenTbody(){
       <td class="c"><span class="tag gray">${s.nowCat}</span></td>
       <td class="c"><span class="tag" style="background:${catCol};color:#fff;font-size:10px;">${s.futureCat}</span></td>
       <td class="c">${soojinChip}</td>
-      <td class="l plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="${senPlanKey(s)}" data-plan-legacy-key="${senLegacyKey(s)}" data-screen="Aging Sensing" data-bucket="${sensingLabel} ${cat}" data-channel="${s.ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button><button type="button" class="plan-save-btn" title="소진계획 저장" onclick="savePlanCell(this)">저장</button></td>
+      <td class="c plan-cell-td" onclick="event.stopPropagation()"><span class="plan-cell" contenteditable="true" data-plan-key="${senPlanKey(s)}" data-plan-legacy-key="${senLegacyKey(s)}" data-screen="Aging Sensing" data-bucket="${sensingLabel} ${cat}" data-channel="${s.ch}" data-sku="${s.m}" data-name="${String(s.n||'').replace(/"/g,'&quot;')}"></span><button type="button" class="plan-clear-btn" title="소진계획 지우기" onclick="clearPlanCell(this)">✕</button><button type="button" class="plan-save-btn" title="소진계획 저장" onclick="savePlanCell(this)">저장</button></td>
     </tr>`;
   });
   const tbody=document.querySelector('#senCategoryRows tbody');
