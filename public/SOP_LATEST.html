@@ -175,6 +175,7 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .dd-table th.c,.dd-table td.c{text-align:center;}
 .dd-table tr:hover td{background:#f0f3ff;}
 .dd-table tr:last-child td{border-bottom:none;}
+.dd-location{display:block;margin-top:2px;font-size:9px;font-weight:700;line-height:1.15;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .plan-cell{background:#fff0f6!important;color:var(--text);font-size:11px;line-height:1.35;white-space:normal;border:1px solid #f3b6cf!important;box-shadow:inset 0 0 0 1px rgba(214,69,112,.06);}
 .plan-cell:focus{outline:2px solid #e783a9;background:#ffe6f0!important;}
 .plan-cell:empty::before{content:'소진계획 입력';color:#c96b91;font-weight:700;}
@@ -2937,7 +2938,7 @@ function parseInventory(ws,pkgMap,srcMap,hierarchyMap){
     const plant=String(row[C.PLANT]||'').trim();
     if(plant&&!plants[plant]) plants[plant]=String(row[C.PLANT_NAME]||'').trim()||plant;
     const sku={m:mat,n:name,pkg:ch,hierarchy:hierarchyMap?.[String(mat)]||'',q:qty,av,qc,hd,a:Math.round(amt*1e8/1e6*10)/10,t:matType,r:rem,chRemMo,p:plant,sp:src,
-      // b/lc는 화면에 안 그린다 — 드릴다운 소진계획 메모 키를 행 단위로 만들기 위한 식별자다.
+      // lc는 드릴다운 수량 아래 저장위치 표시에 쓰고, b/lc는 소진계획 메모 키를 행 단위로 구분한다.
       b:String(row[C.BATCH]||'').trim(), lc:String(row[C.LOC]||'').trim()};
     // 유통기한 기준 (AO열)
     if(!ch_amt[ch]) ch_amt[ch]={};
@@ -5888,7 +5889,7 @@ function _renderDDTbody(){
       <td class="l" style="font-size:11px;color:var(--muted);">${s.m}</td>
       <td class="l"><strong>${s.n}</strong></td>
       <td class="c" style="font-weight:800;color:var(--navy);">${s.hierarchy||'—'}</td>
-      <td class="r"><strong>${formatQty(s.q)}</strong></td>
+      <td class="r"><strong>${formatQty(s.q)}</strong>${s.lc?`<span class="dd-location">${escapeSensingText(s.lc)}</span>`:''}</td>
       <td class="r" style="color:#0a7d34;">${s.av!=null?formatQty(s.av):'—'}</td>
       <td class="r" style="color:#b8860b;">${s.qc!=null?formatQty(s.qc):'—'}</td>
       <td class="r" style="color:#c0392b;">${s.hd!=null?formatQty(s.hd):'—'}</td>
@@ -6459,9 +6460,6 @@ function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
   skuDetailChart=null;
   const canvas=document.getElementById('skuDetailChart');
   if(canvas&&hasChart()){
-    // 실적/계획이 둘 다 있는 달만 차이(실적-계획)를 배지로 표시 — 배지는 두 값의 중간 높이에 위치
-    const diffVal=chartLabels.map((_,i)=>(actData[i]!=null&&planData[i]!=null)?actData[i]-planData[i]:null);
-    const diffPos=chartLabels.map((_,i)=>(actData[i]!=null&&planData[i]!=null)?(actData[i]+planData[i])/2:null);
     skuDetailChart=new Chart(canvas,{
       type:'line',
       plugins:[ChartDataLabels],
@@ -6476,24 +6474,13 @@ function renderSkuDetailModal(mat,n,ch,qty,rem,chRemMo){
          borderWidth:2.5,borderDash:[6,4],
          pointRadius:5,pointBackgroundColor:'#C46B4D',pointBorderColor:'#fff',pointBorderWidth:2,
          fill:false,tension:0.2,spanGaps:false,
-         datalabels:{anchor:'top',align:'top',offset:3,color:'#C46B4D',font:{size:9,weight:'bold'},formatter:v=>v!=null?formatQty(v):''}},
-        {label:'차이',data:diffPos,
-         showLine:false,pointRadius:0,pointHoverRadius:0,fill:false,
-         datalabels:{
-           display:ctx=>diffVal[ctx.dataIndex]!=null,
-           anchor:'center',align:'center',
-           formatter:(v,ctx)=>{const d=diffVal[ctx.dataIndex];return d==null?'':`${d>=0?'▲+':'▼'}${formatQty(d)}`;},
-           color:'#fff',
-           backgroundColor:ctx=>{const d=diffVal[ctx.dataIndex];return d>=0?'#33512E':'#D64545';},
-           borderRadius:8,padding:{top:3,bottom:3,left:6,right:6},
-           font:{size:9,weight:'900'}
-         }}
+         datalabels:{anchor:'top',align:'top',offset:3,color:'#C46B4D',font:{size:9,weight:'bold'},formatter:v=>v!=null?formatQty(v):''}}
       ]},
       options:{
         responsive:true,maintainAspectRatio:false,
         plugins:{
-          legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,usePointStyle:true,filter:item=>item.text!=='차이'}},
-          tooltip:{filter:c=>c.dataset.label!=='차이',callbacks:{label:c=>c.parsed.y!=null?`${c.dataset.label}: ${formatQty(c.parsed.y)}`:''}}
+          legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,usePointStyle:true}},
+          tooltip:{callbacks:{label:c=>c.parsed.y!=null?`${c.dataset.label}: ${formatQty(c.parsed.y)}`:''}}
         },
         scales:{
           x:{grid:{display:false},ticks:{font:{size:11,weight:'bold'}}},
