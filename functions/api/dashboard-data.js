@@ -2,6 +2,7 @@
 // shared-state.js는 회의록/PSI 조정 같은 작은 입력값 전용이라 256KB 제한이 걸려 있어서,
 // 수 MB짜리 파싱 결과는 이 엔드포인트에 별도 키로 보관한다.
 const DATA_ID = 'dashboard:live';
+const PSI_PREFIX = 'dashboard:psi:';
 const MAX_BODY_BYTES = 20 * 1024 * 1024; // KV 값 상한 25MB 아래로 여유를 둔 값
 
 function json(data, status = 200) {
@@ -76,14 +77,14 @@ function metaToHeaders(meta) {
   };
 }
 
-async function readData(env) {
+async function readData(env, id = DATA_ID) {
   if (env.SOP_STATE) {
-    const hit = await env.SOP_STATE.getWithMetadata(DATA_ID, { type: 'arrayBuffer' });
+    const hit = await env.SOP_STATE.getWithMetadata(id, { type: 'arrayBuffer' });
     if (!hit || !hit.value) return null;
     return { bytes: new Uint8Array(hit.value), meta: hit.metadata || {} };
   }
   if (await ensureD1(env)) {
-    const row = await env.DB.prepare('SELECT meta, data FROM dashboard_data WHERE id = ?').bind(DATA_ID).first();
+    const row = await env.DB.prepare('SELECT meta, data FROM dashboard_data WHERE id = ?').bind(id).first();
     if (!row?.data) return null;
     let meta = {};
     try { meta = JSON.parse(row.meta); } catch (e) { meta = {}; }
@@ -92,16 +93,16 @@ async function readData(env) {
   throw new Error('Missing Cloudflare binding: add KV binding SOP_STATE or D1 binding DB.');
 }
 
-async function writeData(env, bytes, meta) {
+async function writeData(env, bytes, meta, id = DATA_ID) {
   if (env.SOP_STATE) {
-    await env.SOP_STATE.put(DATA_ID, bytes, { metadata: meta });
+    await env.SOP_STATE.put(id, bytes, { metadata: meta });
     return;
   }
   if (await ensureD1(env)) {
     await env.DB.prepare(
       'INSERT INTO dashboard_data (id, meta, data) VALUES (?, ?, ?) ' +
       'ON CONFLICT(id) DO UPDATE SET meta = excluded.meta, data = excluded.data'
-    ).bind(DATA_ID, JSON.stringify(meta), bytesToBase64(bytes)).run();
+    ).bind(id, JSON.stringify(meta), bytesToBase64(bytes)).run();
     return;
   }
   throw new Error('Missing Cloudflare binding: add KV binding SOP_STATE or D1 binding DB.');
@@ -123,8 +124,21 @@ async function deleteData(env) {
 export async function onRequestGet({ request, env }) {
   try {
     const url = new URL(request.url);
+    const psiMonth = url.searchParams.get('psi-month');
+    if (url.searchParams.get('psi-history') === '1') {
+      let rows = [];
+      if (env.SOP_STATE) {
+        const list = await env.SOP_STATE.list({ prefix: PSI_PREFIX });
+        rows = await Promise.all((list.keys || []).map(async key => ({ yearmonth: key.name.slice(PSI_PREFIX.length), ...(key.metadata || {}) })));
+      } else if (await ensureD1(env)) {
+        const result = await env.DB.prepare('SELECT id, meta FROM dashboard_data WHERE id LIKE ?').bind(`${PSI_PREFIX}%`).all();
+        rows = (result.results || []).map(row => ({ yearmonth: row.id.slice(PSI_PREFIX.length), ...JSON.parse(row.meta || '{}') }));
+      }
+      return json({ snapshots: rows.sort((a,b) => String(b.yearmonth).localeCompare(String(a.yearmonth))) });
+    }
+    if (psiMonth && !/^\d{4}\.\d{2}$/.test(psiMonth)) return json({ error: 'Invalid PSI month.' }, 400);
     const metaOnly = url.searchParams.get('meta') === '1';
-    const hit = await readData(env);
+    const hit = await readData(env, psiMonth ? PSI_PREFIX + psiMonth : DATA_ID);
     if (!hit) {
       return metaOnly
         ? json({ has: false })
@@ -155,6 +169,9 @@ export async function onRequestPut({ request, env }) {
     }
     const meta = readMetaFromHeaders(request);
     await writeData(env, new Uint8Array(buf), meta);
+    const yearmonth = String(request.headers.get('x-sop-base-yearmonth') || '');
+    // PSI는 기준월별로 같은 원천 전체를 고정 보관한다. 월이 롤링돼도 옛 5개월 시계열이 바뀌지 않는다.
+    if (/^\d{4}\.\d{2}$/.test(yearmonth)) await writeData(env, new Uint8Array(buf), { ...meta, yearmonth }, PSI_PREFIX + yearmonth);
     return json({ ok: true, size: buf.byteLength, ...meta });
   } catch (error) {
     return json({ error: error.message || 'dashboard-data write failed' }, error.status || 500);

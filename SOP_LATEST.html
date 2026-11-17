@@ -1147,6 +1147,7 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
         <div class="sec-sub" id="psiSecSub">당월부터 5개월 · 월별 판매계획 기준 기말재고와 재고일수를 표시 &nbsp;|&nbsp; 재고일수 = 해당 월 기말재고 ÷ 다음 월 판매계획 수량 × 30</div>
       </div></div>
       <div class="frow no-print" style="margin:0;gap:6px;">
+        <select id="psiSnapshotMonth" onchange="selectPsiSnapshot(this.value)" title="과거 PSI 기준월 보기" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;"><option value="">최신 PSI</option></select>
         <span style="display:inline-flex;gap:4px;margin-right:4px;">
           <button id="psiUnitQtyBtn" class="aging-mode-btn on" onclick="setPsiUnitMode('qty',this)" title="수량(개) 기준">수량</button>
           <button id="psiUnitCostBtn" class="aging-mode-btn" onclick="setPsiUnitMode('cost',this)" title="원가단가 환산 (백만원)">원가</button>
@@ -1166,6 +1167,14 @@ body:not(.admin-mode) .snap-panel select,body:not(.admin-mode) .snap-panel butto
         </select>
         <select id="fplant" onchange="renderPSI()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;">
           <option value="">전체 플랜트</option>
+        </select>
+        <select id="fhierarchy" onchange="renderPSI()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;">
+          <option value="">전체 계층</option>
+          <option value="S급">S급</option>
+          <option value="A급">A급</option>
+          <option value="B급">B급</option>
+          <option value="C급">C급</option>
+          <option value="N">N</option>
         </select>
         <select id="favg3" onchange="renderPSI()" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;">
           <option value="positive" selected>3평판 있는 품목만</option>
@@ -1863,6 +1872,19 @@ function saveToStorage(data){
 // (특히 PSI 탭은 monthRealLabels/sourceMonthlyPsi가 없어 월 헤더·수치가 통째로 달라짐).
 // 관리자가 업로드하면 파싱 결과를 gzip으로 압축해 /api/dashboard-data에 올리고, 모든 열람자가 이를 받아 쓴다.
 const DASHBOARD_DATA_API='/api/dashboard-data';
+let PSI_SNAPSHOT=null;
+async function refreshPsiSnapshotOptions(){
+  const el=document.getElementById('psiSnapshotMonth'); if(!el) return;
+  try{const r=await fetch(DASHBOARD_DATA_API+'?psi-history=1',{cache:'no-store'});const d=await r.json();const current=PSI_SNAPSHOT?.base_yearmonth||'';
+    const rows=(d.snapshots||[]).filter(x=>x.yearmonth).map(x=>`<option value="${x.yearmonth}">${x.yearmonth}${x.yearmonth===UPLOADED?.base_yearmonth?' (최신)':''}</option>`).join('');
+    el.innerHTML='<option value="">최신 PSI</option>'+rows; el.value=current;
+  }catch(e){console.warn('PSI history load failed',e);}
+}
+async function selectPsiSnapshot(yearmonth){
+  if(!yearmonth){PSI_SNAPSHOT=null;_psiPriceCache=null;renderPSI();return;}
+  try{const r=await fetch(DASHBOARD_DATA_API+'?psi-month='+encodeURIComponent(yearmonth),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);PSI_SNAPSHOT=await unpackDashboardData(new Uint8Array(await r.arrayBuffer()),r.headers.get('x-sop-enc')||'raw');_psiPriceCache=null;renderPSI();}
+  catch(e){console.warn('PSI snapshot load failed',e);alert('선택한 PSI 스냅샷을 불러오지 못했습니다.');}
+}
 function uploadedTs(data){
   const ts=Number(data?.uploaded_ts);
   return Number.isFinite(ts)&&ts>0?ts:0;
@@ -1890,6 +1912,7 @@ async function saveDashboardData(data){
       'x-sop-uploaded-ts':String(uploadedTs(data)),
       'x-sop-uploaded-at':encodeURIComponent(data?.uploaded_at||''),
       'x-sop-base-label':encodeURIComponent(data?.base_label||'')
+      ,'x-sop-base-yearmonth':String(data?.base_yearmonth||'')
     },
     body:bytes
   });
@@ -1915,6 +1938,7 @@ async function loadSharedDashboardData(){
     updateHdrBaseYm();
     syncAchieveMonthToData();
     setUploadStatus('success',`✅ 공유 데이터 적용 · ${data.uploaded_at||'업로드 시각 미상'} · 기준일 ${data.base_label||'당월'}`);
+    refreshPsiSnapshotOptions();
     return true;
   }catch(e){console.warn('shared dashboard data load failed',e);return false;}
 }
@@ -2295,7 +2319,8 @@ function getChAmtDelivery(month){return UPLOADED?.monthly_ch_delivery?.[month]??
 function getMx(month){return UPLOADED?.monthly_mx?.[month]??MONTHLY_MATRIX[month];}
 function getMxDelivery(month){return UPLOADED?.monthly_mx_delivery?.[month]??null;}
 function getTrendData(){return UPLOADED?.trend_data??TREND_DATA;}
-function getPSIData(){return UPLOADED?.psi?.length?UPLOADED.psi:PSI;}
+function psiActiveData(){return PSI_SNAPSHOT||UPLOADED;}
+function getPSIData(){const src=psiActiveData();return src?.psi?.length?src.psi:PSI;}
 function getSalesPlanData(){return UPLOADED?.sales_plan??null;}
 function getRefData(){return UPLOADED?.ref_data??null;}
 // Aging 매트릭스의 SF 비교는 선택한 원장 월과 같은 년월의 판매계획 금액을 쓴다.
@@ -7214,7 +7239,8 @@ const fmtPsiInt=v=>Math.round(Number(v)||0).toLocaleString('ko-KR');
 let psiUnitMode='qty';
 let _psiPriceCache=null;
 function getPsiPriceMap(){
-  if(_psiPriceCache&&_psiPriceCache.src===UPLOADED) return _psiPriceCache.map;
+  const psiSrc=psiActiveData();
+  if(_psiPriceCache&&_psiPriceCache.src===psiSrc) return _psiPriceCache.map;
   const costMap=getMaterialCostMap();
   const invByMat={};
   getSensingBaseInventory().forEach(row=>{
@@ -7224,7 +7250,7 @@ function getPsiPriceMap(){
     invByMat[mat].a+=Number(row.a)||0;   // 백만원 단위
   });
   const map={};
-  [...(getPSIData()||[]),...(UPLOADED?.daiso_components||[])].forEach(d=>{
+  [...(getPSIData()||[]),...(psiSrc?.daiso_components||[])].forEach(d=>{
     const mat=String(d.mat||''); if(!mat||map[mat]) return;
     const ov=getPriceOverride(mat);
     const sales=ov?.sales>0?ov.sales:(Number(getUnitPrice(mat))||0);
@@ -7250,7 +7276,7 @@ function getPsiPriceMap(){
     }
     map[mat]={cost,sales,costSrc:src};
   });
-  _psiPriceCache={src:UPLOADED,map};
+  _psiPriceCache={src:psiSrc,map};
   return map;
 }
 function psiUnitPriceFor(mat){
@@ -7311,7 +7337,7 @@ function psiIntegratedSigByMonth(g){
 }
 // 통합 SKU를 해당 플랜트 몫으로 좁힌 행들. 그 플랜트에 하위 코드가 없는 통합 SKU는 제외된다.
 function buildPlantScopedPsiRows(plant){
-  const comps=UPLOADED?.daiso_components||[];
+  const comps=psiActiveData()?.daiso_components||[];
   if(!plant||!comps.length) return [];
   const out=[];
   (getPSIData()||[]).forEach(g=>{
@@ -7440,7 +7466,7 @@ const PSI_SIM_BUY_KEY='sopPsiSimBuy_v1';
 // 지금은 실제 캘린더월('2026-08')로 저장하고, 화면/계산 쪽에는 기존처럼 위치 키로 변환해 넘긴다.
 // → 호출부는 그대로 위치 키를 쓰고, 변환은 이 아래 함수들만 담당한다.
 function psiBaseYm(){
-  const m=String(UPLOADED?.base_yearmonth||'').match(/(\d{4})[.\-/](\d{1,2})/);
+  const m=String(psiActiveData()?.base_yearmonth||'').match(/(\d{4})[.\-/](\d{1,2})/);
   return m?{y:Number(m[1]),m:Number(m[2])}:null;
 }
 // 위치 키 → 실제 월. PSI_COVERAGE_MONTH_KEYS[0]이 기준월이고 이후 한 달씩 증가한다.
@@ -8173,6 +8199,7 @@ const PSI_FILTERS=[
   {key:'fpkg',   el:'fpkg',    off:'', dflt:'',         label:'품목군'},
   {key:'fdaiso', el:'fdaiso',  off:'', dflt:'',         label:'다이소 구분'},
   {key:'fplant', el:'fplant',  off:'', dflt:'',         label:'플랜트'},
+  {key:'fhierarchy',el:'fhierarchy',off:'', dflt:'',    label:'계층'},
   {key:'favg3',  el:'favg3',   off:'', dflt:'positive', label:'3평판'},
   {key:'fMinInv',el:'fMinInv', off:'', dflt:'',         label:'기초재고'},
   {key:'fq',     el:'fpq',     off:'', dflt:'',         label:'검색어'}
@@ -8193,7 +8220,7 @@ function psiFilterValueLabel(f,v){
 // 플랜트를 고르면 다이소 통합 행이 그 플랜트 몫으로 바뀐다(재고는 플랜트 몫, 재고일수 분모는 통합 수요).
 // 통합 SKU가 아닌 품목은 플랜트 값 자체가 없어 어차피 플랜트 필터에서 걸러지므로 그대로 둔다.
 function psiViewRows(v){
-  if(v.fdaiso==='all') return decorateDaisoComponentRows(UPLOADED?.daiso_components||[]);
+  if(v.fdaiso==='all') return decorateDaisoComponentRows(psiActiveData()?.daiso_components||[]);
   const all=getPSIData()||[];
   if(!v.fplant) return all;
   const scoped=buildPlantScopedPsiRows(v.fplant);
@@ -8240,6 +8267,7 @@ function applyPsiFilters(v){
     pkgMatch&&
     daisoMatch&&
     plantMatch&&
+    (!v.fhierarchy||String(d.hierarchy||'')===v.fhierarchy)&&
     (v.favg3!=='positive'||Number(d.avg3)>0)&&
     (v.favg3!=='zero'||Number(d.avg3)<=0)&&
     (v.fMinInv!=='1'||Number(d.inv)>=100)&&
@@ -8276,7 +8304,7 @@ function renderPSI(){
   if(psiTableTitle) psiTableTitle.textContent=`PSI 전 품목 현황 (${allData.length.toLocaleString()}개 SKU 기준)`;
   const integratedCount=allData.filter(isPsiIntegrated).length;
   const plantOptions=[...new Set(
-    [...allData,...(UPLOADED?.daiso_components||[])]
+    [...allData,...(psiActiveData()?.daiso_components||[])]
       .flatMap(d=>Array.isArray(d.plantValues)&&d.plantValues.length?d.plantValues:(d.plant?[d.plant]:[]))
       .map(value=>String(value||'').trim())
       .filter(Boolean)
