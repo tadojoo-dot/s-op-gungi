@@ -379,6 +379,9 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .chwape-drill th:last-child{border-right:0;}
 .chwape-drill td{padding:9px 8px;border-right:1px solid #d9dee8;border-bottom:1px solid #d9dee8;}
 .chwape-drill td:last-child{border-right:0;}
+.chwape-drill tr.cw-excluded td{background:#f1f5fb;}
+.chwape-drill tr.cw-excluded td:first-child{box-shadow:inset 3px 0 0 var(--navy);}
+.chwape-drill .cw-exclude-check{width:16px;height:16px;accent-color:var(--navy);cursor:pointer;vertical-align:middle;}
 /* 1차 팝업의 적중률은 품목마다 박스를 만들지 않고 열 전체를 하나의 진한 빨강 외곽선으로 묶는다. */
 .chwape-drill th.cw-hit-col{background:#fff7f7;color:#7f1724;font-weight:900;border-top:2px solid #8b1e2d!important;
   border-left:2px solid #8b1e2d!important;border-right:2px solid #8b1e2d!important;border-bottom:1px solid #c98b92!important;}
@@ -8930,7 +8933,7 @@ function openChDrill(ch,monthKey){
   const latestData=[...months].reverse().find(m=>m.hasData);
   const mk=monthKey||latestData?.key||months[months.length-1]?.key;
   if(!mk){alert('오차율 분석 데이터가 없습니다.');return;}
-  chDrillState={ch,monthKey:mk};
+  chDrillState={ch,monthKey:mk,excluded:[]};
   renderChDrill();
   const ov=document.getElementById('chDrillModal');
   if(ov) ov.style.display='flex';
@@ -8942,7 +8945,19 @@ function closeChDrill(){
 }
 function setChDrillMonth(mk){
   if(!chDrillState) return;
-  chDrillState={...chDrillState,monthKey:mk};
+  chDrillState={...chDrillState,monthKey:mk,excluded:[]};
+  renderChDrill();
+}
+function toggleChDrillExcluded(key,checked){
+  if(!chDrillState) return;
+  const excluded=new Set(chDrillState.excluded||[]);
+  if(checked) excluded.add(key); else excluded.delete(key);
+  chDrillState={...chDrillState,excluded:[...excluded]};
+  renderChDrill();
+}
+function clearChDrillExcluded(){
+  if(!chDrillState?.excluded?.length) return;
+  chDrillState={...chDrillState,excluded:[]};
   renderChDrill();
 }
 function saveChDrillMemos(){
@@ -8978,11 +8993,20 @@ function renderChDrill(){
   const absSum=eligibleRows.reduce((s,r)=>s+Math.abs(Number(r.diff)||0),0);
   const actualTotal=rows.reduce((s,r)=>s+(Number(r.actual)||0),0);
   const wape=plan>0?absSum/plan*100:null;
+  const excluded=new Set(chDrillState.excluded||[]);
+  const excludedRows=eligibleRows.filter(r=>excluded.has(hitRowKey(r)));
+  const removedAbs=excludedRows.reduce((s,r)=>s+Math.abs(Number(r.diff)||0),0);
+  const simulatedWape=plan>0?Math.max(0,absSum-removedAbs)/plan*100:null;
+  const currentHit=hitRateFromWape(wape);
+  const simulatedHit=hitRateFromWape(simulatedWape);
+  const hitGain=currentHit==null||simulatedHit==null?null:simulatedHit-currentHit;
   const moLabel=months.find(m=>m.key===monthKey)?.label||monthKey;
   head.innerHTML=`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <span style="font-size:15px;font-weight:900;color:var(--navy);">${ch} · ${moLabel} 오차 상세</span>
       <span class="tag ${wape==null?'gray':wape<30?'g':wape<50?'y':'r'}" style="font-size:12px;">WAPE ${wape==null?'—':wape.toFixed(1)+'%'}</span>
       <span style="font-size:11px;color:var(--muted);">계획 ${fmt(plan)}${unit} · 차이합계 ${fmt(absSum)}${unit} · ${rows.length.toLocaleString()}개 SKU</span>
+      <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid #cbd5e1;border-radius:5px;background:#f8fafc;font-size:11px;font-weight:800;color:var(--navy);">현재 적중률 ${currentHit==null?'—':currentHit.toFixed(1)+'%'} <span style="color:var(--muted);">→</span> 오차 제외 시 ${simulatedHit==null?'—':simulatedHit.toFixed(1)+'%'}${hitGain!=null&&hitGain>0?` <span style="color:var(--green);">(+${hitGain.toFixed(1)}%p)</span>`:''}</span>
+      ${excludedRows.length?`<button onclick="clearChDrillExcluded()" style="height:25px;border:1px solid var(--border);background:#fff;border-radius:5px;padding:0 8px;font-size:10.5px;font-weight:700;cursor:pointer;">제외 ${excludedRows.length}개 해제</button>`:''}
     </div>
     <div style="display:flex;align-items:center;gap:6px;">
       <select onchange="setChDrillMonth(this.value)" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;">
@@ -9009,36 +9033,40 @@ function renderChDrill(){
   }
   // ⚠ 폭을 col로 명시한다. `.chwape`는 table-layout:fixed라 colgroup이 없으면 열이 균등 분할돼
   //    품목명이 잘리고 숫자 열엔 쓸데없이 여백이 남는다. 품목/조치의견만 auto로 두어 잔여 폭을 나눈다.
-  // ⚠ **품목코드가 맨 왼쪽, 그 옆이 품목명**이다(2026-08-19 사용자 지정).
+  // ⚠ 품목코드 왼쪽의 제외 체크는 시뮬레이션 전용이며 원본 계획·실적을 바꾸지 않는다.
   // ⚠ 잔여 폭은 **품목명 열**이 가져간다 — 여기만 width를 비워 둔다. 조치의견을 auto로 두면
   //    1480px 모달에서 544px까지 부풀어 정작 품목명이 잘렸다.
   body.innerHTML=`<table class="chwape chwape-drill" style="font-size:12.5px;">
-    <colgroup><col style="width:116px;"><col><col style="width:58px;"><col style="width:86px;"><col style="width:86px;">
+    <colgroup><col style="width:52px;"><col style="width:116px;"><col><col style="width:58px;"><col style="width:86px;"><col style="width:86px;">
       <col style="width:92px;"><col style="width:92px;"><col style="width:96px;">
       <col style="width:86px;"><col style="width:86px;"><col style="width:96px;"><col style="width:240px;"></colgroup>
     <thead><tr>
-      <th class="l">품목코드</th><th class="l">품목</th><th>계층</th><th title="오차율분석 원천의 같은 채널·품목 최근 3개월 실제 판매금액 평균">3개월 평균 판매<br><span>(억)</span></th>
+      <th>제외</th><th class="l">품목코드</th><th class="l">품목</th><th>계층</th><th title="오차율분석 원천의 같은 채널·품목 최근 3개월 실제 판매금액 평균">3개월 평균 판매<br><span>(억)</span></th>
       <th title="오차율분석 원천의 같은 채널·품목 최근 6개월 실제 판매금액 평균">6개월 평균 판매<br><span>(억)</span></th>
       <th>계획(${unit})</th><th>실적(${unit})</th><th>차이</th><th>오차율</th><th class="cw-hit-col">적중률</th><th class="cw-sep">오차 기여도</th>
       <th class="l cw-sep">조치의견</th>
     </tr>
     <tr class="cw-total">
-      <td class="l"></td><td class="l">합계</td><td></td>
+      <td title="선택한 품목의 오차만 적중률 시뮬레이션에서 제외합니다">—</td><td class="l"></td><td class="l">합계</td><td></td>
       <td title="품목별 최근 3개월 평균 판매는 합계 행에서 다시 합산하지 않습니다">—</td>
       <td title="품목별 최근 6개월 평균 판매는 합계 행에서 다시 합산하지 않습니다">—</td>
       <td>${fmt(plan)}</td><td>${fmt(actualTotal)}</td>
       <td title="Σ|차이| · 초과·미달을 상쇄하지 않고 절대값으로 합산 (오차율의 분자와 동일)">${fmt(absSum)}</td>
       <td>${wape==null?'—':wape.toFixed(1)+'%'}</td>
-      <td class="cw-hit-col${isHitClamped(wape)?' cw-hit0':''}"${isHitClamped(wape)?` title="오차(${wape.toFixed(1)}%)가 계획보다 커서 0%로 표시합니다"`:''}>${hitRateFromWape(wape)==null?'—':hitRateFromWape(wape).toFixed(1)+'%'}</td>
+      <td class="cw-hit-col${isHitClamped(simulatedWape)?' cw-hit0':''}" title="현재 ${currentHit==null?'—':currentHit.toFixed(1)+'%'} · 선택 품목 오차 제외 시 ${simulatedHit==null?'—':simulatedHit.toFixed(1)+'%'}">${simulatedHit==null?'—':simulatedHit.toFixed(1)+'%'}</td>
       <td class="cw-sep">100.0%</td>
       ${hitChMemoCell(ch,hitMemoMonthKey(monthKey))}
     </tr></thead><tbody>
     ${rows.map(r=>{
+      const rowKey=hitRowKey(r);
+      const isExcluded=excluded.has(rowKey);
+      const canExclude=Number(r.plan)>0;
       const contrib=absSum>0&&r.plan>0?Math.abs(r.diff)/absSum*100:null;
       const avg3Amt=getHitRecentActualAvgAmt(r,monthKey,3);
       const avg6Amt=getHitRecentActualAvgAmt(r,monthKey,6);
       const daiso=r._daisoIntegrated?'<span class="tag b" style="font-size:9px;padding:0 4px;margin-left:4px;" title="다이소 통합코드">통합</span>':'';
-      return `<tr>
+      return `<tr${isExcluded?' class="cw-excluded"':''}>
+        <td><input class="cw-exclude-check" type="checkbox"${isExcluded?' checked':''}${canExclude?'':' disabled'} aria-label="${htmlSafe(r.n||r.mat||'품목')} 오차 제외" title="${canExclude?'이 품목의 오차를 적중률 시뮬레이션에서 제외':'계획이 없어 적중률 산식에 포함되지 않는 품목'}" onchange="toggleChDrillExcluded(this.dataset.key,this.checked)" data-key="${htmlSafe(rowKey)}"></td>
         <td class="l" style="color:var(--muted);font-weight:400;">${htmlSafe(r.mat||'—')}</td>
         <td class="l cw-item" title="${htmlSafe(r.n||'')}"><button class="link-btn item-ellipsis" title="${htmlSafe(r.n||'')} · 판매계획 보정 상세 보기" style="border:0;background:none;color:var(--navy);font-weight:900;cursor:pointer;padding:0;text-align:left;" onclick="event.stopPropagation();openPlanAdjustModalByKey('${hitRowKey(r).replace(/'/g,'&#39;')}','${String(monthKey).replace(/'/g,'&#39;')}')">${htmlSafe(r.n||'')}</button>${daiso}</td>
         <td style="font-weight:800;color:var(--navy);">${r.hierarchy||getHierarchyForMat(r.mat)||'—'}</td>
@@ -9061,6 +9089,7 @@ function renderChDrill(){
       <strong>실적 합계</strong>는 오차율분석 원천의 계획 0·실적 행도 포함하고, <strong>WAPE·차이합계</strong>는 계획이 있는 행만 계산합니다 ·
       <strong>합계 행의 차이는 Σ|차이|</strong>(초과·미달 상쇄 없음)라 오차율 × 계획과 일치합니다 ·
       아래 '판매계획 보정 대상 리스트'와 같은 집계(계획 0인 행 제외)를 씁니다 · <strong>품목명을 누르면 같은 판매계획 보정 상세 팝업</strong>이 열립니다<br>
+      <strong>제외</strong>를 체크하면 해당 품목의 |차이|만 적중률 시뮬레이션에서 뺍니다. 실제 계획·실적·오차율 원본은 바뀌지 않습니다 ·
       <strong>조치의견은 팝업에서 선택한 월별로 저장됩니다</strong> — 입력 중에도 자동 저장되고, 상단 <strong>저장</strong> 버튼으로 현재 팝업의 의견을 한 번에 확정할 수 있습니다. 8월과 9월 의견은 서로 덮어쓰지 않고 이력으로 누적됩니다
       (합계 행은 <strong>채널 조치의견</strong>, 위 오차율 표의 당월 채널 칸과 연동)
     </div>`;
@@ -11313,7 +11342,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
 
 <!-- 채널×월 오차 상세 모달 (채널별 오차율 표에서 셀/채널명 클릭) -->
 <div id="chDrillModal" class="sku-modal-overlay" style="display:none;" onclick="if(event.target===this)closeChDrill()">
-  <div class="sku-modal" style="width:min(1480px,97vw);">
+  <div class="sku-modal" style="width:min(1680px,98vw);">
     <div class="sku-modal-header" id="chDrillHeader"></div>
     <div class="sku-modal-body" id="chDrillBody"></div>
   </div>
