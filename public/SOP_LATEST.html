@@ -9005,7 +9005,7 @@ function renderChDrill(){
       <span style="font-size:15px;font-weight:900;color:var(--navy);">${ch} · ${moLabel} 오차 상세</span>
       <span class="tag ${wape==null?'gray':wape<30?'g':wape<50?'y':'r'}" style="font-size:12px;">WAPE ${wape==null?'—':wape.toFixed(1)+'%'}</span>
       <span style="font-size:11px;color:var(--muted);">계획 ${fmt(plan)}${unit} · 차이합계 ${fmt(absSum)}${unit} · ${rows.length.toLocaleString()}개 SKU</span>
-      <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid #cbd5e1;border-radius:5px;background:#f8fafc;font-size:11px;font-weight:800;color:var(--navy);">현재 적중률 ${currentHit==null?'—':currentHit.toFixed(1)+'%'} <span style="color:var(--muted);">→</span> 오차 제외 시 ${simulatedHit==null?'—':simulatedHit.toFixed(1)+'%'}${hitGain!=null&&hitGain>0?` <span style="color:var(--green);">(+${hitGain.toFixed(1)}%p)</span>`:''}</span>
+      <span style="display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid #d4a900;border-radius:6px;background:#fff3a3;font-size:14px;font-weight:900;color:#6d5200;line-height:1.2;box-shadow:0 1px 2px rgba(109,82,0,.12);">현재 적중률 ${currentHit==null?'—':currentHit.toFixed(1)+'%'} <span style="font-size:17px;color:#8a6900;">→</span> 오차 제외 시 ${simulatedHit==null?'—':simulatedHit.toFixed(1)+'%'}${hitGain!=null&&hitGain>0?` <span style="color:#0a6b36;">(+${hitGain.toFixed(1)}%p)</span>`:''}</span>
       ${excludedRows.length?`<button onclick="clearChDrillExcluded()" style="height:25px;border:1px solid var(--border);background:#fff;border-radius:5px;padding:0 8px;font-size:10.5px;font-weight:700;cursor:pointer;">제외 ${excludedRows.length}개 해제</button>`:''}
     </div>
     <div style="display:flex;align-items:center;gap:6px;">
