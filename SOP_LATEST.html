@@ -382,6 +382,8 @@ body{font-family:'Pretendard Variable','Apple SD Gothic Neo','맑은 고딕',san
 .chwape-drill tr.cw-excluded td{background:#f1f5fb;}
 .chwape-drill tr.cw-excluded td:first-child{box-shadow:inset 3px 0 0 var(--navy);}
 .chwape-drill .cw-exclude-check{width:16px;height:16px;accent-color:var(--navy);cursor:pointer;vertical-align:middle;}
+.chwape-drill .cw-sim-abs{width:76px;box-sizing:border-box;border:1px solid #d4a900;border-radius:4px;background:#fffbe1;padding:3px 5px;text-align:right;font:inherit;font-weight:900;color:#6d5200;}
+.chwape-drill .cw-sim-abs:focus{outline:2px solid rgba(212,169,0,.28);outline-offset:1px;}
 /* 1차 팝업의 적중률은 품목마다 박스를 만들지 않고 열 전체를 하나의 진한 빨강 외곽선으로 묶는다. */
 .chwape-drill th.cw-hit-col{background:#fff7f7;color:#7f1724;font-weight:900;border-top:2px solid #8b1e2d!important;
   border-left:2px solid #8b1e2d!important;border-right:2px solid #8b1e2d!important;border-bottom:1px solid #c98b92!important;}
@@ -8933,7 +8935,7 @@ function openChDrill(ch,monthKey){
   const latestData=[...months].reverse().find(m=>m.hasData);
   const mk=monthKey||latestData?.key||months[months.length-1]?.key;
   if(!mk){alert('오차율 분석 데이터가 없습니다.');return;}
-  chDrillState={ch,monthKey:mk,excluded:[]};
+  chDrillState={ch,monthKey:mk,excluded:[],manualAbs:null};
   renderChDrill();
   const ov=document.getElementById('chDrillModal');
   if(ov) ov.style.display='flex';
@@ -8945,19 +8947,28 @@ function closeChDrill(){
 }
 function setChDrillMonth(mk){
   if(!chDrillState) return;
-  chDrillState={...chDrillState,monthKey:mk,excluded:[]};
+  chDrillState={...chDrillState,monthKey:mk,excluded:[],manualAbs:null};
   renderChDrill();
 }
 function toggleChDrillExcluded(key,checked){
   if(!chDrillState) return;
   const excluded=new Set(chDrillState.excluded||[]);
   if(checked) excluded.add(key); else excluded.delete(key);
-  chDrillState={...chDrillState,excluded:[...excluded]};
+  chDrillState={...chDrillState,excluded:[...excluded],manualAbs:null};
   renderChDrill();
 }
-function clearChDrillExcluded(){
-  if(!chDrillState?.excluded?.length) return;
-  chDrillState={...chDrillState,excluded:[]};
+function setChDrillManualAbs(raw){
+  if(!chDrillState) return;
+  const value=String(raw??'').replace(/,/g,'').trim();
+  const amount=Number(value);
+  if(!value||!Number.isFinite(amount)||amount<0){ renderChDrill(); return; }
+  // 직접 입력은 최종 차이합계를 가정하는 방식이다. 개별 품목 선택과 섞지 않는다.
+  chDrillState={...chDrillState,excluded:[],manualAbs:amount};
+  renderChDrill();
+}
+function clearChDrillSimulation(){
+  if(!chDrillState||(chDrillState.manualAbs==null&&!chDrillState.excluded?.length)) return;
+  chDrillState={...chDrillState,excluded:[],manualAbs:null};
   renderChDrill();
 }
 function saveChDrillMemos(){
@@ -8996,7 +9007,10 @@ function renderChDrill(){
   const excluded=new Set(chDrillState.excluded||[]);
   const excludedRows=eligibleRows.filter(r=>excluded.has(hitRowKey(r)));
   const removedAbs=excludedRows.reduce((s,r)=>s+Math.abs(Number(r.diff)||0),0);
-  const simulatedWape=plan>0?Math.max(0,absSum-removedAbs)/plan*100:null;
+  const selectedAbs=Math.max(0,absSum-removedAbs);
+  const manualAbs=chDrillState.manualAbs!=null&&Number.isFinite(Number(chDrillState.manualAbs))&&Number(chDrillState.manualAbs)>=0?Number(chDrillState.manualAbs):null;
+  const simulatedAbs=manualAbs==null?selectedAbs:manualAbs;
+  const simulatedWape=plan>0?simulatedAbs/plan*100:null;
   const currentHit=hitRateFromWape(wape);
   const simulatedHit=hitRateFromWape(simulatedWape);
   const hitGain=currentHit==null||simulatedHit==null?null:simulatedHit-currentHit;
@@ -9006,7 +9020,7 @@ function renderChDrill(){
       <span class="tag ${wape==null?'gray':wape<30?'g':wape<50?'y':'r'}" style="font-size:12px;">WAPE ${wape==null?'—':wape.toFixed(1)+'%'}</span>
       <span style="font-size:11px;color:var(--muted);">계획 ${fmt(plan)}${unit} · 차이합계 ${fmt(absSum)}${unit} · ${rows.length.toLocaleString()}개 SKU</span>
       <span style="display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid #d4a900;border-radius:6px;background:#fff3a3;font-size:14px;font-weight:900;color:#6d5200;line-height:1.2;box-shadow:0 1px 2px rgba(109,82,0,.12);">현재 적중률 ${currentHit==null?'—':currentHit.toFixed(1)+'%'} <span style="font-size:17px;color:#8a6900;">→</span> 오차 제외 시 ${simulatedHit==null?'—':simulatedHit.toFixed(1)+'%'}${hitGain!=null&&hitGain>0?` <span style="color:#0a6b36;">(+${hitGain.toFixed(1)}%p)</span>`:''}</span>
-      ${excludedRows.length?`<button onclick="clearChDrillExcluded()" style="height:25px;border:1px solid var(--border);background:#fff;border-radius:5px;padding:0 8px;font-size:10.5px;font-weight:700;cursor:pointer;">제외 ${excludedRows.length}개 해제</button>`:''}
+      ${(excludedRows.length||manualAbs!=null)?`<button onclick="clearChDrillSimulation()" style="height:25px;border:1px solid var(--border);background:#fff;border-radius:5px;padding:0 8px;font-size:10.5px;font-weight:700;cursor:pointer;">시뮬레이션 해제</button>`:''}
     </div>
     <div style="display:flex;align-items:center;gap:6px;">
       <select onchange="setChDrillMonth(this.value)" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-size:11px;font-weight:700;">
@@ -9051,7 +9065,7 @@ function renderChDrill(){
       <td title="품목별 최근 3개월 평균 판매는 합계 행에서 다시 합산하지 않습니다">—</td>
       <td title="품목별 최근 6개월 평균 판매는 합계 행에서 다시 합산하지 않습니다">—</td>
       <td>${fmt(plan)}</td><td>${fmt(actualTotal)}</td>
-      <td title="Σ|차이| · 초과·미달을 상쇄하지 않고 절대값으로 합산 (오차율의 분자와 동일)">${fmt(absSum)}</td>
+      <td title="클릭해 원하는 최종 차이합계를 입력하면 적중률을 시뮬레이션합니다. 실제 원본 값은 바뀌지 않습니다"><input class="cw-sim-abs" type="text" inputmode="decimal" aria-label="시뮬레이션 차이합계" value="${fmt(simulatedAbs)}" onchange="setChDrillManualAbs(this.value)"><span style="display:block;margin-top:3px;font-size:9px;font-weight:800;color:#8a6900;">시뮬레이션</span></td>
       <td>${wape==null?'—':wape.toFixed(1)+'%'}</td>
       <td class="cw-hit-col${isHitClamped(simulatedWape)?' cw-hit0':''}" title="현재 ${currentHit==null?'—':currentHit.toFixed(1)+'%'} · 선택 품목 오차 제외 시 ${simulatedHit==null?'—':simulatedHit.toFixed(1)+'%'}">${simulatedHit==null?'—':simulatedHit.toFixed(1)+'%'}</td>
       <td class="cw-sep">100.0%</td>
@@ -9089,7 +9103,7 @@ function renderChDrill(){
       <strong>실적 합계</strong>는 오차율분석 원천의 계획 0·실적 행도 포함하고, <strong>WAPE·차이합계</strong>는 계획이 있는 행만 계산합니다 ·
       <strong>합계 행의 차이는 Σ|차이|</strong>(초과·미달 상쇄 없음)라 오차율 × 계획과 일치합니다 ·
       아래 '판매계획 보정 대상 리스트'와 같은 집계(계획 0인 행 제외)를 씁니다 · <strong>품목명을 누르면 같은 판매계획 보정 상세 팝업</strong>이 열립니다<br>
-      <strong>제외</strong>를 체크하면 해당 품목의 |차이|만 적중률 시뮬레이션에서 뺍니다. 실제 계획·실적·오차율 원본은 바뀌지 않습니다 ·
+      <strong>제외</strong>를 체크하면 해당 품목의 |차이|만 적중률 시뮬레이션에서 뺍니다. 또는 합계 행의 노란 <strong>시뮬레이션 차이합계</strong>를 직접 입력해 원하는 최종 차이금액의 적중률을 볼 수 있습니다. 두 방식은 섞지 않으며, 실제 계획·실적·오차율 원본은 바뀌지 않습니다 ·
       <strong>조치의견은 팝업에서 선택한 월별로 저장됩니다</strong> — 입력 중에도 자동 저장되고, 상단 <strong>저장</strong> 버튼으로 현재 팝업의 의견을 한 번에 확정할 수 있습니다. 8월과 9월 의견은 서로 덮어쓰지 않고 이력으로 누적됩니다
       (합계 행은 <strong>채널 조치의견</strong>, 위 오차율 표의 당월 채널 칸과 연동)
     </div>`;
