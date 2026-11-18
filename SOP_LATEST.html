@@ -9037,12 +9037,25 @@ function renderChDrill(){
   const currentHit=hitRateFromWape(wape);
   const simulatedHit=hitRateFromWape(simulatedWape);
   const hitGain=currentHit==null||simulatedHit==null?null:simulatedHit-currentHit;
+  // 전체 적중률은 같은 월·같은 단위의 전체 |차이| 합에서 이 채널 시뮬레이션의 증감분만 반영한다.
+  const totalCell=data?.totalCells?.[monthKey];
+  const totalPlan=Number(totalCell?.plan)||0;
+  const totalAbs=Number(totalCell?.abs)||0;
+  const globalWape=totalPlan>0?totalAbs/totalPlan*100:null;
+  const globalSimulatedAbs=totalPlan>0?Math.max(0,totalAbs-(absSum-simulatedAbs)):null;
+  const globalSimulatedWape=globalSimulatedAbs==null?null:globalSimulatedAbs/totalPlan*100;
+  const globalHit=hitRateFromWape(globalWape);
+  const globalSimulatedHit=hitRateFromWape(globalSimulatedWape);
+  const globalGain=globalHit==null||globalSimulatedHit==null?null:globalSimulatedHit-globalHit;
   const moLabel=months.find(m=>m.key===monthKey)?.label||monthKey;
   head.innerHTML=`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <span style="font-size:15px;font-weight:900;color:var(--navy);">${ch} · ${moLabel} 오차 상세</span>
       <span class="tag ${wape==null?'gray':wape<30?'g':wape<50?'y':'r'}" style="font-size:12px;">WAPE ${wape==null?'—':wape.toFixed(1)+'%'}</span>
       <span style="font-size:11px;color:var(--muted);">계획 ${fmt(plan)}${unit} · 차이합계 ${fmt(absSum)}${unit} · ${rows.length.toLocaleString()}개 SKU</span>
-      <span style="display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid #d4a900;border-radius:6px;background:#fff3a3;font-size:14px;font-weight:900;color:#6d5200;line-height:1.2;box-shadow:0 1px 2px rgba(109,82,0,.12);">현재 적중률 ${currentHit==null?'—':currentHit.toFixed(1)+'%'} <span style="font-size:17px;color:#8a6900;">→</span> 오차 제외 시 ${simulatedHit==null?'—':simulatedHit.toFixed(1)+'%'}${hitGain!=null&&hitGain>0?` <span style="color:#0a6b36;">(+${hitGain.toFixed(1)}%p)</span>`:''}</span>
+      <span style="display:inline-flex;flex-direction:column;gap:4px;padding:7px 11px;border:1px solid #d4a900;border-radius:6px;background:#fff3a3;font-size:14px;font-weight:900;color:#6d5200;line-height:1.25;box-shadow:0 1px 2px rgba(109,82,0,.12);">
+        <span><span style="display:inline-block;width:52px;font-size:11px;color:#8a6900;">채널</span>현재 ${currentHit==null?'—':currentHit.toFixed(1)+'%'} <span style="font-size:17px;color:#8a6900;">→</span> ${simulatedHit==null?'—':simulatedHit.toFixed(1)+'%'}${hitGain!=null&&hitGain>0?` <span style="color:#0a6b36;">(+${hitGain.toFixed(1)}%p)</span>`:''}</span>
+        <span style="padding-top:4px;border-top:1px solid rgba(138,105,0,.25);"><span style="display:inline-block;width:52px;font-size:11px;color:#8a6900;">전체</span>현재 ${globalHit==null?'—':globalHit.toFixed(1)+'%'} <span style="font-size:17px;color:#8a6900;">→</span> ${globalSimulatedHit==null?'—':globalSimulatedHit.toFixed(1)+'%'}${globalGain!=null&&globalGain!==0?` <span style="color:${globalGain>0?'#0a6b36':'var(--red)'};">(${globalGain>0?'+':''}${globalGain.toFixed(1)}%p)</span>`:''}</span>
+      </span>
       ${(excludedRows.length||manualAbs!=null)?`<button onclick="clearChDrillSimulation()" style="height:25px;border:1px solid var(--border);background:#fff;border-radius:5px;padding:0 8px;font-size:10.5px;font-weight:700;cursor:pointer;">시뮬레이션 해제</button>`:''}
     </div>
     <div style="display:flex;align-items:center;gap:6px;">
